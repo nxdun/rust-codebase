@@ -17,3 +17,5 @@ target
 
 /target
 .env
+**/postman/**
+**/.postman/**
