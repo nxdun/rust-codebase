@@ -1,24 +1,24 @@
-.PHONY: default dev run build release test fmt fmt-check lint clean check help i c f
+.PHONY: default dev run dockerl dockerp build release test fmt fmt-check lint clean check help
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
-.DEFAULT_GOAL := help
+.DEFAULT_GOAL := dev
 
 PROJECT_NAME ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
 PROJECT_VERSION ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)
 BUILD_TIME := $(shell date -u '+%Y-%m-%d_%H:%M:%S_UTC')
 
-VERBOSE ?= true
-TARGET_DIR := target
-BUILD_ARTIFACTS := $(TARGET_DIR)
+IMAGE ?= nadzu
+TAG ?= local
+MODE ?= debug
+BIN ?= nadzu
+PORT ?= 8080
+PLATFORMS ?= linux/amd64,linux/arm64
 
-i: run
-c: check
-f: fmt
+VERBOSE ?= true
 
 RED := \033[0;31m
 GREEN := \033[0;32m
-YELLOW := \033[1;33m
 BLUE := \033[0;34m
 NC := \033[0m
 
@@ -38,7 +38,7 @@ else
 	NPROCS := $(shell nproc)
 endif
 
-help:
+help: ## Show available targets
 	$(SAY) "$(BLUE)Available targets for $(PROJECT_NAME) v$(PROJECT_VERSION):$(NC)"
 	$(Q)grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
@@ -46,21 +46,50 @@ help:
 # -----------------------
 # Development
 # -----------------------
-run:
+dev: ## Run application locally with cargo
 	$(SAY) "$(GREEN)Starting Rust server...$(NC)"
 	$(Q)cargo run
 
-dev: run ## Alias for run
+# -----------------------
+# Docker
+# -----------------------
+d-local: ## Local image build (host architecture, BuildKit --load)
+	$(SAY) "$(BLUE)Building Docker image $(IMAGE):$(TAG) [$(MODE)]...$(NC)"
+	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
+		--load \
+		--progress=plain \
+		--build-arg MODE=$(MODE) \
+		--build-arg BIN=$(BIN) \
+		--tag $(IMAGE):$(TAG) \
+		.
+
+d-build: ## Production multi-platform build (release + zstd output)
+	$(SAY) "$(BLUE)Building production Docker image $(IMAGE):$(TAG) for $(PLATFORMS)...$(NC)"
+	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
+		--platform $(PLATFORMS) \
+		--progress=plain \
+		--build-arg MODE=release \
+		--build-arg BIN=$(BIN) \
+		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
+		.
+
+docker: d-local ## Quick Run built image for quick testing
+	$(SAY) "$(GREEN)Running Docker image $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
+	$(Q)docker run --rm -p $(PORT):8080 \
+		-e APP_HOST=0.0.0.0 \
+		-e APP_ENV=development \
+		-e RUST_LOG=info \
+		$(IMAGE):$(TAG)
 
 # -----------------------
 # Build
 # -----------------------
-build:
+build: ## Build debug binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
 	$(Q)cargo build
 	$(SAY) "$(GREEN)✓ Debug build completed at $(BUILD_TIME)$(NC)"
 
-release:
+release: ## Build release binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
 	$(Q)cargo build --release
 	$(SAY) "$(GREEN)✓ Release build completed at $(BUILD_TIME)$(NC)"
