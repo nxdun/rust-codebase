@@ -9,7 +9,7 @@ pub struct AppConfig {
     pub allowed_origins: Option<String>,
 }
 
-// Configuration struct for the application
+// Configuration struct for the application.
 impl AppConfig {
     pub fn from_env() -> Self {
         Self {
