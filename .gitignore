@@ -19,3 +19,5 @@ target
 .env
 **/postman/**
 **/.postman/**
+.github/**/*.md
+.vscode/
