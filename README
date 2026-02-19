@@ -1,6 +1,6 @@
 ## Nadzu-back (Rust Backend)
 
-Minimal API server built with `axum`, structured in modules for routes, controllers, models, middleware, and custom extractors.
+API server built with `axum`, structured in modules for routes, controllers, models, middleware, and custom extractors.
 
 ### Current Scope
 
@@ -32,7 +32,7 @@ flowchart TD
 		O -->|error| Q[422 JSON error payload]
 ```
 
-### How the Code Works (Beginner-Friendly)
+### How the Code Works
 
 #### 1) Program Entry
 

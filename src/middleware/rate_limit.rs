@@ -10,7 +10,7 @@ use tracing::info;
 
 // Rate Limit configuration
 const RATE_LIMITER_PER_SECOND: u64 = 10;
-const RATE_LIMITER_BURST_SIZE: u32 = 20;
+const RATE_LIMITER_BURST_SIZE: u32 = 30;
 
 pub fn is_production() -> bool {
     AppConfig::from_env().env == "production"
