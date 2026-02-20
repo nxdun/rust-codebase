@@ -1,5 +1,5 @@
 .PHONY: help \
-	ldev lbuild lrelease ldeploy ltest ltdd lfmt lfmt-check llint lcheck lprepush lclean \
+	ldev lbuild lrelease ldeploy ltest ltdd f lfmt-check llint lcheck lprepush lclean \
 	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean
 .DELETE_ON_ERROR:
 
@@ -78,7 +78,7 @@ ltdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
 	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
 	$(Q)cargo test --locked -- --nocapture $(TEST)
 
-lfmt: ## Format code
+f: ## Format code
 	$(SAY) "$(BLUE)Formatting code...$(NC)"
 	$(Q)cargo fmt
 
