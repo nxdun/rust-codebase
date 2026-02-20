@@ -46,7 +46,7 @@ pub async fn run() {
     let cors_layer = build_cors(&config);
 
     // 6. Compose router, state, and middleware stack (including rate limiter)
-    let app = apply_rate_limiter!(routes::create_router())
+    let app = apply_rate_limiter!(routes::create_router(), &config)
         .with_state(state.clone())
         .layer(trace_layer)
         .layer(cors_layer)
