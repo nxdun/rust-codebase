@@ -32,6 +32,7 @@ pub struct YtdlpJob {
     pub format_selector: String,
     pub started_at_unix: Option<u64>,
     pub finished_at_unix: Option<u64>,
+    pub files: Option<Vec<String>>,
     pub error: Option<String>,
 }
 

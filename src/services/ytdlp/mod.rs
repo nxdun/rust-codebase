@@ -76,13 +76,14 @@ impl YtdlpManager {
             format_selector: format_selector.clone(),
             started_at_unix: None,
             finished_at_unix: None,
+            files: None,
             error: None,
         };
 
         self.jobs.insert(id.clone(), job.clone());
 
         if let Err(error) = output_dir_res {
-            self.update_status(&id, YtdlpJobStatus::Failed, Some(error), None, Some(now_unix()));
+            self.update_status(&id, YtdlpJobStatus::Failed, Some(error), None, None, Some(now_unix()));
             return self
                 .get_job(&id)
                 .await
@@ -131,13 +132,14 @@ impl YtdlpManager {
     async fn run_job(&self, id: String, payload: YtdlpDownloadRequest, output_dir: String, selector: String) {
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
-        self.update_status(&id, YtdlpJobStatus::Running, None, Some(now_unix()), None);
+        self.update_status(&id, YtdlpJobStatus::Running, None, None, Some(now_unix()), None);
 
         if let Err(err) = fs::create_dir_all(&output_dir).await {
             self.update_status(
                 &id,
                 YtdlpJobStatus::Failed,
                 Some(format!("failed to create output directory: {err}")),
+                None,
                 None,
                 Some(now_unix()),
             );
@@ -158,7 +160,7 @@ impl YtdlpManager {
             .arg("-P")
             .arg(&output_dir)
             .arg("-o")
-            .arg(self.build_output_template(payload.custom_name_prefix.as_deref()))
+            .arg(format!("{}.%(ext)s", id))
             .arg(payload.url.clone());
 
         if let Some(cookies_file) = self.cfg.ytdlp_cookies_file.as_deref() {
@@ -185,7 +187,17 @@ impl YtdlpManager {
         let output = cmd.output().await;
         match output {
             Ok(result) if result.status.success() => {
-                self.update_status(&id, YtdlpJobStatus::Finished, None, None, Some(now_unix()));
+                let mut files = Vec::new();
+                if let Ok(mut entries) = fs::read_dir(&output_dir).await {
+                    while let Ok(Some(entry)) = entries.next_entry().await {
+                        if let Ok(file_name) = entry.file_name().into_string() {
+                            if file_name.starts_with(&id) {
+                                files.push(file_name);
+                            }
+                        }
+                    }
+                }
+                self.update_status(&id, YtdlpJobStatus::Finished, None, Some(files), None, Some(now_unix()));
                 info!("finished ytdlp job id={id}");
             }
             Ok(result) => {
@@ -196,6 +208,7 @@ impl YtdlpManager {
                     YtdlpJobStatus::Failed,
                     Some(format!("yt-dlp failed ({}): {}", result.status, error_message)),
                     None,
+                    None,
                     Some(now_unix()),
                 );
             }
@@ -204,6 +217,7 @@ impl YtdlpManager {
                     &id,
                     YtdlpJobStatus::Failed,
                     Some(format!("failed to spawn yt-dlp: {err}")),
+                    None,
                     None,
                     Some(now_unix()),
                 );
@@ -217,6 +231,7 @@ impl YtdlpManager {
         id: &str,
         status: YtdlpJobStatus,
         error: Option<String>,
+        files: Option<Vec<String>>,
         started_at: Option<u64>,
         finished_at: Option<u64>,
     ) {
@@ -224,6 +239,9 @@ impl YtdlpManager {
             job.status = status;
             if let Some(err) = error {
                 job.error = Some(err);
+            }
+            if let Some(f) = files {
+                job.files = Some(f);
             }
             if let Some(ts) = started_at {
                 job.started_at_unix = Some(ts);
