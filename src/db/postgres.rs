@@ -32,7 +32,7 @@ pub async fn init_db() -> DbPool {
         Ok(_) => info!("PostgreSQL connection established successfully"),
         Err(e) => {
             error!("Failed to connect to PostgreSQL: {}", e);
-            panic!("Databse connection failed");
+            panic!("Database connection failed");
         }
     }
 
