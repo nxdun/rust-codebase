@@ -6,9 +6,13 @@ API server built with `axum`, structured in modules for routes, controllers, mod
 
 - ❌ (implemented)PostgreSQL disabled for now
 - ❌ (implemented)Redis disabled for now
-- ✅ yt-dlp integration for media downloading
-- ✅ CORS configuration
-- ✅ Logging with `tracing`
+- yt-dlp integration for media downloading
+- CORS configuration
+- Logging with `tracing`
+
+### future plans
+- Add WS support for real-time job status updates
+- Add captcha solving support for for downloading
 
 ## ❤️ Thanks
 
