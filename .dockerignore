@@ -1,0 +1,32 @@
+# Build outputs
+target/
+
+# VCS and editor metadata
+.git/
+.github/
+.vscode/
+.idea/
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+*.bak
+*.pid
+tmp/
+temp/
+
+# Environment and local overrides
+.env
+.env.*
+
+# Documentation and non-source files
+README*
+LICENSE*
+docs/
+
+# Docker and build tool configs
+Dockerfile*
+docker-compose*.yml
+Makefile
