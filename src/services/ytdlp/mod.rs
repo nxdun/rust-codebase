@@ -26,21 +26,31 @@ impl YtdlpManager {
         };
 
         // Spawn cleanup task: remove jobs older than 1 hour (3600s)
-        let cleanup_manager = manager.clone();
+        // Use a weak reference to avoid keeping the manager alive indefinitely
+        let jobs_weak = Arc::downgrade(&manager.jobs);
+        
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600)); // Run every 10 mins
             loop {
                 interval.tick().await;
-                let now = now_unix();
-                let retention_period = 3600; 
 
-                // DashMap defines retain which is efficient for removal
-                cleanup_manager.jobs.retain(|_, job| {
-                    match job.finished_at_unix {
-                        Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
-                        None => true, // Keep running/queued jobs
-                    }
-                });
+                // Check if the improved YtdlpManager still exists
+                if let Some(jobs) = jobs_weak.upgrade() {
+                    let now = now_unix();
+                    let retention_period = 3600; 
+
+                    // DashMap defines retain which is efficient for removal
+                    jobs.retain(|_, job| {
+                        match job.finished_at_unix {
+                            Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
+                            None => true, // Keep running/queued jobs
+                        }
+                    });
+                } else {
+                    // Manager was dropped, stop the background task
+                    info!("YtdlpManager dropped, stopping cleanup task");
+                    break;
+                }
             }
         });
 
