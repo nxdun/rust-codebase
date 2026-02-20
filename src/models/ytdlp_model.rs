@@ -9,7 +9,6 @@ pub struct YtdlpDownloadRequest {
     pub format: Option<String>,
     pub folder: Option<String>,
     pub custom_name_prefix: Option<String>,
-    pub cookies_file: Option<String>,
     pub ytdlp_path: Option<String>,
 }
 

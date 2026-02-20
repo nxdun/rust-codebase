@@ -151,11 +151,7 @@ impl YtdlpManager {
             .arg(self.build_output_template(payload.custom_name_prefix.as_deref()))
             .arg(payload.url.clone());
 
-        if let Some(cookies_file) = payload
-            .cookies_file
-            .as_deref()
-            .or(self.cfg.ytdlp_cookies_file.as_deref())
-        {
+        if let Some(cookies_file) = self.cfg.ytdlp_cookies_file.as_deref() {
             cmd.arg("--cookies").arg(cookies_file);
         }
 
