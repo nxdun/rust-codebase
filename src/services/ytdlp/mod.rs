@@ -1,28 +1,50 @@
 use crate::{config::AppConfig, models::ytdlp_model::*};
-use std::{collections::HashMap, path::PathBuf, sync::Arc, time::SystemTime};
+use dashmap::DashMap;
+use std::{path::PathBuf, sync::Arc, time::SystemTime};
 use tokio::{
     fs,
     process::Command,
-    sync::{RwLock, Semaphore},
+    sync::Semaphore,
 };
 use tracing::{error, info};
 
 #[derive(Clone)]
 pub struct YtdlpManager {
     cfg: Arc<AppConfig>,
-    jobs: Arc<RwLock<HashMap<String, YtdlpJob>>>,
+    jobs: Arc<DashMap<String, YtdlpJob>>,
     semaphore: Arc<Semaphore>,
     job_counter: Arc<std::sync::atomic::AtomicU64>,
 }
 
 impl YtdlpManager {
     pub fn new(cfg: Arc<AppConfig>) -> Self {
-        Self {
+        let manager = Self {
             semaphore: Arc::new(Semaphore::new(cfg.max_concurrent_downloads)),
             cfg,
-            jobs: Arc::new(RwLock::new(HashMap::new())),
+            jobs: Arc::new(DashMap::new()),
             job_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
-        }
+        };
+
+        // Spawn cleanup task: remove jobs older than 1 hour (3600s)
+        let cleanup_manager = manager.clone();
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600)); // Run every 10 mins
+            loop {
+                interval.tick().await;
+                let now = now_unix();
+                let retention_period = 3600; 
+
+                // DashMap defines retain which is efficient for removal
+                cleanup_manager.jobs.retain(|_, job| {
+                    match job.finished_at_unix {
+                        Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
+                        None => true, // Keep running/queued jobs
+                    }
+                });
+            }
+        });
+
+        manager
     }
 
     pub async fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
@@ -31,26 +53,26 @@ impl YtdlpManager {
         let quality = payload.quality.clone().unwrap_or_else(|| "best".to_string());
         let format = payload.format.clone().unwrap_or_else(|| "any".to_string());
         let format_selector = resolve_format_selector(&format, &quality);
-        let output_dir = self
-            .resolve_output_dir(payload.folder.as_deref())
-            .unwrap_or_else(|_| self.cfg.download_dir.clone());
+        
+        // Resolve output directory once here
+        let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
+        let output_dir = output_dir_res.clone().unwrap_or_else(|_| self.cfg.download_dir.clone());
 
         let job = YtdlpJob {
             id: id.clone(),
             url: normalized_url.clone(),
             status: YtdlpJobStatus::Queued,
-            output_dir,
-            format_selector,
+            output_dir: output_dir.clone(),
+            format_selector: format_selector.clone(),
             started_at_unix: None,
             finished_at_unix: None,
             error: None,
         };
 
-        self.jobs.write().await.insert(id.clone(), job.clone());
+        self.jobs.insert(id.clone(), job.clone());
 
-        if let Err(error) = self.resolve_output_dir(payload.folder.as_deref()) {
-            self.update_status(&id, YtdlpJobStatus::Failed, Some(error), None, Some(now_unix()))
-                .await;
+        if let Err(error) = output_dir_res {
+            self.update_status(&id, YtdlpJobStatus::Failed, Some(error), None, Some(now_unix()));
             return self
                 .get_job(&id)
                 .await
@@ -62,18 +84,19 @@ impl YtdlpManager {
 
         let manager = self.clone();
         tokio::spawn(async move {
-            manager.run_job(id, payload).await;
+            // Pass the pre-resolved output_dir to run_job
+            manager.run_job(id, payload, output_dir, format_selector).await;
         });
 
         job
     }
 
     pub async fn get_job(&self, id: &str) -> Option<YtdlpJob> {
-        self.jobs.read().await.get(id).cloned()
+        self.jobs.get(id).map(|entry| entry.value().clone())
     }
 
     pub async fn list_jobs(&self) -> Vec<YtdlpJob> {
-        self.jobs.read().await.values().cloned().collect()
+        self.jobs.iter().map(|entry| entry.value().clone()).collect()
     }
 
     fn next_id(&self) -> String {
@@ -95,29 +118,10 @@ impl YtdlpManager {
         Ok(dir.to_string_lossy().to_string())
     }
 
-    async fn run_job(&self, id: String, payload: YtdlpDownloadRequest) {
+    async fn run_job(&self, id: String, payload: YtdlpDownloadRequest, output_dir: String, selector: String) {
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
-        let quality = payload.quality.clone().unwrap_or_else(|| "best".to_string());
-        let format = payload.format.clone().unwrap_or_else(|| "any".to_string());
-        let selector = resolve_format_selector(&format, &quality);
-        let output_dir = match self.resolve_output_dir(payload.folder.as_deref()) {
-            Ok(path) => path,
-            Err(error_message) => {
-                self.update_status(
-                    &id,
-                    YtdlpJobStatus::Failed,
-                    Some(error_message),
-                    None,
-                    Some(now_unix()),
-                )
-                .await;
-                return;
-            }
-        };
-
-        self.update_status(&id, YtdlpJobStatus::Running, None, Some(now_unix()), None)
-            .await;
+        self.update_status(&id, YtdlpJobStatus::Running, None, Some(now_unix()), None);
 
         if let Err(err) = fs::create_dir_all(&output_dir).await {
             self.update_status(
@@ -126,8 +130,7 @@ impl YtdlpManager {
                 Some(format!("failed to create output directory: {err}")),
                 None,
                 Some(now_unix()),
-            )
-            .await;
+            );
             return;
         }
 
@@ -176,8 +179,7 @@ impl YtdlpManager {
         let output = cmd.output().await;
         match output {
             Ok(result) if result.status.success() => {
-                self.update_status(&id, YtdlpJobStatus::Finished, None, None, Some(now_unix()))
-                    .await;
+                self.update_status(&id, YtdlpJobStatus::Finished, None, None, Some(now_unix()));
                 info!("finished ytdlp job id={id}");
             }
             Ok(result) => {
@@ -189,8 +191,7 @@ impl YtdlpManager {
                     Some(format!("yt-dlp failed ({}): {}", result.status, error_message)),
                     None,
                     Some(now_unix()),
-                )
-                .await;
+                );
             }
             Err(err) => {
                 self.update_status(
@@ -199,14 +200,13 @@ impl YtdlpManager {
                     Some(format!("failed to spawn yt-dlp: {err}")),
                     None,
                     Some(now_unix()),
-                )
-                .await;
+                );
                 error!("failed ytdlp job id={id}: {err}");
             }
         }
     }
 
-    async fn update_status(
+    fn update_status(
         &self,
         id: &str,
         status: YtdlpJobStatus,
@@ -214,8 +214,7 @@ impl YtdlpManager {
         started_at: Option<u64>,
         finished_at: Option<u64>,
     ) {
-        let mut jobs = self.jobs.write().await;
-        if let Some(job) = jobs.get_mut(id) {
+        if let Some(mut job) = self.jobs.get_mut(id) {
             job.status = status;
             if let Some(err) = error {
                 job.error = Some(err);
