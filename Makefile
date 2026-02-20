@@ -1,5 +1,5 @@
 .PHONY: help \
-	ldev lbuild lrelease ldeploy ltest lfmt llint lcheck lclean \
+	ldev lbuild lrelease ldeploy ltest ltdd lfmt lfmt-check llint lcheck lprepush lclean \
 	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean
 .DELETE_ON_ERROR:
 
@@ -69,13 +69,22 @@ ldeploy: lrelease ## Run release binary locally
 	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
 	$(Q)./target/release/$(BIN)
 
-ltest: ## Run tests
+ltest: ## Run all tests (locked + all targets)
 	$(SAY) "$(BLUE)Running tests...$(NC)"
-	$(Q)cargo test
+	$(Q)cargo test --locked --all-targets
+
+ltdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
+	$(SAY) "$(BLUE)Running focused test for TDD...$(NC)"
+	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
+	$(Q)cargo test --locked -- --nocapture $(TEST)
 
 lfmt: ## Format code
 	$(SAY) "$(BLUE)Formatting code...$(NC)"
 	$(Q)cargo fmt
+
+lfmt-check: ## Check formatting (CI-safe)
+	$(SAY) "$(BLUE)Checking format...$(NC)"
+	$(Q)cargo fmt -- --check
 
 llint: ## Lint code (clippy)
 	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
@@ -85,10 +94,15 @@ lcheck: ## Run format check + type check + lint
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 	$(SAY) "$(BLUE)Running cargo check...$(NC)"
-	$(Q)cargo check
+	$(Q)cargo check --locked
 	$(SAY) "$(BLUE)Running clippy...$(NC)"
-	$(Q)cargo clippy --all-targets --all-features -- -D warnings
+	$(Q)cargo clippy --locked --all-targets --all-features -- -D warnings
+	$(SAY) "$(BLUE)Running tests...$(NC)"
+	$(Q)cargo test --locked --all-targets
 	$(SAY) "$(GREEN)✓ All local checks passed$(NC)"
+
+lprepush: lcheck ## Strict gate before pushing changes
+	$(SAY) "$(GREEN)✓ Pre-push gate passed$(NC)"
 
 lclean: ## Clean local build artifacts
 	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"

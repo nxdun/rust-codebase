@@ -43,10 +43,10 @@ pub fn create_prod_limiter() -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddlewar
 #[macro_export]
 macro_rules! apply_rate_limiter {
     ($router:expr, $config:expr) => {{
-        if crate::middleware::rate_limit::is_production($config) {
-            $router.layer(crate::middleware::rate_limit::create_prod_limiter())
+        if $crate::middleware::rate_limit::is_production($config) {
+            $router.layer($crate::middleware::rate_limit::create_prod_limiter())
         } else {
-            $router.layer(crate::middleware::rate_limit::create_dev_limiter())
+            $router.layer($crate::middleware::rate_limit::create_dev_limiter())
         }
     }};
 }

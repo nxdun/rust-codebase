@@ -1,11 +1,7 @@
 use crate::{config::AppConfig, models::ytdlp_model::*};
 use dashmap::DashMap;
 use std::{path::PathBuf, sync::Arc, time::SystemTime};
-use tokio::{
-    fs,
-    process::Command,
-    sync::Semaphore,
-};
+use tokio::{fs, process::Command, sync::Semaphore};
 use tracing::{error, info};
 
 #[derive(Clone)]
@@ -28,7 +24,7 @@ impl YtdlpManager {
         // Spawn cleanup task: remove jobs older than 1 hour (3600s)
         // Use a weak reference to avoid keeping the manager alive indefinitely
         let jobs_weak = Arc::downgrade(&manager.jobs);
-        
+
         tokio::spawn(async move {
             let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600)); // Run every 10 mins
             loop {
@@ -37,7 +33,7 @@ impl YtdlpManager {
                 // Check if the improved YtdlpManager still exists
                 if let Some(jobs) = jobs_weak.upgrade() {
                     let now = now_unix();
-                    let retention_period = 3600; 
+                    let retention_period = 3600;
 
                     // DashMap defines retain which is efficient for removal
                     jobs.retain(|_, job| {
@@ -60,13 +56,18 @@ impl YtdlpManager {
     pub async fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
         let normalized_url = normalize_youtube_url(&payload.url);
         let id = self.next_id();
-        let quality = payload.quality.clone().unwrap_or_else(|| "best".to_string());
+        let quality = payload
+            .quality
+            .clone()
+            .unwrap_or_else(|| "best".to_string());
         let format = payload.format.clone().unwrap_or_else(|| "any".to_string());
         let format_selector = resolve_format_selector(&format, &quality);
-        
+
         // Resolve output directory once here
         let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
-        let output_dir = output_dir_res.clone().unwrap_or_else(|_| self.cfg.download_dir.clone());
+        let output_dir = output_dir_res
+            .clone()
+            .unwrap_or_else(|_| self.cfg.download_dir.clone());
 
         let job = YtdlpJob {
             id: id.clone(),
@@ -83,7 +84,14 @@ impl YtdlpManager {
         self.jobs.insert(id.clone(), job.clone());
 
         if let Err(error) = output_dir_res {
-            self.update_status(&id, YtdlpJobStatus::Failed, Some(error), None, None, Some(now_unix()));
+            self.update_status(
+                &id,
+                YtdlpJobStatus::Failed,
+                Some(error),
+                None,
+                None,
+                Some(now_unix()),
+            );
             return self
                 .get_job(&id)
                 .await
@@ -96,7 +104,9 @@ impl YtdlpManager {
         let manager = self.clone();
         tokio::spawn(async move {
             // Pass the pre-resolved output_dir to run_job
-            manager.run_job(id, payload, output_dir, format_selector).await;
+            manager
+                .run_job(id, payload, output_dir, format_selector)
+                .await;
         });
 
         job
@@ -107,7 +117,10 @@ impl YtdlpManager {
     }
 
     pub async fn list_jobs(&self) -> Vec<YtdlpJob> {
-        self.jobs.iter().map(|entry| entry.value().clone()).collect()
+        self.jobs
+            .iter()
+            .map(|entry| entry.value().clone())
+            .collect()
     }
 
     fn next_id(&self) -> String {
@@ -129,10 +142,23 @@ impl YtdlpManager {
         Ok(dir.to_string_lossy().to_string())
     }
 
-    async fn run_job(&self, id: String, payload: YtdlpDownloadRequest, output_dir: String, selector: String) {
+    async fn run_job(
+        &self,
+        id: String,
+        payload: YtdlpDownloadRequest,
+        output_dir: String,
+        selector: String,
+    ) {
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
-        self.update_status(&id, YtdlpJobStatus::Running, None, None, Some(now_unix()), None);
+        self.update_status(
+            &id,
+            YtdlpJobStatus::Running,
+            None,
+            None,
+            Some(now_unix()),
+            None,
+        );
 
         if let Err(err) = fs::create_dir_all(&output_dir).await {
             self.update_status(
@@ -172,11 +198,7 @@ impl YtdlpManager {
             .ytdlp_pot_provider_url
             .as_deref()
             .map(to_pot_extractor_args);
-        let extractor_args = self
-            .cfg
-            .ytdlp_extractor_args
-            .clone()
-            .or(pot_extractor_args);
+        let extractor_args = self.cfg.ytdlp_extractor_args.clone().or(pot_extractor_args);
 
         if let Some(extractor_args) = extractor_args {
             cmd.arg("--extractor-args").arg(extractor_args);
@@ -190,14 +212,21 @@ impl YtdlpManager {
                 let mut files = Vec::new();
                 if let Ok(mut entries) = fs::read_dir(&output_dir).await {
                     while let Ok(Some(entry)) = entries.next_entry().await {
-                        if let Ok(file_name) = entry.file_name().into_string() {
-                            if file_name.starts_with(&id) {
-                                files.push(file_name);
-                            }
+                        if let Ok(file_name) = entry.file_name().into_string()
+                            && file_name.starts_with(&id)
+                        {
+                            files.push(file_name);
                         }
                     }
                 }
-                self.update_status(&id, YtdlpJobStatus::Finished, None, Some(files), None, Some(now_unix()));
+                self.update_status(
+                    &id,
+                    YtdlpJobStatus::Finished,
+                    None,
+                    Some(files),
+                    None,
+                    Some(now_unix()),
+                );
                 info!("finished ytdlp job id={id}");
             }
             Ok(result) => {
@@ -206,7 +235,10 @@ impl YtdlpManager {
                 self.update_status(
                     &id,
                     YtdlpJobStatus::Failed,
-                    Some(format!("yt-dlp failed ({}): {}", result.status, error_message)),
+                    Some(format!(
+                        "yt-dlp failed ({}): {}",
+                        result.status, error_message
+                    )),
                     None,
                     None,
                     Some(now_unix()),
@@ -249,14 +281,6 @@ impl YtdlpManager {
             if let Some(ts) = finished_at {
                 job.finished_at_unix = Some(ts);
             }
-        }
-    }
-
-    fn build_output_template(&self, prefix: Option<&str>) -> String {
-        let base = &self.cfg.ytdlp_output_template;
-        match prefix.filter(|v| !v.is_empty()) {
-            Some(value) => format!("{value}.{base}"),
-            None => base.to_string(),
         }
     }
 }
@@ -349,5 +373,53 @@ fn extract_shorts_id(url: &str) -> Option<&str> {
         None
     } else {
         Some(video_id)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{extract_shorts_id, normalize_youtube_url, resolve_format_selector};
+
+    #[test]
+    fn extract_shorts_id_works() {
+        let id = extract_shorts_id("https://youtube.com/shorts/5g4pLlLH6P4?si=abc");
+        assert_eq!(id, Some("5g4pLlLH6P4"));
+    }
+
+    #[test]
+    fn normalize_shorts_to_watch_url() {
+        let normalized =
+            normalize_youtube_url("https://youtube.com/shorts/5g4pLlLH6P4?si=jaO5XHPymDBSc5uL");
+        assert_eq!(
+            normalized,
+            "https://www.youtube.com/watch?v=5g4pLlLH6P4".to_string()
+        );
+    }
+
+    #[test]
+    fn keep_watch_url_unchanged() {
+        let source = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+        assert_eq!(normalize_youtube_url(source), source.to_string());
+    }
+
+    #[test]
+    fn resolve_mp4_best_selector() {
+        let selector = resolve_format_selector("mp4", "best");
+        assert_eq!(
+            selector,
+            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]"
+        );
+    }
+
+    #[test]
+    fn resolve_audio_only_selector() {
+        let selector = resolve_format_selector("mp4", "audio");
+        assert_eq!(selector, "bestaudio/best");
+    }
+
+    #[test]
+    fn resolve_custom_selector() {
+        let selector = resolve_format_selector("custom:bestvideo+bestaudio/best", "best");
+        assert_eq!(selector, "bestvideo+bestaudio/best");
     }
 }

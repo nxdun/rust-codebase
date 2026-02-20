@@ -1,13 +1,13 @@
 use axum::{
     Json,
-    extract::{Path, State, Request},
+    extract::{Path, Request, State},
     http::StatusCode,
     response::IntoResponse,
 };
 use serde_json::json;
+use std::path::PathBuf;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
-use std::path::PathBuf;
 
 use crate::{
     extractors::validated_json::ValidatedJson,
@@ -62,14 +62,10 @@ pub async fn download_file(
         .await
         .ok_or((StatusCode::NOT_FOUND, "Job not found".to_string()))?;
 
-    let filename = job
-        .files
-        .as_ref()
-        .and_then(|files| files.first())
-        .ok_or((
-            StatusCode::CONFLICT,
-            "No downloadable file yet for this job".to_string(),
-        ))?;
+    let filename = job.files.as_ref().and_then(|files| files.first()).ok_or((
+        StatusCode::CONFLICT,
+        "No downloadable file yet for this job".to_string(),
+    ))?;
 
     let file_path = PathBuf::from(&job.output_dir).join(filename);
 

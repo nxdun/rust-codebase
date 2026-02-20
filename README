@@ -14,6 +14,14 @@ API server built with `axum`, structured in modules for routes, controllers, mod
 - Add WS support for real-time job status updates
 - Add captcha solving support for for downloading
 
+## Development workflow
+
+- Format code: `make lfmt`
+- Check formatting only: `make lfmt-check`
+- Run strict local gate (fmt + check + clippy + tests): `make lcheck`
+- Run focused TDD test: `make ltdd TEST=<test_name>`
+- Run full pre-push gate: `make lprepush`
+
 ## ❤️ Thanks
 
 ### Third-Party Components

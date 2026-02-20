@@ -8,7 +8,6 @@ pub struct YtdlpDownloadRequest {
     pub quality: Option<String>,
     pub format: Option<String>,
     pub folder: Option<String>,
-    pub custom_name_prefix: Option<String>,
 }
 
 #[derive(Debug, Serialize, Clone)]
