@@ -19,12 +19,12 @@ where
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state).await.map_err(|err| {
+            tracing::error!("Failed to deserialize payload: {}", err);
             (
                 StatusCode::BAD_REQUEST,
                 Json(json!({
                     "status": 400,
-                    "message": "Invalid JSON",
-                    "error": err.to_string(),
+                    "message": "Invalid JSON format",
                 })),
             )
                 .into_response()
