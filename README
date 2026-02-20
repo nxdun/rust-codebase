@@ -9,3 +9,10 @@ API server built with `axum`, structured in modules for routes, controllers, mod
 - ✅ yt-dlp integration for media downloading
 - ✅ CORS configuration
 - ✅ Logging with `tracing`
+
+## ❤️ Thanks
+
+### Third-Party Components
+
+- yt-dlp [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+    - bgutil-ytdlp-pot-provider-rs [bgutil-ytdlp-pot-provider-rs](https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs)
