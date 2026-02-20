@@ -1,8 +1,10 @@
-.PHONY: default dev run dockerl dockerp build release test fmt fmt-check lint clean check help
+.PHONY: help \
+	ldev lbuild lrelease ldeploy ltest lfmt llint lcheck lclean \
+	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
-.DEFAULT_GOAL := dev
+.DEFAULT_GOAL := ldev
 
 PROJECT_NAME ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
 PROJECT_VERSION ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)
@@ -13,7 +15,10 @@ TAG ?= local
 MODE ?= debug
 BIN ?= nadzu
 PORT ?= 8080
+CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
+PLATFORM ?= linux/amd64
+BUILDER_NAME ?= zstd-builder
 
 VERBOSE ?= true
 
@@ -44,28 +49,81 @@ help: ## Show available targets
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(GREEN)%-15s$(NC) %s\n", $$1, $$2}'
 
 # -----------------------
-# Development
+# Local (non-Docker)
 # -----------------------
-dev: ## Run application locally with cargo
+ldev: ## Run app locally (cargo run)
 	$(SAY) "$(GREEN)Starting Rust server...$(NC)"
 	$(Q)cargo run
+
+lbuild: ## Build debug binary
+	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
+	$(Q)cargo build
+	$(SAY) "$(GREEN)✓ Debug build completed at $(BUILD_TIME)$(NC)"
+
+lrelease: ## Build release binary
+	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
+	$(Q)cargo build --release
+	$(SAY) "$(GREEN)✓ Release build completed at $(BUILD_TIME)$(NC)"
+
+ldeploy: lrelease ## Run release binary locally
+	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
+	$(Q)./target/release/$(BIN)
+
+ltest: ## Run tests
+	$(SAY) "$(BLUE)Running tests...$(NC)"
+	$(Q)cargo test
+
+lfmt: ## Format code
+	$(SAY) "$(BLUE)Formatting code...$(NC)"
+	$(Q)cargo fmt
+
+llint: ## Lint code (clippy)
+	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
+	$(Q)cargo clippy --all-targets --all-features -- -D warnings
+
+lcheck: ## Run format check + type check + lint
+	$(SAY) "$(BLUE)Checking format...$(NC)"
+	$(Q)cargo fmt -- --check
+	$(SAY) "$(BLUE)Running cargo check...$(NC)"
+	$(Q)cargo check
+	$(SAY) "$(BLUE)Running clippy...$(NC)"
+	$(Q)cargo clippy --all-targets --all-features -- -D warnings
+	$(SAY) "$(GREEN)✓ All local checks passed$(NC)"
+
+lclean: ## Clean local build artifacts
+	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"
+	$(Q)cargo clean
 
 # -----------------------
 # Docker
 # -----------------------
-d-local: ## Local image build (host architecture, BuildKit --load)
+dbuilder: ## Create/use dedicated buildx builder and bootstrap it
+	$(SAY) "$(BLUE)Setting up Docker buildx builder $(BUILDER_NAME)...$(NC)"
+	-$(Q)docker buildx create --name $(BUILDER_NAME) --use
+	$(Q)docker buildx use $(BUILDER_NAME)
+	$(Q)docker buildx inspect --bootstrap
+
+dbuilder-rm: ## Remove dedicated buildx builder
+	$(SAY) "$(RED)Removing Docker buildx builder $(BUILDER_NAME)...$(NC)"
+	-$(Q)docker buildx rm $(BUILDER_NAME)
+
+dbuild: dbuilder ## Local image build (BuildKit --load + zstd)
 	$(SAY) "$(BLUE)Building Docker image $(IMAGE):$(TAG) [$(MODE)]...$(NC)"
 	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
+		--builder $(BUILDER_NAME) \
 		--load \
+		--output type=docker,compression=zstd \
+		--platform $(PLATFORM) \
 		--progress=plain \
 		--build-arg MODE=$(MODE) \
 		--build-arg BIN=$(BIN) \
 		--tag $(IMAGE):$(TAG) \
 		.
 
-d-build: ## Production multi-platform build (release + zstd output)
+dbuild-prod: dbuilder ## Multi-platform release image build
 	$(SAY) "$(BLUE)Building production Docker image $(IMAGE):$(TAG) for $(PLATFORMS)...$(NC)"
 	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
+		--builder $(BUILDER_NAME) \
 		--platform $(PLATFORMS) \
 		--progress=plain \
 		--build-arg MODE=release \
@@ -73,57 +131,17 @@ d-build: ## Production multi-platform build (release + zstd output)
 		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
 		.
 
-docker: d-local ## Quick Run built image for quick testing
+drun: dbuild ## Build and run local Docker image
 	$(SAY) "$(GREEN)Running Docker image $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)docker run --rm -p $(PORT):8080 \
-		-e APP_HOST=0.0.0.0 \
-		-e APP_ENV=development \
-		-e RUST_LOG=info \
+	$(Q)docker run --rm --name $(CONTAINER_NAME) -p $(PORT):8080 \
 		$(IMAGE):$(TAG)
 
-# -----------------------
-# Build
-# -----------------------
-build: ## Build debug binary
-	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
-	$(Q)cargo build
-	$(SAY) "$(GREEN)✓ Debug build completed at $(BUILD_TIME)$(NC)"
+dstop: ## Stop running local Docker container
+	-$(Q)docker rm -f $(CONTAINER_NAME)
 
-release: ## Build release binary
-	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
-	$(Q)cargo build --release
-	$(SAY) "$(GREEN)✓ Release build completed at $(BUILD_TIME)$(NC)"
+dlogs: ## Tail logs of running local Docker container
+	$(Q)docker logs -f $(CONTAINER_NAME)
 
-# -----------------------
-# Code Quality
-# -----------------------
-test: ## Run tests (cargo test)
-	$(SAY) "$(BLUE)Running tests...$(NC)"
-	$(Q)cargo test
-
-fmt: ## Format code (cargo fmt)
-	$(SAY) "$(BLUE)Formatting code...$(NC)"
-	$(Q)cargo fmt
-
-fmt-check: ## Check formatting (cargo fmt -- --check)
-	$(SAY) "$(BLUE)Checking format...$(NC)"
-	$(Q)cargo fmt -- --check
-
-lint: ## Lint code (cargo clippy -D warnings)
-	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
-	$(Q)cargo clippy --all-targets --all-features -- -D warnings
-
-check: ## Run check + fmt-check + lint in parallel
-	$(SAY) "$(BLUE)Running checks in parallel ($(NPROCS) threads)...$(NC)"
-	$(Q)$(MAKE) -j$(NPROCS) cargo-check fmt-check lint
-	$(SAY) "$(GREEN)✓ All checks passed$(NC)"
-
-cargo-check: ## Type-check project (cargo check)
-	$(Q)cargo check
-
-# -----------------------
-# Utilities
-# -----------------------
-clean: ## Clean build artifacts (cargo clean)
-	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"
-	$(Q)cargo clean
+dclean: ## Remove dangling Docker build cache and images
+	$(SAY) "$(RED)Cleaning Docker system artifacts...$(NC)"
+	$(Q)docker system prune -af

@@ -1,5 +1,6 @@
 use crate::{
-    apply_rate_limiter, config::AppConfig, middleware::cors::build_cors, routes, state::AppState,
+    apply_rate_limiter, config::AppConfig, middleware::cors::build_cors, routes,
+    services::ytdlp::YtdlpManager, state::AppState,
 };
 use axum::serve;
 use dotenvy::dotenv;
@@ -34,8 +35,10 @@ pub async fn run() {
 
     // 4. Load application config and build shared app state
     let config = Arc::new(AppConfig::from_env());
+    let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
     let state = AppState {
         config: config.clone(),
+        ytdlp_manager,
     };
 
     // 5. Build middleware layers (compression + CORS)

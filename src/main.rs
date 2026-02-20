@@ -6,6 +6,7 @@ mod extractors;
 mod middleware;
 mod models;
 mod routes;
+mod services;
 mod state;
 
 // entry point

@@ -1,0 +1,47 @@
+use serde::{Deserialize, Serialize};
+use validator::Validate;
+
+#[derive(Debug, Deserialize, Validate, Clone)]
+pub struct YtdlpDownloadRequest {
+    #[validate(url(message = "url must be a valid URL"))]
+    pub url: String,
+    pub quality: Option<String>,
+    pub format: Option<String>,
+    pub folder: Option<String>,
+    pub custom_name_prefix: Option<String>,
+    pub cookies_file: Option<String>,
+    pub ytdlp_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct YtdlpEnqueueResponse {
+    pub status: &'static str,
+    pub message: &'static str,
+    pub job: YtdlpJob,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct YtdlpListResponse {
+    pub jobs: Vec<YtdlpJob>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+pub struct YtdlpJob {
+    pub id: String,
+    pub url: String,
+    pub status: YtdlpJobStatus,
+    pub output_dir: String,
+    pub format_selector: String,
+    pub started_at_unix: Option<u64>,
+    pub finished_at_unix: Option<u64>,
+    pub error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Clone)]
+#[serde(rename_all = "snake_case")]
+pub enum YtdlpJobStatus {
+    Queued,
+    Running,
+    Finished,
+    Failed,
+}
