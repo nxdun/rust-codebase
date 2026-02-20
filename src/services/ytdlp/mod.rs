@@ -144,7 +144,7 @@ impl YtdlpManager {
             return;
         }
 
-        let mut cmd = Command::new(payload.ytdlp_path.as_deref().unwrap_or(&self.cfg.ytdlp_path));
+        let mut cmd = Command::new(&self.cfg.ytdlp_path);
 
         cmd.arg("--newline")
             .arg("--no-warnings")
