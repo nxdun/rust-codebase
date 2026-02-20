@@ -10,7 +10,7 @@ impl Health {
     pub fn ok() -> Self {
         Health {
             status: "ok",
-            version: "0.1.0",
+            version: env!("CARGO_PKG_VERSION"),
         }
     }
 }
