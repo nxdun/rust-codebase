@@ -21,6 +21,9 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 validator = { version = "0.20", features = ["derive"] }
 
+[dev-dependencies]
+http-body-util = "0.1"
+
 [profile.release]
 lto = true
 codegen-units = 1

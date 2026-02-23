@@ -1,13 +1,4 @@
-mod app;
-mod config;
-mod controllers;
-mod error;
-mod extractors;
-mod middleware;
-mod models;
-mod routes;
-mod services;
-mod state;
+use nadzu::app;
 
 // entry point
 #[tokio::main]

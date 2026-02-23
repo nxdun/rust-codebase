@@ -1,5 +1,4 @@
 use axum::{Json, extract::State, http::StatusCode};
-use reqwest::Client;
 use serde_json::json;
 
 use crate::{models::captcha_model::*, state::AppState};
@@ -36,7 +35,7 @@ pub async fn verify_captcha(
     };
 
     let google_url = "https://www.google.com/recaptcha/api/siteverify";
-    let client = Client::new();
+    let client = &state.http_client;
 
     let response = match client
         .post(google_url)
@@ -61,9 +60,7 @@ pub async fn verify_captcha(
             tracing::error!("Failed to parse captcha provider response: {}", e);
             return (
                 StatusCode::BAD_GATEWAY,
-                Json(
-                    json!({ "message": "Failed to parse captcha provider response" }),
-                ),
+                Json(json!({ "message": "Failed to parse captcha provider response" })),
             );
         }
     };
@@ -75,7 +72,7 @@ pub async fn verify_captcha(
         )
     } else {
         (
-            StatusCode::BAD_REQUEST,
+            StatusCode::UNPROCESSABLE_ENTITY,
             Json(json!({ "message": "CapToken is invalid", "success": false })),
         )
     }

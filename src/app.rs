@@ -36,9 +36,11 @@ pub async fn run() {
     // 4. Load application config and build shared app state
     let config = Arc::new(AppConfig::from_env());
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
+    let http_client = reqwest::Client::new();
     let state = AppState {
         config: config.clone(),
         ytdlp_manager,
+        http_client,
     };
 
     // 5. Build middleware layers (compression + CORS)
