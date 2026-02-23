@@ -145,7 +145,7 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
 		.
 
-drun: ## Build and run local Docker image
+drun: ## Run local Docker Compose stack
 	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
 	$(Q)docker-compose --env-file .env up -d
 	
