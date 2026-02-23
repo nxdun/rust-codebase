@@ -40,6 +40,7 @@ pub async fn verify_captcha(
 
     let response = match client
         .post(google_url)
+        .timeout(std::time::Duration::from_secs(10))
         .form(&[("secret", secret_key), ("response", captcha.as_str())])
         .send()
         .await
