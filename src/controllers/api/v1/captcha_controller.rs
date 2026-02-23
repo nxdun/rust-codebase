@@ -49,7 +49,7 @@ pub async fn verify_captcha(
             tracing::error!("Failed to send captcha verification request: {}", e);
             return (
                 StatusCode::BAD_GATEWAY,
-                Json(json!({ "message": "Failed to verify CapToken", "error": e.to_string() })),
+                Json(json!({ "message": "Failed to verify CapToken" })),
             );
         }
     };
@@ -61,7 +61,7 @@ pub async fn verify_captcha(
             return (
                 StatusCode::BAD_GATEWAY,
                 Json(
-                    json!({ "message": "Failed to parse captcha provider response", "error": e.to_string() }),
+                    json!({ "message": "Failed to parse captcha provider response" }),
                 ),
             );
         }
