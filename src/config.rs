@@ -13,6 +13,7 @@ pub struct AppConfig {
     pub ytdlp_extractor_args: Option<String>,
     pub ytdlp_pot_provider_url: Option<String>,
     pub max_concurrent_downloads: usize,
+    pub captcha_secret_key: Option<String>,
 }
 
 // Configuration struct for the application.
@@ -36,6 +37,7 @@ impl AppConfig {
                 .unwrap_or_else(|_| "3".into())
                 .parse()
                 .unwrap_or(3),
+            captcha_secret_key: env::var("CAPTCHA_SECRET_KEY").ok()
         }
     }
 
