@@ -37,7 +37,7 @@ impl AppConfig {
                 .unwrap_or_else(|_| "3".into())
                 .parse()
                 .unwrap_or(3),
-            captcha_secret_key: env::var("CAPTCHA_SECRET_KEY").ok()
+            captcha_secret_key: env::var("CAPTCHA_SECRET_KEY").ok(),
         }
     }
 

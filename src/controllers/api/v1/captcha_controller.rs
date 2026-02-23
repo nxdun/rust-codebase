@@ -1,8 +1,4 @@
-use axum::{
-    Json,
-    extract::State,
-    http::StatusCode,
-};
+use axum::{Json, extract::State, http::StatusCode};
 use reqwest::Client;
 use serde_json::json;
 
@@ -18,7 +14,7 @@ pub async fn verify_captcha(
             None
         } else {
             Some(trimmed)
-        } 
+        }
     }) {
         Some(token) => token,
         None => {
@@ -64,7 +60,9 @@ pub async fn verify_captcha(
             tracing::error!("Failed to parse captcha provider response: {}", e);
             return (
                 StatusCode::BAD_GATEWAY,
-                Json(json!({ "message": "Failed to parse captcha provider response", "error": e.to_string() })),
+                Json(
+                    json!({ "message": "Failed to parse captcha provider response", "error": e.to_string() }),
+                ),
             );
         }
     };
