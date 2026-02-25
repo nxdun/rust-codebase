@@ -1,28 +1,30 @@
-## Nadzu-back (Rust Backend)
+## Nadzu-API
 
-API server built with `axum`, structured in modules for routes, controllers, models, middleware, and custom extractors.
+Backend API Built with Rust.
 
-### Current Scope
+### Implemetation Scope
 
-- ❌ (implemented)PostgreSQL disabled for now
-- ❌ (implemented)Redis disabled for now
-- yt-dlp integration for media downloading
+- ❌ (implemented) PostgreSQL disabled for now
+- ❌ (implemented) Redis disabled for now
+- yt-dlp + pot integration for media downloading
 - CORS configuration
 - Logging with `tracing`
+
+### Technical Details
+- Dockerized
+    - DockerFile
+        - stage 1 : 
 
 ### future plans
 - Add WS support for real-time job status updates
 - Add captcha solving support for for downloading
+- public Changelog
 
 ## Development workflow
 
-- Format code: `make lfmt`
-- Check formatting only: `make lfmt-check`
-- Run strict local gate (fmt + check + clippy + tests): `make lcheck`
-- Run focused TDD test: `make ltdd TEST=<test_name>`
-- Run full pre-push gate: `make lprepush`
 
-## ❤️ Thanks
+
+## Thanks to 🙌
 
 ### Third-Party Components
 
