@@ -20,7 +20,7 @@ pub struct AppConfig {
 impl AppConfig {
     pub fn from_env() -> Self {
         Self {
-            name: env::var("APP_NAME").unwrap_or_else(|_| "nadzu_api".into()),
+            name: env::var("APP_NAME").unwrap_or_else(|_| "nadzu-backend".into()),
             env: env::var("APP_ENV").unwrap_or_else(|_| "production".into()),
             host: env::var("APP_HOST").unwrap_or_else(|_| "127.0.0.1".into()),
             port: env::var("APP_PORT")
@@ -34,7 +34,7 @@ impl AppConfig {
             ytdlp_extractor_args: env::var("YTDLP_EXTRACTOR_ARGS").ok(),
             ytdlp_pot_provider_url: env::var("YTDLP_POT_PROVIDER_URL").ok(),
             max_concurrent_downloads: env::var("MAX_CONCURRENT_DOWNLOADS")
-                .unwrap_or_else(|_| "3".into())
+                .unwrap_or_else(|_| "1".into())
                 .parse()
                 .unwrap_or(3),
             captcha_secret_key: env::var("CAPTCHA_SECRET_KEY").ok(),
