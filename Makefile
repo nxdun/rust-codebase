@@ -51,29 +51,29 @@ help: ## Show available targets
 # -----------------------
 # Local (non-Docker)
 # -----------------------
-ldev: ## Run app locally (cargo run)
+dev: ## Run app locally (cargo run)
 	$(SAY) "$(GREEN)Starting Rust server...$(NC)"
 	$(Q)cargo run
 
-lbuild: ## Build debug binary
+build: ## Build debug binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
 	$(Q)cargo build
-	$(SAY) "$(GREEN)✓ Debug build completed at $(BUILD_TIME)$(NC)"
+	$(SAY) "$(GREEN):::Debug build completed at $(BUILD_TIME) :::$(NC)"
 
-lrelease: ## Build release binary
+release: ## Build release binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
 	$(Q)cargo build --release
-	$(SAY) "$(GREEN)✓ Release build completed at $(BUILD_TIME)$(NC)"
+	$(SAY) "$(GREEN):::Release build completed at $(BUILD_TIME) :::$(NC)"
 
-ldeploy: lrelease ## Run release binary locally
+deploy: lrelease ## Run release binary locally
 	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
 	$(Q)./target/release/$(BIN)
 
-ltest: ## Run all tests (locked + all targets)
+test: ## Run all tests (locked + all targets)
 	$(SAY) "$(BLUE)Running tests...$(NC)"
 	$(Q)cargo test --locked --all-targets
 
-ltdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
+tdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
 	$(SAY) "$(BLUE)Running focused test for TDD...$(NC)"
 	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
 	$(Q)cargo test --locked -- --nocapture $(TEST)
@@ -82,15 +82,15 @@ f: ## Format code
 	$(SAY) "$(BLUE)Formatting code...$(NC)"
 	$(Q)cargo fmt
 
-lfmt-check: ## Check formatting (CI-safe)
+format: ## Check formatting
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 
-llint: ## Lint code (clippy)
+lint: ## Lint code (clippy)
 	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
 	$(Q)cargo clippy --all-targets --all-features -- -D warnings
 
-lcheck: ## Run format check + type check + lint
+check: ## Run format check + type check + lint
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 	$(SAY) "$(BLUE)Running cargo check...$(NC)"
@@ -99,12 +99,10 @@ lcheck: ## Run format check + type check + lint
 	$(Q)cargo clippy --locked --all-targets --all-features -- -D warnings
 	$(SAY) "$(BLUE)Running tests...$(NC)"
 	$(Q)cargo test --locked --all-targets
-	$(SAY) "$(GREEN)✓ All local checks passed$(NC)"
+	$(SAY) "$(GREEN):::All local checks passed:::$(NC)"
 
-lprepush: lcheck ## Strict gate before pushing changes
-	$(SAY) "$(GREEN)✓ Pre-push gate passed$(NC)"
 
-lclean: ## Clean local build artifacts
+clean: ## Clean local build artifacts
 	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"
 	$(Q)cargo clean
 

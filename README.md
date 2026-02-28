@@ -11,6 +11,9 @@ Backend API Built with Rust.
 - Logging with `tracing`
 
 ### Technical Details
+
+> note: First Builds will be slow, but subsequent builds will be faster due to caching.
+
 - Dockerized
     - DockerFile
         - stage 1 : 
