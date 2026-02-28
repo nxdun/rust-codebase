@@ -4,7 +4,7 @@
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
-.DEFAULT_GOAL := ldev
+.DEFAULT_GOAL := dev
 
 PROJECT_NAME ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
 PROJECT_VERSION ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)
