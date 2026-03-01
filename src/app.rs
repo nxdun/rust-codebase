@@ -1,5 +1,8 @@
 use crate::{
-    apply_rate_limiter, config::AppConfig, middleware::cors::build_cors, routes,
+    apply_rate_limiter,
+    config::AppConfig,
+    middleware::cors::build_cors,
+    routes,
     services::ytdlp::YtdlpManager, state::AppState,
 };
 use axum::serve;
@@ -48,7 +51,7 @@ pub async fn run() {
     let cors_layer = build_cors(&config);
 
     // 6. Compose router, state, and middleware stack (including rate limiter)
-    let app = apply_rate_limiter!(routes::create_router(), &config)
+    let app = apply_rate_limiter!(routes::create_router(state.clone()), &config)
         .with_state(state.clone())
         .layer(trace_layer)
         .layer(cors_layer)
@@ -75,7 +78,7 @@ pub async fn run() {
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
-        .expect("failed to install Ctrl+C handler");
+        .expect("fail : CTRL+C graceful shutdown signal");
     println!();
-    info!("graceful shutdown initiated");
+    info!("ready : graceful shutdown ");
 }
