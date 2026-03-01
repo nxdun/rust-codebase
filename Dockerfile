@@ -1,40 +1,52 @@
 # syntax=docker/dockerfile:1.7
 
-ARG RUST_IMAGE=rust:alpine
+ARG RUST_IMAGE=lukemathwalker/cargo-chef:latest-rust-alpine
 ARG BIN=nadzu
 ARG BGUTIL_VERSION=0.7.2
 
-FROM ${RUST_IMAGE} AS base
+FROM ${RUST_IMAGE} AS chef
 RUN apk add --no-cache \
     build-base \
     musl-dev \
     zstd-dev \
     pkgconfig \
     ca-certificates
-RUN cargo install --locked cargo-chef
 WORKDIR /app
 
-FROM base AS planner
+FROM chef AS planner
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 RUN cargo chef prepare --recipe-path recipe.json
 
-FROM base AS builder
+FROM --platform=$BUILDPLATFORM chef AS builder
+ARG TARGETARCH
 ARG BIN=nadzu
 COPY --from=planner /app/recipe.json recipe.json
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
-    cargo chef cook --release --recipe-path recipe.json
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      RUST_TARGET="aarch64-unknown-linux-musl"; \
+    else \
+      RUST_TARGET="x86_64-unknown-linux-musl"; \
+    fi && \
+    rustup target add $RUST_TARGET && \
+    cargo chef cook --release --target $RUST_TARGET --recipe-path recipe.json
 COPY Cargo.toml Cargo.lock* ./
 COPY src ./src
 RUN --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
     --mount=type=cache,target=/app/target \
     set -e; \
-    cargo build --release --bin "$BIN" && \
-    strip "target/release/$BIN" && \
-    install -D "target/release/$BIN" /out/app
+    if [ "$TARGETARCH" = "arm64" ]; then \
+      RUST_TARGET="aarch64-unknown-linux-musl"; \
+    else \
+      RUST_TARGET="x86_64-unknown-linux-musl"; \
+    fi && \
+    cargo build --release --target $RUST_TARGET --bin "$BIN" && \
+    strip "target/$RUST_TARGET/release/$BIN" && \
+    install -D "target/$RUST_TARGET/release/$BIN" /out/app
+
 
 # Fetch static ffmpeg
 FROM mwader/static-ffmpeg:8.0.1 AS ffmpeg
