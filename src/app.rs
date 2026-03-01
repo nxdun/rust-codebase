@@ -36,9 +36,11 @@ pub async fn run() {
     // 4. Load application config and build shared app state
     let config = Arc::new(AppConfig::from_env());
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
+    let http_client = reqwest::Client::new();
     let state = AppState {
         config: config.clone(),
         ytdlp_manager,
+        http_client,
     };
 
     // 5. Build middleware layers (compression + CORS)
@@ -46,7 +48,7 @@ pub async fn run() {
     let cors_layer = build_cors(&config);
 
     // 6. Compose router, state, and middleware stack (including rate limiter)
-    let app = apply_rate_limiter!(routes::create_router(), &config)
+    let app = apply_rate_limiter!(routes::create_router(state.clone()), &config)
         .with_state(state.clone())
         .layer(trace_layer)
         .layer(cors_layer)
@@ -73,7 +75,7 @@ pub async fn run() {
 async fn shutdown_signal() {
     tokio::signal::ctrl_c()
         .await
-        .expect("failed to install Ctrl+C handler");
+        .expect("fail : CTRL+C graceful shutdown signal");
     println!();
-    info!("graceful shutdown initiated");
+    info!("ready : graceful shutdown ");
 }

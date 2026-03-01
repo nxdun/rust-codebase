@@ -8,11 +8,11 @@ mod api;
 mod health_routes;
 mod validation_routes;
 
-pub fn create_router() -> Router<AppState> {
+pub fn create_router(state: AppState) -> Router<AppState> {
     Router::new()
         .route("/", get(root_handler))
         .merge(health_routes::router())
         .merge(validation_routes::router())
-        .merge(api::v1::router())
+        .merge(api::v1::router(state))
         .fallback(not_found_handler)
 }

@@ -1,7 +1,7 @@
 use crate::config::AppConfig;
 use axum::http::{
     Method,
-    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderName},
 };
 use tower_http::cors::{Any, CorsLayer};
 use tracing::info;
@@ -54,6 +54,11 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
             Method::PATCH,
             Method::DELETE,
         ])
-        .allow_headers([AUTHORIZATION, CONTENT_TYPE, ACCEPT])
+        .allow_headers([
+            AUTHORIZATION,
+            CONTENT_TYPE,
+            ACCEPT,
+            HeaderName::from_static("x-captcha-token"),
+        ])
         .allow_credentials(true)
 }

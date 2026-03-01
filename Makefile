@@ -4,7 +4,7 @@
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
-.DEFAULT_GOAL := ldev
+.DEFAULT_GOAL := dev
 
 PROJECT_NAME ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"name":"\([^"]*\)".*/\1/p' | head -n1)
 PROJECT_VERSION ?= $(shell cargo metadata --no-deps --format-version 1 | sed -n 's/.*"version":"\([^"]*\)".*/\1/p' | head -n1)
@@ -145,11 +145,10 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
 		.
 
-drun: dbuild ## Build and run local Docker image
-	$(SAY) "$(GREEN)Running Docker image $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)docker run --rm --name $(CONTAINER_NAME) -p $(PORT):8080 \
-		$(IMAGE):$(TAG)
-
+drun: ## Run local Docker Compose stack
+	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
+	$(Q)docker-compose --env-file .env up -d
+	
 dstop: ## Stop running local Docker container
 	-$(Q)docker rm -f $(CONTAINER_NAME)
 

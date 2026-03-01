@@ -1,15 +1,16 @@
 services:
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}
-    build:
-      context: .
-      dockerfile: Dockerfile
-      args:
-        MODE: ${MODE:-debug}
-        BIN: ${BIN:-nadzu}
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
+    #   args:
+    #     MODE: ${MODE:-debug}
+    #     BIN: ${BIN:-nadzu}
     environment:
       RUST_LOG: info
       APP_HOST: 0.0.0.0
       APP_ENV: development
+      CAPTCHA_SECRET_KEY: ${CAPTCHA_SECRET_KEY}
     ports:
       - "8080:8080"
