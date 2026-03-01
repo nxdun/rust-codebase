@@ -26,7 +26,7 @@ impl AppConfig {
             port: env::var("APP_PORT")
                 .unwrap_or_else(|_| "8080".into())
                 .parse()
-                .unwrap(),
+                .expect("PORT must be a valid u16"),
             allowed_origins: env::var("ALLOWED_ORIGINS").ok(),
             download_dir: env::var("DOWNLOAD_DIR").unwrap_or_else(|_| "downloads".into()),
             ytdlp_path: env::var("YTDLP_PATH").unwrap_or_else(|_| "yt-dlp".into()),

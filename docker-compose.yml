@@ -1,7 +1,7 @@
 services:
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}
-    # build: # Always Build the image on run
+    # build:
     #   context: .
     #   dockerfile: Dockerfile
     #   args:

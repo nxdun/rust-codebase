@@ -1,31 +1,35 @@
 ## Nadzu-API
 
-Backend API Built with Rust.
+My Personal Backend API built with Rust.  
+Highly focused on concurrency, performance, security, and future-proof design.
 
-### Implemetation Scope
+### Major Functions
+- YouTube videos and Shorts downloading.
+- Anti-abuse measures: IP-based rate limiting, CAPTCHA verification.
 
-- ❌ (implemented) PostgreSQL disabled for now
-- ❌ (implemented) Redis disabled for now
-- yt-dlp + pot integration for media downloading
-- CORS configuration
-- Logging with `tracing`
+### Design and Architecture
+- Clean layered architecture (controllers → services → models)
+- Sharding: DashMap, memory lifecycle: weak references, Tokio semaphore for concurrency control.
+- Makefile-first approach for task automation and consistency.
 
 ### Technical Details
 
 > note: First Builds will be slow, but subsequent builds will be faster due to caching.
 
 - Dockerized
-    - DockerFile
-        - stage 1 : 
+  - Dockerfile
+    - 5 stage build.
+    - Cargo-Chef.
+    - tini.
+  - Docker Compose for local development
 
-### future plans
-- Add WS support for real-time job status updates
-- Add captcha solving support for for downloading
-- public Changelog
+- CI with GitHub Actions
+  - Linting with `cargo clippy`
+  - Testing with `cargo test`
+  - Building with `cargo build`
 
-## Development workflow
-
-
+- Full test coverage capable with `cargo test`
+- Comprehensive Makefile.
 
 ## Thanks to 🙌
 
