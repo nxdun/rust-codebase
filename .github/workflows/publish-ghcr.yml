@@ -46,6 +46,20 @@ jobs:
             PLATFORMS="linux/amd64" \
             PUSH=true
 
+      - name: Wait for SHA tag in GHCR
+        run: |
+          IMAGE_REF="${IMAGE_NAME}:${{ steps.vars.outputs.short_tag }}"
+          for i in {1..20}; do
+            if docker buildx imagetools inspect "${IMAGE_REF}" >/dev/null 2>&1; then
+              echo "Found ${IMAGE_REF}"
+              exit 0
+            fi
+            echo "Waiting for ${IMAGE_REF} to become visible in GHCR... (${i}/20)"
+            sleep 10
+          done
+          echo "Tag not visible in GHCR yet: ${IMAGE_REF}" >&2
+          exit 1
+
       - name: Promote SHA tag to latest
         run: |
           docker buildx imagetools create \
