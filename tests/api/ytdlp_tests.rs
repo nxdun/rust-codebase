@@ -39,7 +39,8 @@ async fn ytdlp_enqueue_fails_when_secret_key_missing() {
                 .header("content-type", "application/json")
                 .header("x-captcha-token", "token")
                 .body(Body::from(
-                    ytdlp_enqueue_request("https://www.youtube.com/watch?v=dQw4w9WgXcQ").to_string(),
+                    ytdlp_enqueue_request("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+                        .to_string(),
                 ))
                 .unwrap(),
         )
@@ -63,7 +64,8 @@ async fn ytdlp_enqueue_fails_when_secret_key_empty() {
                 .header("content-type", "application/json")
                 .header("x-captcha-token", "token")
                 .body(Body::from(
-                    ytdlp_enqueue_request("https://www.youtube.com/watch?v=dQw4w9WgXcQ").to_string(),
+                    ytdlp_enqueue_request("https://www.youtube.com/watch?v=dQw4w9WgXcQ")
+                        .to_string(),
                 ))
                 .unwrap(),
         )

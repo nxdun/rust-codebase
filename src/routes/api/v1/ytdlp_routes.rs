@@ -1,12 +1,10 @@
 use axum::{
-    middleware,
-    Router,
+    Router, middleware,
     routing::{get, post},
 };
 
 use crate::{
-    controllers::api::v1::ytdlp_controller,
-    middleware::captcha::verify_captcha_token,
+    controllers::api::v1::ytdlp_controller, middleware::captcha::verify_captcha_token,
     state::AppState,
 };
 

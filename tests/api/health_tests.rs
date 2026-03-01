@@ -1,4 +1,7 @@
-use axum::{body::Body, http::{Request, StatusCode}};
+use axum::{
+    body::Body,
+    http::{Request, StatusCode},
+};
 use tower::ServiceExt;
 
 use crate::common::{create_test_app, get_json_body};

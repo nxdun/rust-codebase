@@ -4,11 +4,8 @@ use axum::{
 };
 use http_body_util::BodyExt;
 use nadzu::{
-    config::AppConfig,
-    models::ytdlp_model::YtdlpDownloadRequest,
-    routes::create_router,
-    services::ytdlp::YtdlpManager,
-    state::AppState,
+    config::AppConfig, models::ytdlp_model::YtdlpDownloadRequest, routes::create_router,
+    services::ytdlp::YtdlpManager, state::AppState,
 };
 use serde_json::{Value, json};
 use std::sync::Arc;

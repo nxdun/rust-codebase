@@ -1,8 +1,5 @@
 use crate::{
-    apply_rate_limiter,
-    config::AppConfig,
-    middleware::cors::build_cors,
-    routes,
+    apply_rate_limiter, config::AppConfig, middleware::cors::build_cors, routes,
     services::ytdlp::YtdlpManager, state::AppState,
 };
 use axum::serve;
