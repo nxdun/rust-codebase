@@ -6,6 +6,7 @@ Highly focused on concurrency, performance, security, and future-proof design.
 ### Major Functions
 - YouTube videos and Shorts downloading.
 - Anti-abuse measures: IP-based rate limiting, CAPTCHA verification.
+- Complete Deployment infrastructure for DigitalOcean.
 
 ### Design and Architecture
 - Clean layered architecture (controllers → services → models)
@@ -30,6 +31,11 @@ Highly focused on concurrency, performance, security, and future-proof design.
 
 - Full test coverage capable with `cargo test`
 - Comprehensive Makefile.
+
+### Infrastructure
+
+[![DigitalOcean Referral Badge](https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg)](https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge)
+
 
 ## Thanks to 🙌
 

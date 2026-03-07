@@ -1,0 +1,109 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - jq
+  - iptables-persistent
+
+write_files:
+  - path: /opt/app/.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      CAPTCHA_SECRET_KEY=${captcha_secret_key}
+  - path: /root/.ghcr_token
+    permissions: '0600'
+    owner: root:root
+    content: ${ghcr_pat}
+  - path: /opt/app/startup.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -euxo pipefail
+      
+      echo "==> Starting bash execution"
+
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      
+      apt-get update
+      apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      
+      iptables -A OUTPUT -d 169.254.169.254 -m owner ! --uid-owner root -j DROP
+      netfilter-persistent save
+
+      systemctl enable docker
+      systemctl start docker
+      
+      echo "==> Waiting for DigitalOcean volume to attach..."
+      DEVICE="${volume_device_by_id}"
+      for i in {1..30}; do
+        if [ -b "$DEVICE" ]; then
+          echo "Volume attached!"
+          break
+        fi
+        sleep 2
+      done
+
+      if [ ! -b "$DEVICE" ]; then
+        echo "ERROR: Volume failed to attach after 60 seconds."
+        exit 1
+      fi
+
+      echo "==> Formatting and mounting volume"
+      # Format only if it doesn't already have a filesystem
+      if ! blkid "$DEVICE" >/dev/null 2>&1; then
+        mkfs.ext4 -F "$DEVICE"
+      fi
+
+      mkdir -p "${mount_path}"
+      
+      # Add to fstab and mount
+      UUID=$(blkid -s UUID -o value "$DEVICE")
+      if ! grep -q "$UUID" /etc/fstab; then
+        echo "UUID=$UUID ${mount_path} ext4 defaults,nofail,discard 0 2" >> /etc/fstab
+      fi
+      
+      mount -a
+
+      chown 65532:65532 "${mount_path}"
+      chmod 775 "${mount_path}"
+
+      echo "==> Starting Docker Container"
+      cat /root/.ghcr_token | docker login ghcr.io -u "${github_username}" --password-stdin
+      docker pull "${ghcr_image}"
+      
+      rm -f /root/.ghcr_token
+
+      docker rm -f "${container_name}" >/dev/null 2>&1 || true
+
+      docker run -d \
+        --name "${container_name}" \
+        --restart "${docker_restart_policy}" \
+        -p "${app_port}:${app_port}" \
+        -v "${mount_path}:/home/app/downloads" \
+        -e APP_HOST=0.0.0.0 \
+        -e APP_PORT="${app_port}" \
+        -e APP_ENV=production \
+        -e DOWNLOAD_DIR=/home/app/downloads \
+        -e MAX_CONCURRENT_DOWNLOADS=3 \
+        --env-file /opt/app/.env \
+        "${ghcr_image}"
+
+      docker logout ghcr.io
+
+      echo "==> Cleaning up secrets"
+      find /var/lib/cloud/instances -type f -name "user-data.txt*" -exec shred -u {} +
+      find /var/lib/cloud/seed -type f -name "user-data" -exec shred -u {} +
+
+runcmd:
+  - [ bash, /opt/app/startup.sh ]

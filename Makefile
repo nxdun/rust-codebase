@@ -1,6 +1,6 @@
 .PHONY: help \
 	ldev lbuild lrelease ldeploy ltest ltdd f lfmt-check llint lcheck lprepush lclean \
-	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean
+	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean tf
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
@@ -19,6 +19,8 @@ CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
 PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
+PUSH ?= false
+TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
 
 VERBOSE ?= true
 
@@ -140,7 +142,7 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 		--progress=plain \
 		--build-arg MODE=release \
 		--build-arg BIN=$(BIN) \
-		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
+		--output type=image,name=$(IMAGE):$(TAG),push=$(PUSH),compression=zstd,oci-mediatypes=true \
 		.
 
 drun: ## Run local Docker Compose stack
@@ -156,3 +158,7 @@ dlogs: ## Tail logs of running local Docker container
 dclean: ## Remove dangling Docker build cache and images
 	$(SAY) "$(RED)Cleaning Docker system artifacts...$(NC)"
 	$(Q)docker system prune -af
+
+tf: ## use this to spawn a loaded shell in infra/digitalocean/accounts/naduns-team
+	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
+	$(Q)bash -lc "cd $(TF_STACK_DIR) && set -a && source <(sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\\1=\\2/' ../../../../.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && set +a && unset PROMPT_COMMAND && exec bash -l"

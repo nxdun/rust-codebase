@@ -1,6 +1,6 @@
 services:
   app:
-    image: ${IMAGE:-nadzu}:${TAG:-local}
+    image: ${IMAGE:-ghcr.io/nxdun/nadzu}:${TAG:-latest}
     # build:
     #   context: .
     #   dockerfile: Dockerfile
