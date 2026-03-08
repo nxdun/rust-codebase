@@ -138,7 +138,7 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 	$(SAY) "$(BLUE)Building production Docker image $(IMAGE):$(TAG) for $(PLATFORMS)...$(NC)"
 	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
 		--builder $(BUILDER_NAME) \
-		--platform $(PLATFORMS) \
+		--platform linux/amd64 \
 		--progress=plain \
 		--build-arg MODE=release \
 		--build-arg BIN=$(BIN) \
@@ -148,6 +148,21 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 drun: ## Run local Docker Compose stack
 	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
 	$(Q)docker-compose --env-file .env up -d
+
+drun-prod: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
+	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
+	-$(Q)docker rm -f $(CONTAINER_NAME)-prod >/dev/null 2>&1 || true
+	$(Q)docker run -d \
+		--name $(CONTAINER_NAME)-prod \
+		--restart unless-stopped \
+		-p $(PORT):$(PORT) \
+		-e APP_HOST=0.0.0.0 \
+		-e APP_PORT=$(PORT) \
+		-e APP_ENV=production \
+		-e DOWNLOAD_DIR=/home/app/downloads \
+		-e MAX_CONCURRENT_DOWNLOADS=3 \
+		-v $(PWD)/downloads:/home/app/downloads \
+		$(IMAGE):$(TAG)
 	
 dstop: ## Stop running local Docker container
 	-$(Q)docker rm -f $(CONTAINER_NAME)

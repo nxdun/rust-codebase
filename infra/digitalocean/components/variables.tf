@@ -1,3 +1,4 @@
+# Replicate same on account level for easier usage.
 variable "do_token" {
   description = "DigitalOcean API token"
   type        = string

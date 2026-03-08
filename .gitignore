@@ -38,6 +38,10 @@ override.tf.json
 *.tfvars.json
 *.tfplan
 tfplan
-
-# keep examples in repo
 !*.tfvars.example
+
+# Local private keys / secrets in case
+nadunssh
+*.pem
+id_rsa
+id_ed25519
