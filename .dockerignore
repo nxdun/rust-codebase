@@ -22,7 +22,7 @@ temp/
 .env.*
 
 # Documentation and non-source files
-README*
+README.md
 LICENSE*
 docs/
 

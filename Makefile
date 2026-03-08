@@ -21,6 +21,7 @@ PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
 PUSH ?= false
 TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
+YTDLP_COOKIES_FILE ?= $(PWD)/cookies.txt
 
 VERBOSE ?= true
 
@@ -147,7 +148,7 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 
 drun: ## Run local Docker Compose stack
 	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)docker-compose --env-file .env up -d
+	$(Q)YTDLP_COOKIES_FILE="$(YTDLP_COOKIES_FILE)" docker-compose --env-file .env up -d
 
 drun-prod: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
@@ -160,7 +161,9 @@ drun-prod: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 		-e APP_PORT=$(PORT) \
 		-e APP_ENV=production \
 		-e DOWNLOAD_DIR=/home/app/downloads \
+		-e YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt \
 		-e MAX_CONCURRENT_DOWNLOADS=3 \
+		-v "$(YTDLP_COOKIES_FILE):/run/secrets/ytdlp_cookies.txt:ro" \
 		-v $(PWD)/downloads:/home/app/downloads \
 		$(IMAGE):$(TAG)
 	
