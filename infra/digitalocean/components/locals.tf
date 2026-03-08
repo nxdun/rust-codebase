@@ -6,6 +6,10 @@ locals {
 
   volume_device_by_id = "/dev/disk/by-id/scsi-0DO_Volume_${var.volume_name}"
 
+  ytdlp_cookies_base64 = (
+    var.ytdlp_cookies_file != null && trim(var.ytdlp_cookies_file) != ""
+  ) ? filebase64(var.ytdlp_cookies_file) : ""
+
   cloud_init = templatefile("${path.module}/../../common/cloud-init.template", {
     volume_device_by_id   = local.volume_device_by_id
     mount_path            = var.downloads_mount_path
@@ -16,5 +20,6 @@ locals {
     container_name        = var.docker_container_name
     docker_restart_policy = var.docker_restart_policy
     captcha_secret_key    = coalesce(var.captcha_secret_key, "")
+    ytdlp_cookies_base64  = local.ytdlp_cookies_base64
   })
 }

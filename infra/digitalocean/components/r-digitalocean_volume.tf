@@ -1,6 +1,6 @@
 // Presistent Storage
 resource "digitalocean_volume" "downloads" {
-  count = var.volume_size_gib > 0 ? 1 : 0
+  count                   = var.volume_size_gib > 0 ? 1 : 0
   region                  = var.region
   name                    = var.volume_name
   size                    = var.volume_size_gib

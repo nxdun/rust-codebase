@@ -88,3 +88,12 @@ variable "captcha_secret_key" {
   nullable    = true
   default     = null
 }
+
+variable "ytdlp_cookies_file" {
+  //SECRET: Expected to be set via root TF_VAR_ytdlp_cookies_file. never Declare
+  description = "Optional path to local ytdlp cookies.txt file"
+  type        = string
+  sensitive   = true
+  nullable    = true
+  default     = null
+}

@@ -18,4 +18,5 @@ module "digitalocean_stack" {
   docker_container_name = var.docker_container_name
   docker_restart_policy = var.docker_restart_policy
   captcha_secret_key    = var.captcha_secret_key
+  ytdlp_cookies_file    = var.ytdlp_cookies_file
 }
