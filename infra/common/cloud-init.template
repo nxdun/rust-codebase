@@ -1,0 +1,125 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+
+packages:
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - jq
+  - iptables-persistent
+
+write_files:
+  - path: /opt/app/.env
+    permissions: '0600'
+    owner: root:root
+    content: |
+      CAPTCHA_SECRET_KEY=${captcha_secret_key}
+  - path: /opt/app/ytdlp-cookies.b64
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${ytdlp_cookies_base64}
+  - path: /root/.ghcr_token
+    permissions: '0600'
+    owner: root:root
+    content: ${ghcr_pat}
+  - path: /opt/app/startup.sh
+    permissions: '0755'
+    owner: root:root
+    content: |
+      #!/bin/bash
+      set -euo pipefail
+      export DEBIAN_FRONTEND=noninteractive
+
+      install -m 0755 -d /etc/apt/keyrings
+      curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+      chmod a+r /etc/apt/keyrings/docker.asc
+      
+      echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+      
+      apt-get update -y
+      apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+      
+      iptables -A OUTPUT -d 169.254.169.254 -m owner ! --uid-owner root -j DROP
+      netfilter-persistent save
+
+      systemctl enable docker
+      systemctl start docker
+      
+      DEVICE="${volume_device_by_id}"
+      for i in {1..30}; do
+        if [ -b "$DEVICE" ]; then
+          break
+        fi
+        sleep 2
+      done
+
+      if [ ! -b "$DEVICE" ]; then
+        echo "ERROR: Volume failed to attach after 60 seconds."
+        exit 1
+      fi
+
+      if ! blkid "$DEVICE" >/dev/null 2>&1; then
+        mkfs.ext4 -F "$DEVICE"
+      fi
+
+      mkdir -p "${mount_path}"
+      
+      UUID=$(blkid -s UUID -o value "$DEVICE")
+      if ! grep -q "$UUID" /etc/fstab; then
+        echo "UUID=$UUID ${mount_path} ext4 defaults,nofail,discard 0 2" >> /etc/fstab
+      fi
+      
+      mount -a
+
+      chown 65532:65532 "${mount_path}"
+      chmod 775 "${mount_path}"
+
+      cat /root/.ghcr_token | docker login ghcr.io -u "${github_username}" --password-stdin
+      docker pull "${ghcr_image}"
+      
+      rm -f /root/.ghcr_token
+
+      COOKIE_MOUNT_ARG=""
+      sed -i '/^YTDLP_COOKIES_FILE=/d' /opt/app/.env
+
+      if [ -s /opt/app/ytdlp-cookies.b64 ]; then
+        if base64 -d /opt/app/ytdlp-cookies.b64 > /opt/app/ytdlp-cookies.txt; then
+          chown root:65532 /opt/app/ytdlp-cookies.txt
+          chmod 0640 /opt/app/ytdlp-cookies.txt
+          echo "YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt" >> /opt/app/.env
+          COOKIE_MOUNT_ARG="-v /opt/app/ytdlp-cookies.txt:/run/secrets/ytdlp_cookies.txt:ro"
+        else
+          echo "WARN: cookies base64 decode failed, running without cookies file"
+          rm -f /opt/app/ytdlp-cookies.txt
+        fi
+      else
+        echo "INFO: cookies file not provided, running without cookies file"
+      fi
+
+      docker rm -f "${container_name}" >/dev/null 2>&1 || true
+
+      docker run -d \
+        --name "${container_name}" \
+        --restart "${docker_restart_policy}" \
+        -p "${app_port}:${app_port}" \
+        -v "${mount_path}:/home/app/downloads" \
+        $${COOKIE_MOUNT_ARG} \
+        -e APP_HOST=0.0.0.0 \
+        -e APP_PORT="${app_port}" \
+        -e APP_ENV=production \
+        -e DOWNLOAD_DIR=/home/app/downloads \
+        -e MAX_CONCURRENT_DOWNLOADS=3 \
+        --env-file /opt/app/.env \
+        "${ghcr_image}"
+
+      docker logout ghcr.io
+
+      shred -u /opt/app/ytdlp-cookies.b64 || true
+      find /var/lib/cloud/instances -type f -name "user-data.txt*" -exec shred -u {} +
+      find /var/lib/cloud/seed -type f -name "user-data" -exec shred -u {} +
+
+runcmd:
+  - [ bash, /opt/app/startup.sh ]

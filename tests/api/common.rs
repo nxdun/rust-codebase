@@ -12,6 +12,10 @@ use std::sync::Arc;
 
 //test Configuration
 pub fn create_test_state(secret_key: Option<&str>) -> AppState {
+    create_test_state_with(secret_key, None)
+}
+
+pub fn create_test_state_with(secret_key: Option<&str>, cookies_file: Option<&str>) -> AppState {
     let config = Arc::new(AppConfig {
         name: "test".into(),
         env: "test".into(),
@@ -20,7 +24,7 @@ pub fn create_test_state(secret_key: Option<&str>) -> AppState {
         allowed_origins: None,
         download_dir: "downloads".into(),
         ytdlp_path: "yt-dlp".into(),
-        ytdlp_cookies_file: None,
+        ytdlp_cookies_file: cookies_file.map(str::to_string),
         ytdlp_extractor_args: None,
         ytdlp_pot_provider_url: None,
         max_concurrent_downloads: 3,

@@ -1,6 +1,6 @@
 .PHONY: help \
 	ldev lbuild lrelease ldeploy ltest ltdd f lfmt-check llint lcheck lprepush lclean \
-	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean
+	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean tf
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
@@ -19,6 +19,9 @@ CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
 PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
+PUSH ?= false
+TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
+YTDLP_COOKIES_FILE ?= $(PWD)/cookies.txt
 
 VERBOSE ?= true
 
@@ -51,29 +54,29 @@ help: ## Show available targets
 # -----------------------
 # Local (non-Docker)
 # -----------------------
-ldev: ## Run app locally (cargo run)
+dev: ## Run app locally (cargo run)
 	$(SAY) "$(GREEN)Starting Rust server...$(NC)"
 	$(Q)cargo run
 
-lbuild: ## Build debug binary
+build: ## Build debug binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
 	$(Q)cargo build
-	$(SAY) "$(GREEN)✓ Debug build completed at $(BUILD_TIME)$(NC)"
+	$(SAY) "$(GREEN):::Debug build completed at $(BUILD_TIME) :::$(NC)"
 
-lrelease: ## Build release binary
+release: ## Build release binary
 	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
 	$(Q)cargo build --release
-	$(SAY) "$(GREEN)✓ Release build completed at $(BUILD_TIME)$(NC)"
+	$(SAY) "$(GREEN):::Release build completed at $(BUILD_TIME) :::$(NC)"
 
-ldeploy: lrelease ## Run release binary locally
+deploy: lrelease ## Run release binary locally
 	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
 	$(Q)./target/release/$(BIN)
 
-ltest: ## Run all tests (locked + all targets)
+test: ## Run all tests (locked + all targets)
 	$(SAY) "$(BLUE)Running tests...$(NC)"
 	$(Q)cargo test --locked --all-targets
 
-ltdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
+tdd: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
 	$(SAY) "$(BLUE)Running focused test for TDD...$(NC)"
 	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
 	$(Q)cargo test --locked -- --nocapture $(TEST)
@@ -82,15 +85,15 @@ f: ## Format code
 	$(SAY) "$(BLUE)Formatting code...$(NC)"
 	$(Q)cargo fmt
 
-lfmt-check: ## Check formatting (CI-safe)
+format: ## Check formatting
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 
-llint: ## Lint code (clippy)
+lint: ## Lint code (clippy)
 	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
 	$(Q)cargo clippy --all-targets --all-features -- -D warnings
 
-lcheck: ## Run format check + type check + lint
+check: ## Run format check + type check + lint
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 	$(SAY) "$(BLUE)Running cargo check...$(NC)"
@@ -99,12 +102,10 @@ lcheck: ## Run format check + type check + lint
 	$(Q)cargo clippy --locked --all-targets --all-features -- -D warnings
 	$(SAY) "$(BLUE)Running tests...$(NC)"
 	$(Q)cargo test --locked --all-targets
-	$(SAY) "$(GREEN)✓ All local checks passed$(NC)"
+	$(SAY) "$(GREEN):::All local checks passed:::$(NC)"
 
-lprepush: lcheck ## Strict gate before pushing changes
-	$(SAY) "$(GREEN)✓ Pre-push gate passed$(NC)"
 
-lclean: ## Clean local build artifacts
+clean: ## Clean local build artifacts
 	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"
 	$(Q)cargo clean
 
@@ -138,16 +139,33 @@ dbuild-prod: dbuilder ## Multi-platform release image build
 	$(SAY) "$(BLUE)Building production Docker image $(IMAGE):$(TAG) for $(PLATFORMS)...$(NC)"
 	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
 		--builder $(BUILDER_NAME) \
-		--platform $(PLATFORMS) \
+		--platform linux/amd64 \
 		--progress=plain \
 		--build-arg MODE=release \
 		--build-arg BIN=$(BIN) \
-		--output type=image,name=$(IMAGE):$(TAG),push=false,compression=zstd,oci-mediatypes=true \
+		--output type=image,name=$(IMAGE):$(TAG),push=$(PUSH),compression=zstd,oci-mediatypes=true \
 		.
 
 drun: ## Run local Docker Compose stack
 	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)docker-compose --env-file .env up -d
+	$(Q)YTDLP_COOKIES_FILE="$(YTDLP_COOKIES_FILE)" docker-compose --env-file .env up -d
+
+drun-prod: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
+	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
+	-$(Q)docker rm -f $(CONTAINER_NAME)-prod >/dev/null 2>&1 || true
+	$(Q)docker run -d \
+		--name $(CONTAINER_NAME)-prod \
+		--restart unless-stopped \
+		-p $(PORT):$(PORT) \
+		-e APP_HOST=0.0.0.0 \
+		-e APP_PORT=$(PORT) \
+		-e APP_ENV=production \
+		-e DOWNLOAD_DIR=/home/app/downloads \
+		-e YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt \
+		-e MAX_CONCURRENT_DOWNLOADS=3 \
+		-v "$(YTDLP_COOKIES_FILE):/run/secrets/ytdlp_cookies.txt:ro" \
+		-v $(PWD)/downloads:/home/app/downloads \
+		$(IMAGE):$(TAG)
 	
 dstop: ## Stop running local Docker container
 	-$(Q)docker rm -f $(CONTAINER_NAME)
@@ -158,3 +176,7 @@ dlogs: ## Tail logs of running local Docker container
 dclean: ## Remove dangling Docker build cache and images
 	$(SAY) "$(RED)Cleaning Docker system artifacts...$(NC)"
 	$(Q)docker system prune -af
+
+tf: ## use this to spawn a loaded shell in infra/digitalocean/accounts/naduns-team
+	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
+	$(Q)bash -lc "cd $(TF_STACK_DIR) && set -a && source <(sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\\1=\\2/' ../../../../.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && set +a && unset PROMPT_COMMAND && exec bash -l"

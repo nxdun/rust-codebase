@@ -1,6 +1,7 @@
 services:
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}
+    # image: ${IMAGE:-ghcr.io/nxdun/nadzu}:${TAG:-latest}
     # build:
     #   context: .
     #   dockerfile: Dockerfile
@@ -12,5 +13,8 @@ services:
       APP_HOST: 0.0.0.0
       APP_ENV: development
       CAPTCHA_SECRET_KEY: ${CAPTCHA_SECRET_KEY}
+      YTDLP_COOKIES_FILE: /run/secrets/ytdlp_cookies.txt
+    volumes:
+      - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp_cookies.txt:ro
     ports:
       - "8080:8080"
