@@ -179,4 +179,14 @@ dclean: ## Remove dangling Docker build cache and images
 
 tf: ## use this to spawn a loaded shell in infra/digitalocean/accounts/naduns-team
 	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
-	$(Q)bash -lc "cd $(TF_STACK_DIR) && set -a && source <(sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\\1=\\2/' ../../../../.env | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && set +a && unset PROMPT_COMMAND && exec bash -l"
+	$(Q)bash -lc "\
+		set -a && \
+		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
+		set +a && \
+		if [ -n \"\$$TF_VAR_ytdlp_cookies_file\" ]; then \
+			aws s3 cp \"\$$TF_VAR_ytdlp_cookies_file\" \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\"; \
+			export TF_VAR_ytdlp_presigned_url=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r'); \
+		fi && \
+		cd $(TF_STACK_DIR) && \
+		unset PROMPT_COMMAND && \
+		exec bash -l"

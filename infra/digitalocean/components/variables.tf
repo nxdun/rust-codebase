@@ -89,11 +89,9 @@ variable "captcha_secret_key" {
   default     = null
 }
 
-variable "ytdlp_cookies_file" {
-  //SECRET: Expected to be set via root TF_VAR_ytdlp_cookies_file. never Declare
-  description = "Optional path to local ytdlp cookies.txt file"
+variable "ytdlp_presigned_url" {
+  //SECRET: Expected to be set via root TF_VAR_ytdlp_presigned_url. never Declare
+  description = "Temporary pre-signed URL used by cloud-init to fetch ytdlp cookies file"
   type        = string
   sensitive   = true
-  nullable    = true
-  default     = null
 }
