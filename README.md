@@ -21,45 +21,8 @@ Highly focused on concurrency, performance, security, and future-proof design.
 <details>
 <summary>Infrastructure Diagram</summary>
 
-```mermaid
-flowchart TD
-    subgraph Local / CI
-        Make[Makefile] -->|Reads .env & Passes TF_VAR_*| TF[Terraform CLI]
-    end
+![Themed Architecture Diagram](docs/images/Themed-Architecture-Diagram.svg)
 
-    subgraph Terraform Architecture
-        TF --> RootEnv[Account Environment<br/>infra/digitalocean/accounts/naduns-team]
-        RootEnv -.->|S3 Backend / Remote State| State[(Cloudflare R2)]
-        
-        RootEnv -->|Instantiates Module| DOStack[DO Components Module<br/>infra/digitalocean/components]
-        
-        subgraph DO Components Module
-            CloudInit[cloud-init.template]
-            Droplet(do_droplet)
-            Volume[(do_volume)]
-            VolAttach(do_volume_attachment)
-            
-            CloudInit -->|Renders user_data| Droplet
-            VolAttach -->|Links| Volume
-            VolAttach -->|To| Droplet
-        end
-    end
-    
-    subgraph Provisioned System [DigitalOcean Ubuntu Droplet]
-        Boot[Cloud-init Execution]
-        Docker[Docker Engine]
-        Container([Nadzu App Container])
-    end
-    
-    GHCR[(GitHub Container Registry)]
-    
-    DOStack -->|Provisions API| Droplet
-    Droplet -->|Boots & Runs| Boot
-    Boot -->|Writes Secrets & Installs| Docker
-    Docker -->|Authenticates & Pulls| GHCR
-    GHCR -->|Runs Image| Container
-    Volume -.->|Persistent Mount| Container
-```
 </details>
 
 <details>
