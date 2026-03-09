@@ -57,22 +57,17 @@ pub async fn download_file(
     Path(id): Path<String>,
     req: Request,
 ) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
-    let job = state
-        .ytdlp_manager
-        .get_job(&id)
-        .await
-        .ok_or((
-            StatusCode::NOT_FOUND,
-            Json(json!({ "error": "Job not found" })),
-        ))?;
+    let job = state.ytdlp_manager.get_job(&id).await.ok_or((
+        StatusCode::NOT_FOUND,
+        Json(json!({ "error": "Job not found" })),
+    ))?;
     // Prefer video/audio files (avoid serving thumbnails or sidecar files)
     let filename = job
         .files
         .as_ref()
         .and_then(|files| {
             let exts = [
-                "mp4", "mkv", "webm", "mov", "mp3", "m4a", "opus", "wav", "flac",
-                "aac",
+                "mp4", "mkv", "webm", "mov", "mp3", "m4a", "opus", "wav", "flac", "aac",
             ];
             files
                 .iter()
@@ -101,7 +96,8 @@ pub async fn download_file(
     match ServeFile::new(file_path).oneshot(req).await {
         Ok(res) => {
             let mut response = res.into_response();
-            if let Ok(hv) = HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)) {
+            if let Ok(hv) = HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename))
+            {
                 response.headers_mut().insert(CONTENT_DISPOSITION, hv);
             }
             Ok(response)
