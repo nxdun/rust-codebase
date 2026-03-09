@@ -44,10 +44,10 @@ impl YtdlpManager {
                             now.saturating_sub(started_at) < retention_period * 2
                         } else {
                             let parts: Vec<&str> = job.id.split('-').collect();
-                            if parts.len() >= 2 {
-                                if let Ok(created_at) = parts[1].parse::<u64>() {
-                                    return now.saturating_sub(created_at) < retention_period * 2;
-                                }
+                            if parts.len() >= 2
+                                && let Ok(created_at) = parts[1].parse::<u64>()
+                            {
+                                return now.saturating_sub(created_at) < retention_period * 2;
                             }
                             true
                         }
@@ -293,10 +293,10 @@ impl YtdlpManager {
         let id_prefix = format!("{id}.");
         if let Ok(mut entries) = fs::read_dir(output_dir).await {
             while let Ok(Some(entry)) = entries.next_entry().await {
-                if let Ok(file_name) = entry.file_name().into_string() {
-                    if file_name.starts_with(&id_prefix) {
-                        let _ = fs::remove_file(entry.path()).await;
-                    }
+                if let Ok(file_name) = entry.file_name().into_string()
+                    && file_name.starts_with(&id_prefix)
+                {
+                    let _ = fs::remove_file(entry.path()).await;
                 }
             }
         }
