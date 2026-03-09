@@ -21,7 +21,6 @@ impl YtdlpManager {
             job_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
         };
 
-        // Spawn cleanup task: remove jobs older than 1 hour (3600s)
         // Use a weak reference to avoid keeping the manager alive indefinitely
         let jobs_weak = Arc::downgrade(&manager.jobs);
 
@@ -30,20 +29,15 @@ impl YtdlpManager {
             loop {
                 interval.tick().await;
 
-                // Check if the improved YtdlpManager still exists
                 if let Some(jobs) = jobs_weak.upgrade() {
                     let now = now_unix();
                     let retention_period = 3600;
 
-                    // DashMap defines retain which is efficient for removal
-                    jobs.retain(|_, job| {
-                        match job.finished_at_unix {
-                            Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
-                            None => true, // Keep running/queued jobs
-                        }
+                    jobs.retain(|_, job| match job.finished_at_unix {
+                        Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
+                        None => true,
                     });
                 } else {
-                    // Manager was dropped, stop the background task
                     info!("YtdlpManager dropped, stopping cleanup task");
                     break;
                 }
@@ -63,7 +57,6 @@ impl YtdlpManager {
         let format = payload.format.clone().unwrap_or_else(|| "any".to_string());
         let format_selector = resolve_format_selector(&format, &quality);
 
-        // Resolve output directory once here
         let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
         let output_dir = output_dir_res
             .clone()
@@ -285,7 +278,7 @@ impl YtdlpManager {
     }
 }
 
-fn resolve_format_selector(format: &str, quality: &str) -> String {
+pub fn resolve_format_selector(format: &str, quality: &str) -> String {
     const AUDIO_FORMATS: [&str; 5] = ["m4a", "mp3", "opus", "wav", "flac"];
 
     if let Some(custom) = format.strip_prefix("custom:") {
@@ -350,14 +343,14 @@ fn to_pot_extractor_args(url: &str) -> String {
     format!("youtube:po_token_provider=bgutil:{url}")
 }
 
-fn normalize_youtube_url(url: &str) -> String {
+pub fn normalize_youtube_url(url: &str) -> String {
     if let Some(short_id) = extract_shorts_id(url) {
         return format!("https://www.youtube.com/watch?v={short_id}");
     }
     url.to_string()
 }
 
-fn extract_shorts_id(url: &str) -> Option<&str> {
+pub fn extract_shorts_id(url: &str) -> Option<&str> {
     let marker = "/shorts/";
     let idx = url.find(marker)?;
     let start = idx + marker.len();
@@ -373,53 +366,5 @@ fn extract_shorts_id(url: &str) -> Option<&str> {
         None
     } else {
         Some(video_id)
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::{extract_shorts_id, normalize_youtube_url, resolve_format_selector};
-
-    #[test]
-    fn extract_shorts_id_works() {
-        let id = extract_shorts_id("https://youtube.com/shorts/5g4pLlLH6P4?si=abc");
-        assert_eq!(id, Some("5g4pLlLH6P4"));
-    }
-
-    #[test]
-    fn normalize_shorts_to_watch_url() {
-        let normalized =
-            normalize_youtube_url("https://youtube.com/shorts/5g4pLlLH6P4?si=jaO5XHPymDBSc5uL");
-        assert_eq!(
-            normalized,
-            "https://www.youtube.com/watch?v=5g4pLlLH6P4".to_string()
-        );
-    }
-
-    #[test]
-    fn keep_watch_url_unchanged() {
-        let source = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-        assert_eq!(normalize_youtube_url(source), source.to_string());
-    }
-
-    #[test]
-    fn resolve_mp4_best_selector() {
-        let selector = resolve_format_selector("mp4", "best");
-        assert_eq!(
-            selector,
-            "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]"
-        );
-    }
-
-    #[test]
-    fn resolve_audio_only_selector() {
-        let selector = resolve_format_selector("mp4", "audio");
-        assert_eq!(selector, "bestaudio/best");
-    }
-
-    #[test]
-    fn resolve_custom_selector() {
-        let selector = resolve_format_selector("custom:bestvideo+bestaudio/best", "best");
-        assert_eq!(selector, "bestvideo+bestaudio/best");
     }
 }
