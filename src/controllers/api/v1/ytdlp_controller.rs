@@ -2,6 +2,7 @@ use axum::{
     Json,
     extract::{Path, Request, State},
     http::StatusCode,
+    http::{HeaderValue, header::CONTENT_DISPOSITION},
     response::IntoResponse,
 };
 use serde_json::json;
@@ -55,29 +56,59 @@ pub async fn download_file(
     State(state): State<AppState>,
     Path(id): Path<String>,
     req: Request,
-) -> Result<impl IntoResponse, (StatusCode, String)> {
+) -> Result<impl IntoResponse, (StatusCode, Json<serde_json::Value>)> {
     let job = state
         .ytdlp_manager
         .get_job(&id)
         .await
-        .ok_or((StatusCode::NOT_FOUND, "Job not found".to_string()))?;
+        .ok_or((
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "Job not found" })),
+        ))?;
+    // Prefer video/audio files (avoid serving thumbnails or sidecar files)
+    let filename = job
+        .files
+        .as_ref()
+        .and_then(|files| {
+            let exts = [
+                "mp4", "mkv", "webm", "mov", "mp3", "m4a", "opus", "wav", "flac",
+                "aac",
+            ];
+            files
+                .iter()
+                .find(|f| {
+                    f.rsplit('.')
+                        .next()
+                        .map(|ext| exts.contains(&ext))
+                        .unwrap_or(false)
+                })
+                .cloned()
+        })
+        .ok_or((
+            StatusCode::CONFLICT,
+            Json(json!({ "error": "No downloadable file yet for this job" })),
+        ))?;
 
-    let filename = job.files.as_ref().and_then(|files| files.first()).ok_or((
-        StatusCode::CONFLICT,
-        "No downloadable file yet for this job".to_string(),
-    ))?;
+    let file_path = PathBuf::from(&job.output_dir).join(&filename);
 
-    let file_path = PathBuf::from(&job.output_dir).join(filename);
-
-    if !file_path.exists() {
-        return Err((StatusCode::NOT_FOUND, "File not found".to_string()));
+    if !tokio::fs::try_exists(&file_path).await.unwrap_or(false) {
+        return Err((
+            StatusCode::NOT_FOUND,
+            Json(json!({ "error": "File not found" })),
+        ));
     }
 
     match ServeFile::new(file_path).oneshot(req).await {
-        Ok(res) => Ok(res.into_response()),
+        Ok(res) => {
+            let mut response = res.into_response();
+            if let Ok(hv) = HeaderValue::from_str(&format!("attachment; filename=\"{}\"", filename)) {
+                response.headers_mut().insert(CONTENT_DISPOSITION, hv);
+            }
+            Ok(response)
+        }
         Err(err) => Err((
             StatusCode::INTERNAL_SERVER_ERROR,
-            format!("Failed to serve file: {}", err),
+            Json(json!({ "error": format!("Failed to serve file: {}", err) })),
         )),
     }
 }

@@ -1,6 +1,10 @@
 use crate::{config::AppConfig, models::ytdlp_model::*};
 use dashmap::DashMap;
-use std::{path::{Path, PathBuf, Component}, sync::Arc, time::SystemTime};
+use std::{
+    path::{Component, Path, PathBuf},
+    sync::Arc,
+    time::SystemTime,
+};
 use tokio::{fs, process::Command, sync::Semaphore};
 use tracing::{error, info};
 
@@ -132,13 +136,16 @@ impl YtdlpManager {
         let mut dir = PathBuf::from(&self.cfg.download_dir);
         if let Some(folder_str) = folder.filter(|f| !f.is_empty()) {
             let folder_path = Path::new(folder_str);
-            
+
             if folder_path.is_absolute() {
                 return Err("folder must be a relative safe path".to_string());
             }
-            
+
             for component in folder_path.components() {
-                if matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)) {
+                if matches!(
+                    component,
+                    Component::ParentDir | Component::RootDir | Component::Prefix(_)
+                ) {
                     return Err("folder must be a relative safe path".to_string());
                 }
             }
