@@ -1,6 +1,6 @@
 use crate::{config::AppConfig, models::ytdlp_model::*};
 use dashmap::DashMap;
-use std::{path::PathBuf, sync::Arc, time::SystemTime};
+use std::{path::{Path, PathBuf, Component}, sync::Arc, time::SystemTime};
 use tokio::{fs, process::Command, sync::Semaphore};
 use tracing::{error, info};
 
@@ -25,7 +25,7 @@ impl YtdlpManager {
         let jobs_weak = Arc::downgrade(&manager.jobs);
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600)); // Run every 10 mins
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600));
             loop {
                 interval.tick().await;
 
@@ -33,9 +33,20 @@ impl YtdlpManager {
                     let now = now_unix();
                     let retention_period = 3600;
 
-                    jobs.retain(|_, job| match job.finished_at_unix {
-                        Some(finished_at) => now.saturating_sub(finished_at) < retention_period,
-                        None => true,
+                    jobs.retain(|_, job| {
+                        if let Some(finished_at) = job.finished_at_unix {
+                            now.saturating_sub(finished_at) < retention_period
+                        } else if let Some(started_at) = job.started_at_unix {
+                            now.saturating_sub(started_at) < retention_period * 2
+                        } else {
+                            let parts: Vec<&str> = job.id.split('-').collect();
+                            if parts.len() >= 2 {
+                                if let Ok(created_at) = parts[1].parse::<u64>() {
+                                    return now.saturating_sub(created_at) < retention_period * 2;
+                                }
+                            }
+                            true
+                        }
                     });
                 } else {
                     info!("YtdlpManager dropped, stopping cleanup task");
@@ -50,11 +61,8 @@ impl YtdlpManager {
     pub async fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
         let normalized_url = normalize_youtube_url(&payload.url);
         let id = self.next_id();
-        let quality = payload
-            .quality
-            .clone()
-            .unwrap_or_else(|| "best".to_string());
-        let format = payload.format.clone().unwrap_or_else(|| "any".to_string());
+        let quality = payload.quality.as_deref().unwrap_or("best").to_string();
+        let format = payload.format.as_deref().unwrap_or("any").to_string();
         let format_selector = resolve_format_selector(&format, &quality);
 
         let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
@@ -77,14 +85,11 @@ impl YtdlpManager {
         self.jobs.insert(id.clone(), job.clone());
 
         if let Err(error) = output_dir_res {
-            self.update_status(
-                &id,
-                YtdlpJobStatus::Failed,
-                Some(error),
-                None,
-                None,
-                Some(now_unix()),
-            );
+            self.update_job(&id, |job| {
+                job.status = YtdlpJobStatus::Failed;
+                job.error = Some(error);
+                job.finished_at_unix = Some(now_unix());
+            });
             return self
                 .get_job(&id)
                 .await
@@ -96,7 +101,6 @@ impl YtdlpManager {
 
         let manager = self.clone();
         tokio::spawn(async move {
-            // Pass the pre-resolved output_dir to run_job
             manager
                 .run_job(id, payload, output_dir, format_selector)
                 .await;
@@ -126,11 +130,19 @@ impl YtdlpManager {
 
     fn resolve_output_dir(&self, folder: Option<&str>) -> Result<String, String> {
         let mut dir = PathBuf::from(&self.cfg.download_dir);
-        if let Some(folder) = folder.filter(|f| !f.is_empty()) {
-            if folder.contains("..") || folder.starts_with('/') || folder.starts_with('\\') {
+        if let Some(folder_str) = folder.filter(|f| !f.is_empty()) {
+            let folder_path = Path::new(folder_str);
+            
+            if folder_path.is_absolute() {
                 return Err("folder must be a relative safe path".to_string());
             }
-            dir.push(folder);
+            
+            for component in folder_path.components() {
+                if matches!(component, Component::ParentDir | Component::RootDir | Component::Prefix(_)) {
+                    return Err("folder must be a relative safe path".to_string());
+                }
+            }
+            dir.push(folder_path);
         }
         Ok(dir.to_string_lossy().to_string())
     }
@@ -144,30 +156,25 @@ impl YtdlpManager {
     ) {
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
-        self.update_status(
-            &id,
-            YtdlpJobStatus::Running,
-            None,
-            None,
-            Some(now_unix()),
-            None,
-        );
+        self.update_job(&id, |job| {
+            job.status = YtdlpJobStatus::Running;
+            job.started_at_unix = Some(now_unix());
+        });
 
         if let Err(err) = fs::create_dir_all(&output_dir).await {
-            self.update_status(
-                &id,
-                YtdlpJobStatus::Failed,
-                Some(format!("failed to create output directory: {err}")),
-                None,
-                None,
-                Some(now_unix()),
-            );
+            self.update_job(&id, |job| {
+                job.status = YtdlpJobStatus::Failed;
+                job.error = Some(format!("failed to create output directory: {err}"));
+                job.finished_at_unix = Some(now_unix());
+            });
             return;
         }
 
         let mut cmd = Command::new(&self.cfg.ytdlp_path);
+        cmd.kill_on_drop(true);
 
-        cmd.arg("--newline")
+        cmd.arg("--no-progress")
+            .arg("--newline")
             .arg("--no-warnings")
             .arg("--ignore-errors")
             .arg("--concurrent-fragments")
@@ -182,8 +189,19 @@ impl YtdlpManager {
             .arg(format!("{}.%(ext)s", id))
             .arg(payload.url.clone());
 
+        let mut job_cookies_file = None;
         if let Some(cookies_file) = self.cfg.ytdlp_cookies_file.as_deref() {
-            cmd.arg("--cookies").arg(cookies_file);
+            let temp_cookies = PathBuf::from(&output_dir).join(format!("{id}.cookies.txt"));
+            if let Err(err) = fs::copy(cookies_file, &temp_cookies).await {
+                self.update_job(&id, |job| {
+                    job.status = YtdlpJobStatus::Failed;
+                    job.error = Some(format!("failed to copy cookies file: {err}"));
+                    job.finished_at_unix = Some(now_unix());
+                });
+                return;
+            }
+            cmd.arg("--cookies").arg(&temp_cookies);
+            job_cookies_file = Some(temp_cookies);
         }
 
         let pot_extractor_args = self
@@ -199,81 +217,93 @@ impl YtdlpManager {
 
         info!("starting ytdlp job id={id} url={}", payload.url);
 
-        let output = cmd.output().await;
-        match output {
-            Ok(result) if result.status.success() => {
+        let timeout_duration = tokio::time::Duration::from_secs(7200);
+
+        let output_result = tokio::time::timeout(timeout_duration, cmd.output()).await;
+
+        if let Some(temp_cookies) = job_cookies_file {
+            let _ = fs::remove_file(temp_cookies).await;
+        }
+
+        match output_result {
+            Ok(Ok(result)) if result.status.success() => {
                 let mut files = Vec::new();
                 if let Ok(mut entries) = fs::read_dir(&output_dir).await {
                     while let Ok(Some(entry)) = entries.next_entry().await {
+                        let id_prefix = format!("{id}.");
                         if let Ok(file_name) = entry.file_name().into_string()
-                            && file_name.starts_with(&id)
+                            && file_name.starts_with(&id_prefix)
                         {
                             files.push(file_name);
                         }
                     }
                 }
-                self.update_status(
-                    &id,
-                    YtdlpJobStatus::Finished,
-                    None,
-                    Some(files),
-                    None,
-                    Some(now_unix()),
-                );
+                self.update_job(&id, |job| {
+                    job.status = YtdlpJobStatus::Finished;
+                    job.files = Some(files);
+                    job.finished_at_unix = Some(now_unix());
+                });
                 info!("finished ytdlp job id={id}");
             }
-            Ok(result) => {
+            Ok(Ok(result)) => {
                 let stderr = String::from_utf8_lossy(&result.stderr);
                 let error_message = truncate_message(stderr.as_ref(), 2_000);
-                self.update_status(
-                    &id,
-                    YtdlpJobStatus::Failed,
-                    Some(format!(
+                self.update_job(&id, |job| {
+                    job.status = YtdlpJobStatus::Failed;
+                    job.error = Some(format!(
                         "yt-dlp failed ({}): {}",
                         result.status, error_message
-                    )),
-                    None,
-                    None,
-                    Some(now_unix()),
-                );
+                    ));
+                    job.finished_at_unix = Some(now_unix());
+                });
+                let is_base_dir = output_dir == self.cfg.download_dir;
+                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
-            Err(err) => {
-                self.update_status(
-                    &id,
-                    YtdlpJobStatus::Failed,
-                    Some(format!("failed to spawn yt-dlp: {err}")),
-                    None,
-                    None,
-                    Some(now_unix()),
-                );
+            Ok(Err(err)) => {
+                self.update_job(&id, |job| {
+                    job.status = YtdlpJobStatus::Failed;
+                    job.error = Some(format!("failed to spawn yt-dlp: {err}"));
+                    job.finished_at_unix = Some(now_unix());
+                });
                 error!("failed ytdlp job id={id}: {err}");
+                let is_base_dir = output_dir == self.cfg.download_dir;
+                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
+            }
+            Err(_) => {
+                self.update_job(&id, |job| {
+                    job.status = YtdlpJobStatus::Failed;
+                    job.error = Some("yt-dlp process timed out".to_string());
+                    job.finished_at_unix = Some(now_unix());
+                });
+                error!("job timed out id={id}");
+                let is_base_dir = output_dir == self.cfg.download_dir;
+                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
         }
     }
 
-    fn update_status(
-        &self,
-        id: &str,
-        status: YtdlpJobStatus,
-        error: Option<String>,
-        files: Option<Vec<String>>,
-        started_at: Option<u64>,
-        finished_at: Option<u64>,
-    ) {
+    async fn cleanup_failed_files(output_dir: &str, id: &str, is_base_dir: bool) {
+        let id_prefix = format!("{id}.");
+        if let Ok(mut entries) = fs::read_dir(output_dir).await {
+            while let Ok(Some(entry)) = entries.next_entry().await {
+                if let Ok(file_name) = entry.file_name().into_string() {
+                    if file_name.starts_with(&id_prefix) {
+                        let _ = fs::remove_file(entry.path()).await;
+                    }
+                }
+            }
+        }
+        if !is_base_dir {
+            let _ = fs::remove_dir(output_dir).await;
+        }
+    }
+
+    fn update_job<F>(&self, id: &str, update_fn: F)
+    where
+        F: FnOnce(&mut YtdlpJob),
+    {
         if let Some(mut job) = self.jobs.get_mut(id) {
-            job.status = status;
-            if let Some(err) = error {
-                job.error = Some(err);
-            }
-            if let Some(f) = files {
-                job.files = Some(f);
-            }
-            if let Some(ts) = started_at {
-                job.started_at_unix = Some(ts);
-            }
-            if let Some(ts) = finished_at {
-                job.finished_at_unix = Some(ts);
-            }
+            update_fn(job.value_mut());
         }
     }
 }
@@ -332,11 +362,12 @@ fn now_unix() -> u64 {
 }
 
 fn truncate_message(message: &str, max: usize) -> String {
-    if message.len() <= max {
-        return message.to_string();
+    let mut indices = message.char_indices();
+    if let Some((idx, _)) = indices.nth(max) {
+        format!("{}...", &message[..idx])
+    } else {
+        message.to_string()
     }
-    let head = &message[..max];
-    format!("{head}...")
 }
 
 fn to_pot_extractor_args(url: &str) -> String {

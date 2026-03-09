@@ -1,7 +1,6 @@
-GH Readme Dosen't Support Mermaid Diagram themes, so the diagram is rendered in a separate file and linked here. The code for the diagram is as follows:
+GitHub README files don't support Mermaid diagram themes directly, so this diagram is rendered in a separate file and linked here. The code for the diagram is as follows:
 
 ```mermaid
----
 ---
 config:
   theme: neo-dark

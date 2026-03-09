@@ -1,5 +1,5 @@
 // DO Droplet = an instance (VM) in DigitalOcean
-// Have Built In 80 GiB Volume. NON Presistent. Set 0GiB to remove it.
+// Have Built In 80 GiB Volume. NON Persistent. Set 0GiB to remove it.
 resource "digitalocean_droplet" "app" {
   name       = var.droplet_name
   region     = var.region

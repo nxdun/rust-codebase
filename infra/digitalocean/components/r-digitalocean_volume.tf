@@ -1,4 +1,4 @@
-// Presistent Storage
+// Persistent Storage
 resource "digitalocean_volume" "downloads" {
   count                   = var.volume_size_gib > 0 ? 1 : 0
   region                  = var.region
