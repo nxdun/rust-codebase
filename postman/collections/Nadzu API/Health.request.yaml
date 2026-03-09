@@ -1,0 +1,21 @@
+$kind: http-request
+url: "{{base_url}}/health"
+method: GET
+scripts:
+  - type: afterResponse
+    code: >-
+      pm.test('Status is 200', function () { pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has status field', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('status');
+      });
+
+      pm.test('Response has cookies boolean', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('cookies');
+        pm.expect(jsonData.cookies).to.be.a('boolean');
+      });
+    language: text/javascript
+order: 2000
