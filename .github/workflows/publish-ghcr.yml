@@ -1,0 +1,49 @@
+name: Build and Publish GHCR Image
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/nadzu
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute short SHA tag
+        id: vars
+        env:
+          TAG: ${{ github.sha }}
+        run: echo "short_tag=${TAG::12}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push linux/amd64 image (sha + latest)
+        run: |
+          docker buildx build \
+            --platform linux/amd64 \
+            --build-arg MODE=release \
+            --build-arg BIN=nadzu \
+            --tag "${IMAGE_NAME}:${{ steps.vars.outputs.short_tag }}" \
+            --tag "${IMAGE_NAME}:latest" \
+            --push \
+            .

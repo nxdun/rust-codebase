@@ -1,0 +1,7 @@
+$kind: collection
+description: Postman collection for Nadzu Rust backend (Axum) including yt-dlp
+  job queue endpoints.
+variables:
+  base_url: http://127.0.0.1:8080
+  latest_job_id: ""
+  captcha_token: ""

@@ -1,0 +1,15 @@
+$kind: http-request
+url: "{{base_url}}/api/v1/ytdlp/jobs/{{latest_job_id}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: >-
+      pm.test('Status is 200', function () { pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has job object', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('job');
+      });
+    language: text/javascript
+order: 7000

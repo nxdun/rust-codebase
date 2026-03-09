@@ -17,7 +17,31 @@ target
 
 /target
 .env
-**/postman/**
 **/.postman/**
 .github/**/*.md
 .vscode/
+
+infra/.terraform/
+
+# Terraform (ignore local/sensitive artifacts, keep lock files committed)
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+*.tfplan
+tfplan
+!*.tfvars.example
+
+# Local private keys / secrets in case
+nadunssh
+*.pem
+id_rsa
+id_ed25519
+cookies.txt

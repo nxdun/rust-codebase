@@ -181,3 +181,54 @@ async fn ytdlp_download_file_not_found_returns_404() {
 
     assert_eq!(response.status(), StatusCode::NOT_FOUND);
 }
+
+// Unit tests moved from mod.rs
+
+#[test]
+fn extract_shorts_id_works() {
+    let id =
+        nadzu::services::ytdlp::extract_shorts_id("https://youtube.com/shorts/5g4pLlLH6P4?si=abc");
+    assert_eq!(id, Some("5g4pLlLH6P4"));
+}
+
+#[test]
+fn normalize_shorts_to_watch_url() {
+    let normalized = nadzu::services::ytdlp::normalize_youtube_url(
+        "https://youtube.com/shorts/5g4pLlLH6P4?si=jaO5XHPymDBSc5uL",
+    );
+    assert_eq!(
+        normalized,
+        "https://www.youtube.com/watch?v=5g4pLlLH6P4".to_string()
+    );
+}
+
+#[test]
+fn keep_watch_url_unchanged() {
+    let source = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
+    assert_eq!(
+        nadzu::services::ytdlp::normalize_youtube_url(source),
+        source.to_string()
+    );
+}
+
+#[test]
+fn resolve_mp4_best_selector() {
+    let selector = nadzu::services::ytdlp::resolve_format_selector("mp4", "best");
+    assert_eq!(
+        selector,
+        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]"
+    );
+}
+
+#[test]
+fn resolve_audio_only_selector() {
+    let selector = nadzu::services::ytdlp::resolve_format_selector("mp4", "audio");
+    assert_eq!(selector, "bestaudio/best");
+}
+
+#[test]
+fn resolve_custom_selector() {
+    let selector =
+        nadzu::services::ytdlp::resolve_format_selector("custom:bestvideo+bestaudio/best", "best");
+    assert_eq!(selector, "bestvideo+bestaudio/best");
+}

@@ -1,0 +1,16 @@
+project_name          = "<PROJECT_NAME>"
+environment           = "<ENVIRONMENT>"
+region                = "<REGION>"
+droplet_name          = "<DROPLET_NAME>"
+droplet_size          = "<DROPLET_SIZE>"
+droplet_image         = "<DROPLET_IMAGE>"
+volume_name           = "<VOLUME_NAME>"
+volume_size_gib       = "<VOLUME_SIZE_IN_GIGS>"
+ghcr_image            = "<GHCR_IMAGE>"
+
+github_username       = "<GITHUB_USERNAME>"
+
+app_port              = 0
+downloads_mount_path  = "<DOWNLOADS_MOUNT_PATH>"
+docker_restart_policy = "<DOCKER_RESTART_POLICY>"
+docker_container_name = "<DOCKER_CONTAINER_NAME>"

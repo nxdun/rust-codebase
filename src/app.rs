@@ -4,6 +4,7 @@ use crate::{
 };
 use axum::serve;
 use dotenvy::dotenv;
+use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tower_http::{
@@ -64,9 +65,13 @@ pub async fn run() {
     let listener = TcpListener::bind(addr).await.unwrap();
 
     // 8. Start HTTP server with graceful shutdown handling
-    if let Err(err) = serve(listener, app.into_make_service())
-        .with_graceful_shutdown(shutdown_signal())
-        .await
+    // SmartIpKeyExtractor needs peer socket address via ConnectInfo.
+    if let Err(err) = serve(
+        listener,
+        app.into_make_service_with_connect_info::<SocketAddr>(),
+    )
+    .with_graceful_shutdown(shutdown_signal())
+    .await
     {
         error!("server error: {}", err);
     }
