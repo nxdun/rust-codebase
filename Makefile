@@ -1,6 +1,6 @@
 .PHONY: help \
-	ldev lbuild lrelease ldeploy ltest ltdd f lfmt-check llint lcheck lprepush lclean \
-	dbuilder dbuilder-rm dbuild dbuild-prod drun dstop dlogs dclean tf
+	dev build release deploy test tdd f format lint check clean \
+	dbuilder dbuilder-rm dbuild dbuild-prod drun drun-prod dstop dlogs dclean tf
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
