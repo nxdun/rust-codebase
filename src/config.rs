@@ -1,5 +1,21 @@
 use std::env;
 
+/// Helper: Fetches an env var, applies a default, and parses to the required type.
+fn env_or<T: std::str::FromStr>(key: &str, default: &str) -> T {
+    env::var(key)
+        .unwrap_or_else(|_| default.to_string())
+        .parse::<T>()
+        .unwrap_or_else(|_| panic!("{} must be a valid {}", key, std::any::type_name::<T>()))
+}
+
+/// Helper: Fetches an optional env var and trims it, returning None if empty.
+fn env_opt(key: &str) -> Option<String> {
+    env::var(key)
+        .ok()
+        .map(|v| v.trim().to_string())
+        .filter(|v| !v.is_empty())
+}
+
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub name: String,
@@ -16,28 +32,21 @@ pub struct AppConfig {
     pub captcha_secret_key: Option<String>,
 }
 
-// Configuration struct for the application.
 impl AppConfig {
     pub fn from_env() -> Self {
         Self {
-            name: env::var("APP_NAME").unwrap_or_else(|_| "nadzu-backend".into()),
-            env: env::var("APP_ENV").unwrap_or_else(|_| "production".into()),
-            host: env::var("APP_HOST").unwrap_or_else(|_| "127.0.0.1".into()),
-            port: env::var("APP_PORT")
-                .unwrap_or_else(|_| "8080".into())
-                .parse()
-                .expect("PORT must be a valid u16"),
-            allowed_origins: env::var("ALLOWED_ORIGINS").ok(),
-            download_dir: env::var("DOWNLOAD_DIR").unwrap_or_else(|_| "downloads".into()),
-            ytdlp_path: env::var("YTDLP_PATH").unwrap_or_else(|_| "yt-dlp".into()),
-            ytdlp_cookies_file: env::var("YTDLP_COOKIES_FILE").ok(),
-            ytdlp_extractor_args: env::var("YTDLP_EXTRACTOR_ARGS").ok(),
-            ytdlp_pot_provider_url: env::var("YTDLP_POT_PROVIDER_URL").ok(),
-            max_concurrent_downloads: env::var("MAX_CONCURRENT_DOWNLOADS")
-                .unwrap_or_else(|_| "1".into())
-                .parse()
-                .unwrap_or(3),
-            captcha_secret_key: env::var("CAPTCHA_SECRET_KEY").ok(),
+            name: env_or("APP_NAME", "nadzu-backend"),
+            env: env_or("APP_ENV", "production"),
+            host: env_or("APP_HOST", "127.0.0.1"),
+            port: env_or("APP_PORT", "8080"),
+            allowed_origins: env_opt("ALLOWED_ORIGINS"),
+            download_dir: env_or("DOWNLOAD_DIR", "downloads"),
+            ytdlp_path: env_or("YTDLP_PATH", "yt-dlp"),
+            ytdlp_cookies_file: env_opt("YTDLP_COOKIES_FILE"),
+            ytdlp_extractor_args: env_opt("YTDLP_EXTRACTOR_ARGS"),
+            ytdlp_pot_provider_url: env_opt("YTDLP_POT_PROVIDER_URL"),
+            max_concurrent_downloads: env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
+            captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
         }
     }
 

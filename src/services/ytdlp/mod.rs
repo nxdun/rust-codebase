@@ -211,12 +211,21 @@ impl YtdlpManager {
             job_cookies_file = Some(temp_cookies);
         }
 
-        let pot_extractor_args = self
+        let extractor_args = self
             .cfg
-            .ytdlp_pot_provider_url
+            .ytdlp_extractor_args
             .as_deref()
-            .map(to_pot_extractor_args);
-        let extractor_args = self.cfg.ytdlp_extractor_args.clone().or(pot_extractor_args);
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .map(ToOwned::to_owned)
+            .or_else(|| {
+                self.cfg
+                    .ytdlp_pot_provider_url
+                    .as_deref()
+                    .map(str::trim)
+                    .filter(|value| !value.is_empty())
+                    .map(to_pot_extractor_args)
+            });
 
         if let Some(extractor_args) = extractor_args {
             cmd.arg("--extractor-args").arg(extractor_args);
