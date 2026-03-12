@@ -177,7 +177,7 @@ dclean: ## Remove dangling Docker build cache and images
 	$(SAY) "$(RED)Cleaning Docker system artifacts...$(NC)"
 	$(Q)docker system prune -af
 
-tf: ## use this to spawn a loaded shell in infra/digitalocean/accounts/naduns-team
+tf: ## use this to spawn a loaded shell
 	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
 	$(Q)bash -lc "\
 		set -a && \
