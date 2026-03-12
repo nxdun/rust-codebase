@@ -1,19 +1,25 @@
 services:
+  warp:
+    image: seiry/cloudflare-warp-proxy:latest
+    restart: unless-stopped
+    # Exposing the port is optional if only 'app' needs it
+    ports:
+      - "40000:40000"
+
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}
-    # image: ${IMAGE:-ghcr.io/nxdun/nadzu}:${TAG:-latest}
-    # build:
-    #   context: .
-    #   dockerfile: Dockerfile
-    #   args:
-    #     MODE: ${MODE:-debug}
-    #     BIN: ${BIN:-nadzu}
+    depends_on:
+      - warp
     environment:
       RUST_LOG: info
       APP_HOST: 0.0.0.0
       APP_ENV: development
       CAPTCHA_SECRET_KEY: ${CAPTCHA_SECRET_KEY}
       YTDLP_COOKIES_FILE: /run/secrets/ytdlp_cookies.txt
+      HTTP_PROXY: "socks5://warp:40000"
+      HTTPS_PROXY: "socks5://warp:40000"
+      ALL_PROXY: "socks5://warp:40000"
+      
     volumes:
       - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp_cookies.txt:ro
     ports:
