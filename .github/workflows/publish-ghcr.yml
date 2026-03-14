@@ -56,7 +56,6 @@ jobs:
         id: vars
         run: echo "short_tag=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
-      # 3. Build with extracted mount caches + standard layer caching (type=gha)
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
