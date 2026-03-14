@@ -2,8 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -18,11 +17,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
+
+      - name: Cache Docker mounts
+        uses: actions/cache@v4
+        with:
+          path: |
+            app-target
+            cargo-registry
+            cargo-git
+          key: buildkit-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            buildkit-${{ runner.os }}-
+
+      - name: Inject BuildKit cache
+        uses: reproducible-containers/buildkit-cache-dance@v3.1.0
+        with:
+          cache-map: |
+            {
+              "app-target": "/app/target",
+              "cargo-registry": "/usr/local/cargo/registry",
+              "cargo-git": "/usr/local/cargo/git"
+            }
+          skip-extraction: ${{ github.event_name == 'pull_request' }}
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -31,19 +52,22 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Compute short SHA tag
+      - name: Get short SHA for tagging
         id: vars
-        env:
-          TAG: ${{ github.sha }}
-        run: echo "short_tag=${TAG::12}" >> "$GITHUB_OUTPUT"
+        run: echo "short_tag=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
-      - name: Build and push linux/amd64 image (sha + latest)
-        run: |
-          docker buildx build \
-            --platform linux/amd64 \
-            --build-arg MODE=release \
-            --build-arg BIN=nadzu \
-            --tag "${IMAGE_NAME}:${{ steps.vars.outputs.short_tag }}" \
-            --tag "${IMAGE_NAME}:latest" \
-            --push \
-            .
+      # 3. Build with extracted mount caches + standard layer caching (type=gha)
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64
+          build-args: |
+            MODE=release
+            BIN=nadzu
+          tags: |
+            ${{ env.IMAGE_NAME }}:${{ steps.vars.outputs.short_tag }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

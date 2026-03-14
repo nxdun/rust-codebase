@@ -1,10 +1,10 @@
 // Persistent Storage
 resource "digitalocean_volume" "downloads" {
-  count                   = var.volume_size_gib > 0 ? 1 : 0
-  region                  = var.region
-  name                    = var.volume_name
-  size                    = var.volume_size_gib
+  count                   = var.VOLUME_SIZE_GIB > 0 ? 1 : 0
+  region                  = var.REGION
+  name                    = var.VOLUME_NAME
+  size                    = var.VOLUME_SIZE_GIB
   initial_filesystem_type = "ext4"
-  description             = "Persistent downloads volume for ${var.project_name}-${var.environment}"
+  description             = "Persistent downloads volume for ${var.PROJECT_NAME}-${var.ENVIRONMENT}"
   tags                    = local.tags
 }

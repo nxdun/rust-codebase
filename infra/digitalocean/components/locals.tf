@@ -1,21 +1,28 @@
 locals {
   tags = [
-    var.project_name,
-    var.environment
+    var.PROJECT_NAME,
+    var.ENVIRONMENT
   ]
 
-  volume_device_by_id = "/dev/disk/by-id/scsi-0DO_Volume_${var.volume_name}"
+  volume_device_by_id = "/dev/disk/by-id/scsi-0DO_Volume_${var.VOLUME_NAME}"
 
   cloud_init = templatefile("${path.module}/../../common/cloud-init.template", {
-    volume_device_by_id   = local.volume_device_by_id
-    mount_path            = var.downloads_mount_path
-    ghcr_image            = var.ghcr_image
-    ghcr_pat              = var.ghcr_pat
-    github_username       = var.github_username
-    app_port              = var.app_port
-    container_name        = var.docker_container_name
-    docker_restart_policy = var.docker_restart_policy
-    captcha_secret_key    = coalesce(var.captcha_secret_key, "")
-    ytdlp_presigned_url   = var.ytdlp_presigned_url
+    VOLUME_DEVICE_BY_ID       = local.volume_device_by_id
+    MOUNT_PATH                = var.DOWNLOADS_MOUNT_PATH
+    GHCR_IMAGE                = var.GHCR_IMAGE
+    GHCR_PAT                  = var.GHCR_PAT
+    GITHUB_USERNAME           = var.GITHUB_USERNAME
+    APP_PORT                  = var.APP_PORT
+    HOST_PORT                 = var.HOST_PORT
+    APP_HOST                  = var.APP_HOST
+    APP_ENV                   = var.APP_ENV
+    ALLOWED_ORIGINS           = var.ALLOWED_ORIGINS
+    DOWNLOAD_DIR              = var.DOWNLOAD_DIR
+    MAX_CONCURRENT_DOWNLOADS  = var.MAX_CONCURRENT_DOWNLOADS
+    RUST_LOG                  = var.RUST_LOG
+    CONTAINER_NAME            = var.DOCKER_CONTAINER_NAME
+    DOCKER_RESTART_POLICY     = var.DOCKER_RESTART_POLICY
+    CAPTCHA_SECRET_KEY        = coalesce(var.CAPTCHA_SECRET_KEY, "")
+    YTDLP_PRESIGNED_URL       = var.YTDLP_PRESIGNED_URL
   })
 }
