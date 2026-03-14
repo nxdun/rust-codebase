@@ -2,76 +2,82 @@
 // - - - - - - - - - - - - - -
 // Terraform Variables
 // - - - - - - - - - - - - - -
-variable "do_token" {
-  //SECRET: Expected to be set via root TF_VAR_do_token. never Declare
+variable "DO_TOKEN" {
+  //SECRET: Expected to be set via root TF_VAR_DO_TOKEN. never Declare
   description = "DigitalOcean API token"
   type        = string
   sensitive   = true
 }
 
-variable "project_name" {
+variable "PROJECT_NAME" {
   //VAR: Declare on terraform.tfvars
   description = "Project identifier used for resource naming"
   type        = string
 }
 
-variable "environment" {
+variable "ENVIRONMENT" {
   //VAR: Declare on terraform.tfvars
   description = "Environment name (e.g. production)"
   type        = string
 }
 
-variable "region" {
+variable "REGION" {
   //VAR: Declare on terraform.tfvars
   description = "DigitalOcean region slug"
   type        = string
 }
 
-variable "droplet_name" {
+variable "DROPLET_NAME" {
   //VAR: Declare on terraform.tfvars
   description = "Droplet name"
   type        = string
 }
 
-variable "droplet_size" {
+variable "DROPLET_SIZE" {
   //VAR: Declare on terraform.tfvars
   description = "DigitalOcean droplet size slug"
   type        = string
 }
 
-variable "droplet_image" {
+variable "DROPLET_IMAGE" {
   //VAR: Declare on terraform.tfvars
   description = "DigitalOcean image slug or ID"
   type        = string
 }
 
-variable "volume_name" {
+variable "VOLUME_NAME" {
   //VAR: Declare on terraform.tfvars
   description = "Block storage volume name"
   type        = string
 }
 
-variable "volume_size_gib" {
+variable "VOLUME_SIZE_GIB" {
   //VAR: Declare on terraform.tfvars
   description = "Block storage volume size in GiB"
   type        = number
 }
 
-variable "ghcr_image" {
+variable "GHCR_IMAGE" {
   //VAR: Declare on terraform.tfvars
   description = "Full GHCR image reference"
   type        = string
 }
+
+variable "HOST_PORT" {
+  //VAR: Declare on terraform.tfvars
+  description = "Host port for the API"
+  type        = number
+}
 // - - - - - - - - - - - - - -
 //GHCR Docker Login
 // - - - - - - - - - - - - - -
-variable "ghcr_pat" {
-  //SECRET: Expected to be set via root TF_VAR_ghcr_pat. never Declare
+variable "GHCR_PAT" {
+  //SECRET: Expected to be set via root TF_VAR_GHCR_PAT. never Declare
   description = "GitHub Personal Access Token for GHCR login"
   type        = string
   sensitive   = true
 }
-variable "github_username" {
+variable "GITHUB_USERNAME" {
   //VAR: Declare on terraform.tfvars
   description = "GitHub username used for GHCR login"
   type        = string
@@ -80,39 +86,74 @@ variable "github_username" {
 // - - - - - - - - - - - - - -
 //APP Runtime Config
 // - - - - - - - - - - - - - -
-variable "app_port" {
+variable "APP_PORT" {
   //VAR: Declare on terraform.tfvars
   description = "Container and host port for the API"
   type        = number
 }
 
-variable "downloads_mount_path" {
+variable "APP_HOST" {
+  //VAR: Declare on terraform.tfvars
+  description = "Host address for the API"
+  type        = string
+}
+
+variable "APP_ENV" {
+  //VAR: Declare on terraform.tfvars
+  description = "Environment name (e.g. production)"
+  type        = string
+}
+
+variable "ALLOWED_ORIGINS" {
+  //VAR: Declare on terraform.tfvars
+  description = "Allowed CORS origins"
+  type        = string
+}
+
+variable "DOWNLOADS_MOUNT_PATH" {
   //VAR: Declare on terraform.tfvars
   description = "Host mount path for persistent downloads"
   type        = string
 }
 
-variable "docker_container_name" {
+variable "DOWNLOAD_DIR" {
+  //VAR: Declare on terraform.tfvars
+  description = "Directory for persistent downloads"
+  type        = string
+}
+
+variable "MAX_CONCURRENT_DOWNLOADS" {
+  //VAR: Declare on terraform.tfvars
+  description = "Maximum number of concurrent downloads"
+  type        = number
+}
+
+variable "RUST_LOG" {
+  //VAR: Declare on terraform.tfvars
+  description = "Rust log filter directives"
+  type        = string
+}
+variable "DOCKER_CONTAINER_NAME" {
   //VAR: Declare on terraform.tfvars
   description = "Container name on droplet"
   type        = string
 }
 
-variable "docker_restart_policy" {
+variable "DOCKER_RESTART_POLICY" {
   //VAR: Declare on terraform.tfvars
   description = "Docker restart policy"
   type        = string
 }
 
-variable "captcha_secret_key" {
-  //SECRET: Expected to be set via root TF_VAR_captcha_secret_key. never Declare
+variable "CAPTCHA_SECRET_KEY" {
+  //SECRET: Expected to be set via root TF_VAR_CAPTCHA_SECRET_KEY. never Declare
   description = "Optional reCAPTCHA secret passed to runtime container"
   type        = string
   sensitive   = true
 }
 
-variable "ytdlp_presigned_url" {
-  //SECRET: Expected to be set via root TF_VAR_ytdlp_presigned_url. never Declare
+variable "YTDLP_PRESIGNED_URL" {
+  //SECRET: Expected to be set via root TF_VAR_YTDLP_PRESIGNED_URL. never Declare
   description = "Temporary pre-signed URL used by cloud-init to fetch ytdlp cookies file"
   type        = string
   sensitive   = true

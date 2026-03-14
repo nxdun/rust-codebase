@@ -183,9 +183,9 @@ tf: ## use this to spawn a loaded shell
 		set -a && \
 		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
 		set +a && \
-		if [ -n \"\$$TF_VAR_ytdlp_cookies_file\" ]; then \
-			aws s3 cp \"\$$TF_VAR_ytdlp_cookies_file\" \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\"; \
-			export TF_VAR_ytdlp_presigned_url=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r'); \
+		if [ -n \"\$$TF_VAR_YTDLP_COOKIES_FILE\" ]; then \
+			aws s3 cp \"\$$TF_VAR_YTDLP_COOKIES_FILE\" \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\"; \
+			export TF_VAR_YTDLP_PRESIGNED_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r'); \
 		fi && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \

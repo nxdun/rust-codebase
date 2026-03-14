@@ -1,4 +1,4 @@
 //This Folder ONLY For DigitalOcean Provider
 provider "digitalocean" {
-  token = var.do_token
+  token = var.DO_TOKEN
 }

@@ -1,87 +1,122 @@
 # Replicate same on account level for easier usage.
-variable "do_token" {
+variable "DO_TOKEN" {
   description = "DigitalOcean API token"
   type        = string
   sensitive   = true
 }
 
-variable "project_name" {
+variable "PROJECT_NAME" {
   description = "Project identifier used for resource naming"
   type        = string
 }
 
-variable "environment" {
+variable "ENVIRONMENT" {
   description = "Environment name (e.g. production)"
   type        = string
 }
 
-variable "region" {
+variable "REGION" {
   description = "DigitalOcean region slug"
   type        = string
 }
 
-variable "droplet_name" {
+variable "DROPLET_NAME" {
   description = "Droplet name"
   type        = string
 }
 
-variable "droplet_size" {
+variable "DROPLET_SIZE" {
   description = "DigitalOcean droplet size slug"
   type        = string
 }
 
-variable "droplet_image" {
+variable "DROPLET_IMAGE" {
   description = "DigitalOcean image slug or ID"
   type        = string
 }
 
-variable "volume_name" {
+variable "VOLUME_NAME" {
   description = "Block storage volume name"
   type        = string
 }
 
-variable "volume_size_gib" {
+variable "VOLUME_SIZE_GIB" {
   description = "Block storage volume size in GiB"
   type        = number
 }
 
-variable "ghcr_image" {
+variable "GHCR_IMAGE" {
   description = "Full GHCR image reference"
   type        = string
 }
 
-variable "ghcr_pat" {
+variable "GHCR_PAT" {
   description = "GitHub Personal Access Token for GHCR login"
   type        = string
   sensitive   = true
 }
 
-variable "github_username" {
+variable "GITHUB_USERNAME" {
   description = "GitHub username used for GHCR login"
   type        = string
 }
 
-variable "app_port" {
+variable "APP_PORT" {
   description = "Container and host port for the API"
   type        = number
 }
 
-variable "downloads_mount_path" {
+variable "HOST_PORT" {
+  description = "Host port for the API"
+  type        = number
+}
+
+variable "APP_HOST" {
+  description = "Host address for the API"
+  type        = string
+}
+
+variable "APP_ENV" {
+  description = "Environment name (e.g. production)"
+  type        = string
+}
+
+variable "ALLOWED_ORIGINS" {
+  description = "Allowed CORS origins"
+  type        = string
+}
+
+variable "DOWNLOAD_DIR" {
+  description = "Directory for persistent downloads"
+  type        = string
+}
+
+variable "MAX_CONCURRENT_DOWNLOADS" {
+  description = "Maximum number of concurrent downloads allowed by the application"
+  type        = number
+  
+}
+
+variable "RUST_LOG" {
+  description = "Rust log filter directives"
+  type        = string
+}
+variable "DOWNLOADS_MOUNT_PATH" {
   description = "Host mount path for persistent downloads"
   type        = string
 }
 
-variable "docker_container_name" {
+variable "DOCKER_CONTAINER_NAME" {
   description = "Container name on droplet"
   type        = string
 }
 
-variable "docker_restart_policy" {
+variable "DOCKER_RESTART_POLICY" {
   description = "Docker restart policy"
   type        = string
 }
 
-variable "captcha_secret_key" {
+variable "CAPTCHA_SECRET_KEY" {
   description = "Optional reCAPTCHA secret passed to runtime container"
   type        = string
   sensitive   = true
@@ -89,8 +124,8 @@ variable "captcha_secret_key" {
   default     = null
 }
 
-variable "ytdlp_presigned_url" {
-  //SECRET: Expected to be set via root TF_VAR_ytdlp_presigned_url. never Declare
+variable "YTDLP_PRESIGNED_URL" {
+  //SECRET: Expected to be set via root TF_VAR_YTDLP_PRESIGNED_URL. never Declare
   description = "Temporary pre-signed URL used by cloud-init to fetch ytdlp cookies file"
   type        = string
   sensitive   = true

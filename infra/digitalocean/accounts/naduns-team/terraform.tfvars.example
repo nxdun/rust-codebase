@@ -1,16 +1,17 @@
-project_name          = "<PROJECT_NAME>"
-environment           = "<ENVIRONMENT>"
-region                = "<REGION>"
-droplet_name          = "<DROPLET_NAME>"
-droplet_size          = "<DROPLET_SIZE>"
-droplet_image         = "<DROPLET_IMAGE>"
-volume_name           = "<VOLUME_NAME>"
-volume_size_gib       = "<VOLUME_SIZE_IN_GIGS>"
-ghcr_image            = "<GHCR_IMAGE>"
+PROJECT_NAME          = "<PROJECT_NAME>"
+ENVIRONMENT           = "<ENVIRONMENT>"
+REGION                = "<REGION>"
+DROPLET_NAME          = "<DROPLET_NAME>"
+DROPLET_SIZE          = "<DROPLET_SIZE>"
+DROPLET_IMAGE         = "<DROPLET_IMAGE>"
+VOLUME_NAME           = "<VOLUME_NAME>"
+VOLUME_SIZE_GIB       = "<VOLUME_SIZE_IN_GIGS>"
+GHCR_IMAGE            = "<GHCR_IMAGE>"
 
-github_username       = "<GITHUB_USERNAME>"
 
-app_port              = 0
-downloads_mount_path  = "<DOWNLOADS_MOUNT_PATH>"
-docker_restart_policy = "<DOCKER_RESTART_POLICY>"
-docker_container_name = "<DOCKER_CONTAINER_NAME>"
+GITHUB_USERNAME       = "<GITHUB_USERNAME>"
+
+APP_PORT              = 0
+DOWNLOADS_MOUNT_PATH  = "<DOWNLOADS_MOUNT_PATH>"
+DOCKER_RESTART_POLICY = "<DOCKER_RESTART_POLICY>"
+DOCKER_CONTAINER_NAME = "<DOCKER_CONTAINER_NAME>"

@@ -11,15 +11,53 @@ packages:
   - iptables-persistent
 
 write_files:
+  - path: /opt/app/docker-compose.yml
+    permissions: '0644'
+    owner: root:root
+    content: |
+      name: nadzu
+      services:
+        warp:
+          image: seiry/cloudflare-warp-proxy:latest
+          restart: ${DOCKER_RESTART_POLICY}
+          
+        app:
+          image: ${GHCR_IMAGE}
+          container_name: ${CONTAINER_NAME}
+          restart: ${DOCKER_RESTART_POLICY}
+          depends_on:
+            - warp
+          ports:
+            - "${HOST_PORT}:${APP_PORT}"
+          volumes:
+            - "${MOUNT_PATH}:/home/app/downloads"
+            - /opt/app/ytdlp-cookies.txt:/run/secrets/ytdlp_cookies.txt:ro
+          env_file:
+            - .env
+          environment:
+            - HTTP_PROXY=socks5h://warp:40000
+            - HTTPS_PROXY=socks5h://warp:40000
+            - ALL_PROXY=socks5h://warp:40000
+            
   - path: /opt/app/.env
     permissions: '0600'
     owner: root:root
     content: |
-      CAPTCHA_SECRET_KEY=${captcha_secret_key}
+      CAPTCHA_SECRET_KEY=${CAPTCHA_SECRET_KEY}
+      APP_HOST=${APP_HOST}
+      HOST_PORT=${HOST_PORT}
+      APP_PORT=${APP_PORT}
+      APP_ENV=${APP_ENV}
+      DOWNLOAD_DIR=${DOWNLOAD_DIR}
+      MAX_CONCURRENT_DOWNLOADS=${MAX_CONCURRENT_DOWNLOADS}
+      RUST_LOG=${RUST_LOG}
+      ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
+      YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt
   - path: /root/.ghcr_token
     permissions: '0600'
     owner: root:root
-    content: ${ghcr_pat}
+    content: |
+      ${GHCR_PAT}
   - path: /opt/app/startup.sh
     permissions: '0755'
     owner: root:root
@@ -43,7 +81,7 @@ write_files:
       systemctl enable docker
       systemctl start docker
       
-      DEVICE="${volume_device_by_id}"
+      DEVICE="${VOLUME_DEVICE_BY_ID}"
       for i in {1..30}; do
         if [ -b "$DEVICE" ]; then
           break
@@ -60,63 +98,44 @@ write_files:
         mkfs.ext4 -F "$DEVICE"
       fi
 
-      mkdir -p "${mount_path}"
+      mkdir -p "${MOUNT_PATH}"
       
       UUID=$(blkid -s UUID -o value "$DEVICE")
       if ! grep -q "$UUID" /etc/fstab; then
-        echo "UUID=$UUID ${mount_path} ext4 defaults,nofail,discard 0 2" >> /etc/fstab
+        echo "UUID=$UUID ${MOUNT_PATH} ext4 defaults,nofail,discard 0 2" >> /etc/fstab
       fi
       
       mount -a
 
-      chown 65532:65532 "${mount_path}"
-      chmod 775 "${mount_path}"
+      chown 65532:65532 "${MOUNT_PATH}"
+      chmod 775 "${MOUNT_PATH}"
 
-      cat /root/.ghcr_token | docker login ghcr.io -u "${github_username}" --password-stdin
-      docker pull "${ghcr_image}"
+      # Login to GHCR
+      cat /root/.ghcr_token | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
+      cd /opt/app
+      docker compose pull
       
       rm -f /root/.ghcr_token
 
-      COOKIE_MOUNT_ARG=""
-      sed -i '/^YTDLP_COOKIES_FILE=/d' /opt/app/.env
-
-      if [ -n "${ytdlp_presigned_url}" ]; then
-        if curl -sSLf "${ytdlp_presigned_url}" -o /opt/app/ytdlp-cookies.txt; then
+      if [ -n "${YTDLP_PRESIGNED_URL}" ]; then
+        if curl -sSLf "${YTDLP_PRESIGNED_URL}" -o /opt/app/ytdlp-cookies.txt; then
           chown root:65532 /opt/app/ytdlp-cookies.txt
           chmod 0640 /opt/app/ytdlp-cookies.txt
-          echo "YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt" >> /opt/app/.env
-          COOKIE_MOUNT_ARG="-v /opt/app/ytdlp-cookies.txt:/run/secrets/ytdlp_cookies.txt:ro"
         else
           echo "WARN: cookies download failed, running without cookies file"
           rm -f /opt/app/ytdlp-cookies.txt
+          touch /opt/app/ytdlp-cookies.txt
         fi
       else
         echo "INFO: ytdlp presigned URL not provided, running without cookies file"
+        touch /opt/app/ytdlp-cookies.txt
       fi
 
-      docker rm -f "${container_name}" >/dev/null 2>&1 || true
-
-      docker run -d \
-        --name "${container_name}" \
-        --restart "${docker_restart_policy}" \
-        -p "${app_port}:${app_port}" \
-        -v "${mount_path}:/home/app/downloads" \
-        $${COOKIE_MOUNT_ARG} \
-        -e APP_HOST=0.0.0.0 \
-        -e APP_PORT="${app_port}" \
-        -e APP_ENV=production \
-        -e DOWNLOAD_DIR=/home/app/downloads \
-        -e MAX_CONCURRENT_DOWNLOADS=3 \
-        --env-file /opt/app/.env \
-        "${ghcr_image}"
+      docker compose up -d
 
       docker logout ghcr.io
 
-      # Wait a bit before deleting to ensure Docker has fully started and mounted the file
       sleep 5
-      # We cannot delete the file because it's mounted into the container as a bind mount
-      # Deleting it or shredding it will make it disappear or corrupted inside the container
-      # shred -u /opt/app/ytdlp-cookies.txt || true
       find /var/lib/cloud/instances -type f -name "user-data.txt*" -exec shred -u {} +
       find /var/lib/cloud/seed -type f -name "user-data" -exec shred -u {} +
 
