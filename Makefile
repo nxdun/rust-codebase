@@ -147,7 +147,8 @@ bdp: builder ## Multi-platform release image build
 
 rd: ## Run local Docker Compose stack
 	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)YTDLP_COOKIES_FILE="$(YTDLP_COOKIES_FILE)" docker-compose --env-file .env up -d
+	$(Q)docker-compose --env-file .env up -d
+	$(Q)docker compose logs app -f
 
 rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
