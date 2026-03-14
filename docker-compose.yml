@@ -5,21 +5,21 @@ services:
     restart: unless-stopped
 
   app:
-    image: ${TF_VAR_IMAGE:-nadzu}:${TF_VAR_TAG:-local}
+    image: ${IMAGE:-nadzu}:${TAG:-local}
     depends_on:
       - warp
     environment:
       APP_PORT: "${APP_PORT}"
       APP_ENV: "${APP_ENV}"
-      APP_NAME: "${TF_VAR_APP_NAME}"
+      APP_NAME: "${APP_NAME}"
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
-      MAX_CONCURRENT_DOWNLOADS: "${TF_VAR_MAX_CONCURRENT_DOWNLOADS}"
-      CAPTCHA_SECRET_KEY: "${TF_VAR_CAPTCHA_SECRET_KEY}"
+      MAX_CONCURRENT_DOWNLOADS: "${MAX_CONCURRENT_DOWNLOADS}"
+      CAPTCHA_SECRET_KEY: "${CAPTCHA_SECRET_KEY}"
 
       HTTP_PROXY: "socks5h://warp:40000"
       HTTPS_PROXY: "socks5h://warp:40000"
       ALL_PROXY: "socks5h://warp:40000"
     volumes:
-      - ${TF_VAR_YTDLP_COOKIES_FILE}:/run/secrets/ytdlp-cookies.txt:ro
+      - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp-cookies.txt:ro
     ports:
-      - "8080:8080"
+      - "80:8080"

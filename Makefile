@@ -17,7 +17,6 @@ BIN ?= nadzu
 PORT ?= 8080
 CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
-PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
 PUSH ?= false
 TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
@@ -68,7 +67,7 @@ br: ## Build release binary
 	$(Q)cargo build --release
 	$(SAY) "$(GREEN):::Release build completed at $(BUILD_TIME) :::$(NC)"
 
-rr: br ## Run release binary locally
+brr: br ## Run release binary locally
 	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
 	$(Q)./target/release/$(BIN)
 

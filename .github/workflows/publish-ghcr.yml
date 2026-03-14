@@ -2,7 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches: [ main ]
+    branches: [ nadun/* ]
   workflow_dispatch:
 
 permissions:
@@ -23,7 +23,6 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      # 1. Cache the local workspace directories directly
       - name: Cache Docker mounts
         uses: actions/cache@v4
         with:
@@ -35,7 +34,6 @@ jobs:
           restore-keys: |
             buildkit-${{ runner.os }}-
 
-      # 2. Map the local workspace directories to the Docker cache mounts
       - name: Inject BuildKit cache
         uses: reproducible-containers/buildkit-cache-dance@v3.1.0
         with:
