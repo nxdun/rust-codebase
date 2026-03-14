@@ -2,7 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches: [ main, nadun/contribution-graph ]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
