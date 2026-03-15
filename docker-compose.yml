@@ -1,8 +1,10 @@
 name: nadzu
 services:
   warp:
-    image: seiry/cloudflare-warp-proxy:latest
+    image: nxdun/cloudflare-warp-proxy:latest
     restart: unless-stopped
+    environment:
+      LICENSE: "${WARP_LICENSE_KEY}"
 
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}

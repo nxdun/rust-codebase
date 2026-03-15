@@ -158,3 +158,10 @@ variable "YTDLP_PRESIGNED_URL" {
   type        = string
   sensitive   = true
 }
+
+variable "WARP_LICENSE_KEY" {
+  //SECRET: Expected to be set via root TF_VAR_WARP_LICENSE_KEY. never Declare
+  description = "Cloudflare WARP+ license key for improved network performance"
+  type        = string
+  sensitive   = true
+}

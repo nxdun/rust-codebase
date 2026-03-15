@@ -17,6 +17,7 @@ BIN ?= nadzu
 PORT ?= 8080
 CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
+PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
 PUSH ?= false
 TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
