@@ -156,3 +156,8 @@ variable "CLOUDFLARE_RECORD_PROXIED" {
   type        = bool
   default     = true
 }
+
+variable "SSH_ALLOWED_IPS" {
+  description = "List of IP addresses allowed to SSH into the droplet"
+  type        = list(string)
+}
