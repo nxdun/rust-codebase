@@ -165,3 +165,25 @@ variable "WARP_LICENSE_KEY" {
   type        = string
   sensitive   = true
 }
+
+variable "CLOUDFLARE_API_TOKEN" {
+  description = "Cloudflare API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "CLOUDFLARE_ZONE_NAME" {
+  description = "Cloudflare zone name (e.g. nadzu.me)"
+  type        = string
+}
+
+variable "CLOUDFLARE_RECORD_NAME" {
+  description = "Cloudflare DNS record name (e.g. api)"
+  type        = string
+}
+
+variable "CLOUDFLARE_RECORD_PROXIED" {
+  description = "Whether the Cloudflare record should be proxied"
+  type        = bool
+  default     = true
+}

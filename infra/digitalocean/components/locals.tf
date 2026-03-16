@@ -25,5 +25,7 @@ locals {
     CAPTCHA_SECRET_KEY        = coalesce(var.CAPTCHA_SECRET_KEY, "")
     YTDLP_PRESIGNED_URL       = var.YTDLP_PRESIGNED_URL
     WARP_LICENSE_KEY          = var.WARP_LICENSE_KEY
+    CERT_PEM                  = file("${path.module}/../../common/certificates/api.nadzu.me.pem")
+    CERT_KEY                  = file("${path.module}/../../common/certificates/api.nadzu.me.key")
   })
 }

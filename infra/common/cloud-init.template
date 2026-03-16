@@ -29,8 +29,6 @@ write_files:
           restart: ${DOCKER_RESTART_POLICY}
           depends_on:
             - warp
-          ports:
-            - "${HOST_PORT}:${APP_PORT}"
           volumes:
             - "${MOUNT_PATH}:/home/app/downloads"
             - /opt/app/ytdlp-cookies.txt:/run/secrets/ytdlp_cookies.txt:ro
@@ -40,7 +38,43 @@ write_files:
             - HTTP_PROXY=socks5h://warp:40000
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
+
+        caddy:
+          image: caddy:alpine
+          restart: ${DOCKER_RESTART_POLICY}
+          ports:
+            - "80:80"
+            - "443:443"
+          volumes:
+            - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
+            - /opt/app/certs:/etc/caddy/certs:ro
+          depends_on:
+            - app
             
+  - path: /opt/app/Caddyfile
+    permissions: '0644'
+    owner: root:root
+    content: |
+      :80 {
+        redir https://api.nadzu.me{uri}
+      }
+      api.nadzu.me:443 {
+        tls /etc/caddy/certs/api.nadzu.me.pem /etc/caddy/certs/api.nadzu.me.key
+        reverse_proxy app:${APP_PORT}
+      }
+
+  - path: /opt/app/certs/api.nadzu.me.key
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${indent(6, CERT_KEY)}
+
+  - path: /opt/app/certs/api.nadzu.me.pem
+    permissions: '0644'
+    owner: root:root
+    content: |
+      ${indent(6, CERT_PEM)}
+
   - path: /opt/app/.env
     permissions: '0600'
     owner: root:root

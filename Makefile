@@ -191,3 +191,14 @@ tf: ## use this to spawn a loaded shell
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \
 		exec bash -l"
+
+tfnc: ## TEST : use this to spawn a env loaded shell - no cookie upload or presigned URL generation (for testing)
+	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
+	$(Q)bash -lc "\
+		set -a && \
+		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
+		set +a && \
+		export TF_VAR_YTDLP_PRESIGNED_URL=\"https://blavla.nadzu.me/fake-presigned-url\" && \
+		cd $(TF_STACK_DIR) && \
+		unset PROMPT_COMMAND && \
+		exec bash -l"
