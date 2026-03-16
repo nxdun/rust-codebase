@@ -25,3 +25,15 @@ services:
       - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp-cookies.txt:ro
     ports:
       - "80:8080"
+
+  # caddy:
+  #   image: caddy:alpine
+  #   restart: unless-stopped
+  #   ports:
+  #     - "80:80"
+  #     - "443:443"
+  #   volumes:
+  #     - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
+  #     - /opt/app/certs:/etc/caddy/certs:ro
+  #   depends_on:
+  #     - app

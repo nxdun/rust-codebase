@@ -53,7 +53,7 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
                         {
                             return true;
                         }
-                    } else if origin_str == allowed {
+                    } else if origin_str == allowed || origin_str.starts_with(&format!("{}/", allowed)) {
                         return true;
                     }
                 }
