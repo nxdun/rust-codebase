@@ -40,13 +40,27 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
     }
 
     info!("CORS allowed origins: {:?}", allowed_origins);
-    let origins = allowed_origins
-        .iter()
-        .filter_map(|o| o.parse().ok())
-        .collect::<Vec<_>>();
+
+    let allow_origin = tower_http::cors::AllowOrigin::predicate(
+        move |origin: &axum::http::HeaderValue, _request_parts: &axum::http::request::Parts| {
+            if let Ok(origin_str) = origin.to_str() {
+                for allowed in &allowed_origins {
+                    if allowed.contains('*') {
+                        let parts: Vec<&str> = allowed.split('*').collect();
+                        if parts.len() == 2 && origin_str.starts_with(parts[0]) && origin_str.ends_with(parts[1]) {
+                            return true;
+                        }
+                    } else if origin_str == allowed {
+                        return true;
+                    }
+                }
+            }
+            false
+        }
+    );
 
     CorsLayer::new()
-        .allow_origin(origins)
+        .allow_origin(allow_origin)
         .allow_methods([
             Method::GET,
             Method::POST,

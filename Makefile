@@ -192,7 +192,7 @@ tf: ## use this to spawn a loaded shell
 		unset PROMPT_COMMAND && \
 		exec bash -l"
 
-tfnc: ## TEST : use this to spawn a env loaded shell - no cookie upload or presigned URL generation (for testing)
+tft: ## TEST : use this to spawn a env loaded shell - no cookie upload or presigned URL generation (for testing)
 	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
 	$(Q)bash -lc "\
 		set -a && \
