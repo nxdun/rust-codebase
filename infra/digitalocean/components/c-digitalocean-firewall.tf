@@ -3,20 +3,17 @@ resource "digitalocean_firewall" "app" {
 
   droplet_ids = [digitalocean_droplet.app.id]
 
-  # Allow SSH strictly from configured IPs (e.g., your VPN)
   inbound_rule {
     protocol         = "tcp"
     port_range       = "22"
     source_addresses = var.SSH_ALLOWED_IPS
   }
 
-  # Allow ICMP (Ping)
   inbound_rule {
     protocol         = "icmp"
     source_addresses = ["0.0.0.0/0", "::/0"]
   }
 
-  # Iterate over HTTP and HTTPS ports, restricting access to ONLY Cloudflare IPs
   dynamic "inbound_rule" {
     for_each = [80, 443]
     content {
@@ -29,7 +26,6 @@ resource "digitalocean_firewall" "app" {
     }
   }
 
-  # Iterate to allow all normal TCP/UDP outbound traffic
   dynamic "outbound_rule" {
     for_each = ["tcp", "udp"]
     content {
@@ -39,7 +35,6 @@ resource "digitalocean_firewall" "app" {
     }
   }
 
-  # Always allow outbound ICMP
   outbound_rule {
     protocol              = "icmp"
     destination_addresses = ["0.0.0.0/0", "::/0"]

@@ -2,7 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches: [ main]
+    branches: [ main ]
   workflow_dispatch:
 
 permissions:
@@ -11,7 +11,7 @@ permissions:
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/nadzu
-  
+
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
