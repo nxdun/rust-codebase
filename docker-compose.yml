@@ -37,3 +37,4 @@ services:
   #     - /opt/app/certs:/etc/caddy/certs:ro
   #   depends_on:
   #     - app
+  
