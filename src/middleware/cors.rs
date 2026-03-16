@@ -47,7 +47,10 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
                 for allowed in &allowed_origins {
                     if allowed.contains('*') {
                         let parts: Vec<&str> = allowed.split('*').collect();
-                        if parts.len() == 2 && origin_str.starts_with(parts[0]) && origin_str.ends_with(parts[1]) {
+                        if parts.len() == 2
+                            && origin_str.starts_with(parts[0])
+                            && origin_str.ends_with(parts[1])
+                        {
                             return true;
                         }
                     } else if origin_str == allowed {
@@ -56,7 +59,7 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
                 }
             }
             false
-        }
+        },
     );
 
     CorsLayer::new()
