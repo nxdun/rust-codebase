@@ -20,8 +20,6 @@ write_files:
         warp:
           image: nxdun/cloudflare-warp-proxy:latest
           restart: ${DOCKER_RESTART_POLICY}
-          environment:
-            LICENSE: "${WARP_LICENSE_KEY}"
           
         app:
           image: ${GHCR_IMAGE}
@@ -38,6 +36,7 @@ write_files:
             - HTTP_PROXY=socks5h://warp:40000
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
+            - NO_PROXY=google.com,www.google.com,recaptcha.net
 
         caddy:
           image: caddy:alpine

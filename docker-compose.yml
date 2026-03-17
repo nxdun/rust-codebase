@@ -3,8 +3,8 @@ services:
   warp:
     image: nxdun/cloudflare-warp-proxy:latest
     restart: unless-stopped
-    environment:
-      LICENSE: "${WARP_LICENSE_KEY}"
+    ports:
+      - "40000:40000"
 
   app:
     image: ${IMAGE:-nadzu}:${TAG:-local}
