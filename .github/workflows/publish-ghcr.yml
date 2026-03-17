@@ -2,7 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, devops/nadun/https-support ]
   workflow_dispatch:
 
 permissions:
