@@ -7,7 +7,8 @@ services:
       - "40000:40000"
 
   app:
-    image: ${IMAGE:-nadzu}:${TAG:-local}
+    image: ghcr.io/nxdun/nadzu:latest
+    container_name: nadzu
     depends_on:
       - warp
     environment:

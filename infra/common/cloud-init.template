@@ -20,10 +20,15 @@ write_files:
         warp:
           image: nxdun/cloudflare-warp-proxy:latest
           restart: ${DOCKER_RESTART_POLICY}
+          cap_add:
+            - NET_ADMIN
+          devices:
+            - /dev/net/tun:/dev/net/tun
+          ports:
+            - "40000:40000"
           
         app:
           image: ${GHCR_IMAGE}
-          container_name: ${CONTAINER_NAME}
           restart: ${DOCKER_RESTART_POLICY}
           depends_on:
             - warp
