@@ -42,6 +42,7 @@ tfplan
 # Local private keys / secrets in case
 nadunssh
 *.pem
+*.key
 id_rsa
 id_ed25519
 cookies.txt

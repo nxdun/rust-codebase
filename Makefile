@@ -17,6 +17,7 @@ BIN ?= nadzu
 PORT ?= 8080
 CONTAINER_NAME ?= nadzu-local
 PLATFORMS ?= linux/amd64,linux/arm64
+PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
 PUSH ?= false
 TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
@@ -187,6 +188,17 @@ tf: ## use this to spawn a loaded shell
 			aws s3 cp \"\$$TF_VAR_YTDLP_COOKIES_FILE\" \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\"; \
 			export TF_VAR_YTDLP_PRESIGNED_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r'); \
 		fi && \
+		cd $(TF_STACK_DIR) && \
+		unset PROMPT_COMMAND && \
+		exec bash -l"
+
+tft: ## TEST : use this to spawn a env loaded shell - no cookie upload or presigned URL generation (for testing)
+	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
+	$(Q)bash -lc "\
+		set -a && \
+		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
+		set +a && \
+		export TF_VAR_YTDLP_PRESIGNED_URL=\"https://blavla.nadzu.me/fake-presigned-url\" && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \
 		exec bash -l"

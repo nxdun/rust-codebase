@@ -158,3 +158,37 @@ variable "YTDLP_PRESIGNED_URL" {
   type        = string
   sensitive   = true
 }
+
+variable "WARP_LICENSE_KEY" {
+  //SECRET: Expected to be set via root TF_VAR_WARP_LICENSE_KEY. never Declare
+  description = "Cloudflare WARP+ license key for improved network performance"
+  type        = string
+  sensitive   = true
+}
+
+variable "CLOUDFLARE_API_TOKEN" {
+  description = "Cloudflare API token"
+  type        = string
+  sensitive   = true
+}
+
+variable "CLOUDFLARE_ZONE_NAME" {
+  description = "Cloudflare zone name (e.g. nadzu.me)"
+  type        = string
+}
+
+variable "CLOUDFLARE_RECORD_NAME" {
+  description = "Cloudflare DNS record name (e.g. api)"
+  type        = string
+}
+
+variable "CLOUDFLARE_RECORD_PROXIED" {
+  description = "Whether the Cloudflare record should be proxied"
+  type        = bool
+  default     = true
+}
+
+variable "SSH_ALLOWED_IPS" {
+  description = "List of IP addresses allowed to SSH into the droplet"
+  type        = list(string)
+}

@@ -18,17 +18,20 @@ write_files:
       name: nadzu
       services:
         warp:
-          image: seiry/cloudflare-warp-proxy:latest
+          image: nxdun/cloudflare-warp-proxy:latest
           restart: ${DOCKER_RESTART_POLICY}
+          cap_add:
+            - NET_ADMIN
+          devices:
+            - /dev/net/tun:/dev/net/tun
+          ports:
+            - "40000:40000"
           
         app:
           image: ${GHCR_IMAGE}
-          container_name: ${CONTAINER_NAME}
           restart: ${DOCKER_RESTART_POLICY}
           depends_on:
             - warp
-          ports:
-            - "${HOST_PORT}:${APP_PORT}"
           volumes:
             - "${MOUNT_PATH}:/home/app/downloads"
             - /opt/app/ytdlp-cookies.txt:/run/secrets/ytdlp_cookies.txt:ro
@@ -38,7 +41,44 @@ write_files:
             - HTTP_PROXY=socks5h://warp:40000
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
+            - NO_PROXY=google.com,www.google.com,recaptcha.net
+
+        caddy:
+          image: caddy:alpine
+          restart: ${DOCKER_RESTART_POLICY}
+          ports:
+            - "80:80"
+            - "443:443"
+          volumes:
+            - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
+            - /opt/app/certs:/etc/caddy/certs:ro
+          depends_on:
+            - app
             
+  - path: /opt/app/Caddyfile
+    permissions: '0644'
+    owner: root:root
+    content: |
+      :80 {
+        redir https://api.nadzu.me{uri}
+      }
+      api.nadzu.me:443 {
+        tls /etc/caddy/certs/api.nadzu.me.pem /etc/caddy/certs/api.nadzu.me.key
+        reverse_proxy app:${APP_PORT}
+      }
+
+  - path: /opt/app/certs/api.nadzu.me.key
+    permissions: '0600'
+    owner: root:root
+    content: |
+      ${indent(6, CERT_KEY)}
+
+  - path: /opt/app/certs/api.nadzu.me.pem
+    permissions: '0644'
+    owner: root:root
+    content: |
+      ${indent(6, CERT_PEM)}
+
   - path: /opt/app/.env
     permissions: '0600'
     owner: root:root
@@ -53,6 +93,7 @@ write_files:
       RUST_LOG=${RUST_LOG}
       ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt
+      WARP_LICENSE_KEY=${WARP_LICENSE_KEY}
   - path: /root/.ghcr_token
     permissions: '0600'
     owner: root:root

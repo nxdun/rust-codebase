@@ -21,10 +21,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v4.0.0
 
       - name: Cache Docker mounts
-        uses: actions/cache@v4
+        uses: actions/cache@v5.0.3
         with:
           path: |
             app-target
@@ -46,7 +46,7 @@ jobs:
           skip-extraction: ${{ github.event_name == 'pull_request' }}
 
       - name: Log in to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4.0.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -56,7 +56,6 @@ jobs:
         id: vars
         run: echo "short_tag=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
-      # 3. Build with extracted mount caches + standard layer caching (type=gha)
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
