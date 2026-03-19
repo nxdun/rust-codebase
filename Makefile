@@ -54,23 +54,6 @@ help: ## Show available targets
 # -----------------------
 # Local (non-Docker)
 # -----------------------
-r: ## Run app locally (cargo run)
-	$(SAY) "$(GREEN)Starting Rust server...$(NC)"
-	$(Q)cargo run
-
-b: ## Build debug binary
-	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [debug]...$(NC)"
-	$(Q)cargo build
-	$(SAY) "$(GREEN):::Debug build completed at $(BUILD_TIME) :::$(NC)"
-
-br: ## Build release binary
-	$(SAY) "$(BLUE)Building $(PROJECT_NAME) [release]...$(NC)"
-	$(Q)cargo build --release
-	$(SAY) "$(GREEN):::Release build completed at $(BUILD_TIME) :::$(NC)"
-
-brr: br ## Run release binary locally
-	$(SAY) "$(GREEN)Running release binary $(BIN)...$(NC)"
-	$(Q)./target/release/$(BIN)
 
 t: ## Run all tests (locked + all targets)
 	$(SAY) "$(BLUE)Running tests...$(NC)"
@@ -93,7 +76,7 @@ l: ## Lint code (clippy)
 	$(SAY) "$(BLUE)Linting with clippy...$(NC)"
 	$(Q)cargo clippy --all-targets --all-features -- -D warnings
 
-ck: ## Run format check + type check + lint
+c: ## Run format check + type check + lint
 	$(SAY) "$(BLUE)Checking format...$(NC)"
 	$(Q)cargo fmt -- --check
 	$(SAY) "$(BLUE)Running cargo check...$(NC)"
@@ -104,13 +87,8 @@ ck: ## Run format check + type check + lint
 	$(Q)cargo test --locked --all-targets
 	$(SAY) "$(GREEN):::All local checks passed:::$(NC)"
 
-
-c: ## Clean local build artifacts
-	$(SAY) "$(RED)Cleaning build artifacts...$(NC)"
-	$(Q)cargo clean
-
 # -----------------------
-# Docker
+# Docker - builder
 # -----------------------
 builder: ## Create/use dedicated buildx builder and bootstrap it
 	$(SAY) "$(BLUE)Setting up Docker buildx builder $(BUILDER_NAME)...$(NC)"
@@ -122,6 +100,9 @@ builder-rm: ## Remove dedicated buildx builder
 	$(SAY) "$(RED)Removing Docker buildx builder $(BUILDER_NAME)...$(NC)"
 	-$(Q)docker buildx rm $(BUILDER_NAME)
 
+# -----------------------
+# Docker - local development
+# -----------------------
 bd: builder ## Local image build (BuildKit --load + zstd)
 	$(SAY) "$(BLUE)Building Docker image $(IMAGE):$(TAG) [$(MODE)]...$(NC)"
 	$(Q)DOCKER_BUILDKIT=1 docker buildx build \
@@ -146,10 +127,12 @@ bdp: builder ## Multi-platform release image build
 		--output type=image,name=$(IMAGE):$(TAG),push=$(PUSH),compression=zstd,oci-mediatypes=true \
 		.
 
-rd: ## Run local Docker Compose stack
-	$(SAY) "$(GREEN)Running Compose $(IMAGE):$(TAG) on port $(PORT)...$(NC)"
-	$(Q)docker-compose --env-file .env up -d
-	$(Q)docker compose logs app -f
+rd: ## Run local Docker Compose stack (Dev Environment)
+	$(SAY) "$(GREEN)Cleaning up old containers and volumes...$(NC)"
+	$(Q)docker compose -f docker-compose.dev.yml down -v
+	$(SAY) "$(GREEN)Running local Compose dev stack...$(NC)"
+	$(Q)docker compose -f docker-compose.dev.yml up -d --build
+	$(Q)docker compose -f docker-compose.dev.yml logs app -f
 
 rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
@@ -168,16 +151,23 @@ rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 		-v $(PWD)/downloads:/home/app/downloads \
 		$(IMAGE):$(TAG)
 	
-sd: ## Stop running local Docker container
-	-$(Q)docker rm -f $(CONTAINER_NAME) >/dev/null 2>&1 || true
+sd: ## Stop running local Docker Compose stack
+	$(SAY) "$(RED)Stopping local dev Compose stack...$(NC)"
+	$(Q)docker compose -f docker-compose.dev.yml down
 
-ld: ## Tail logs of running local Docker container
-	$(Q)docker logs -f $(CONTAINER_NAME)
+logsa: ## Tail logs of running local dev app container
+	$(Q)docker compose -f docker-compose.dev.yml logs -f app
+
+logsc: ## Tail logs of running local dev app container
+	$(Q)docker compose -f docker-compose.dev.yml logs -f caddy
 
 cd: ## Remove dangling Docker build cache and images
 	$(SAY) "$(RED)Cleaning Docker system artifacts...$(NC)"
 	$(Q)docker system prune -af
 
+# -----------------------
+# Terraform
+# -----------------------
 tf: ## use this to spawn a loaded shell
 	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
 	$(Q)bash -lc "\
