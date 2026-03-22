@@ -5,12 +5,14 @@
     auto_https disable_redirects
 }
 
+# HTTP Protocol
 http://:8080 {
     handle {
         reverse_proxy app:8080
     }
 }
 
+# HTTPS Protocol
 nadzu.localhost {
     tls internal
 
