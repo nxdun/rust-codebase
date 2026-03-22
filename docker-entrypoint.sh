@@ -3,7 +3,7 @@ set -e
 
 if command -v bgutil-pot >/dev/null 2>&1; then
   echo "Starting bgutil POT provider"
-  bgutil-pot server >/tmp/bgutil-pot.log 2>&1 &
+  bgutil-pot server > /home/app/bgutil-pot.log 2>&1 &
 fi
 
 echo "Starting Rust API"
