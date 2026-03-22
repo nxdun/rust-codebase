@@ -1,9 +1,15 @@
 $kind: http-request
+name: YT-DLP Enqueue (watch URL)
 url: "{{base_url}}/api/v1/ytdlp"
 method: POST
 headers:
-  Content-Type: application/json
-  x-captcha-token: "{{captcha_token}}"
+  - key: Content-Type
+    value: application/json
+  - key: x-captcha-token
+    value: "{{captcha_token}}"
+    disabled: true
+  - key: x-bypass-dev
+    value: "true"
 body:
   type: text
   content: |-
