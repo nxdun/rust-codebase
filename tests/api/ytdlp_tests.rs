@@ -213,22 +213,22 @@ fn keep_watch_url_unchanged() {
 
 #[test]
 fn resolve_mp4_best_selector() {
-    let selector = nadzu::services::ytdlp::resolve_format_selector("mp4", "best");
-    assert_eq!(
-        selector,
-        "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]"
-    );
+    let (format_flag, sort_flag) = nadzu::services::ytdlp::resolve_format_selector("mp4", "best");
+    assert_eq!(format_flag, "bv*+ba/b");
+    assert_eq!(sort_flag, Some("res,vcodec:h264,acodec:aac,ext:mp4:m4a".to_string()));
 }
 
 #[test]
 fn resolve_audio_only_selector() {
-    let selector = nadzu::services::ytdlp::resolve_format_selector("mp4", "audio");
-    assert_eq!(selector, "bestaudio/best");
+    let (format_flag, sort_flag) = nadzu::services::ytdlp::resolve_format_selector("mp4", "audio");
+    assert_eq!(format_flag, "ba/b");
+    assert_eq!(sort_flag, None);
 }
 
 #[test]
 fn resolve_custom_selector() {
-    let selector =
+    let (format_flag, sort_flag) =
         nadzu::services::ytdlp::resolve_format_selector("custom:bestvideo+bestaudio/best", "best");
-    assert_eq!(selector, "bestvideo+bestaudio/best");
+    assert_eq!(format_flag, "bestvideo+bestaudio/best");
+    assert_eq!(sort_flag, None);
 }
