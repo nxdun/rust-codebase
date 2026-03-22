@@ -7,14 +7,14 @@ services:
       dockerfile: Dockerfile.dev
     container_name: nadzu-app-dev
     environment:
-      APP_HOST: {{ env.APP_HOST }}
-      APP_PORT: {{ env.TF_VAR_APP_PORT }}
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8080"
       APP_ENV: "development"
       APP_NAME: "nadzu"
       DOWNLOAD_DIR: "/app/downloads"
       RUST_LOG: "debug"
       ALLOWED_ORIGINS: "https://nadzu.localhost, http://localhost:8080"
-      CAPTCHA_SECRET_KEY: {{ env.CAPTCHA_SECRET_KEY }}
+      CAPTCHA_SECRET_KEY: "bypass"
     volumes:
       - ./:/app
       - app-target:/app/target_docker
