@@ -2,7 +2,7 @@ name: Build and Publish GHCR Image
 
 on:
   push:
-    branches: [ main ]
+    branches: [ nadun/bug/pot-not-working ]
   workflow_dispatch:
 
 permissions:

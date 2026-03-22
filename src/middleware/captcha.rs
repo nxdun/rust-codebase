@@ -25,17 +25,17 @@ pub async fn verify_captcha_token(
     }
 
     // critical: If x-bypass-dev header is set to 'true' as a string, skip captcha verification :}
-    // if req
-    //     .headers()
-    //     .get("x-bypass-dev")
-    //     .and_then(|value| value.to_str().ok())
-    //     .map(str::trim)
-    //     .map(|v| v.eq_ignore_ascii_case("true"))
-    //     .unwrap_or(false)
-    // {
-    //     tracing::warn!("Captcha verification BYPASSED due to x-bypass-dev header");
-    //     return Ok(next.run(req).await);
-    // }
+    if req
+        .headers()
+        .get("x-bypass-dev")
+        .and_then(|value| value.to_str().ok())
+        .map(str::trim)
+        .map(|v| v.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+    {
+        tracing::warn!("Captcha verification BYPASSED due to x-bypass-dev header");
+        return Ok(next.run(req).await);
+    }
 
     let captcha_token = match req
         .headers()
