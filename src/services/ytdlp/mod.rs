@@ -197,12 +197,12 @@ impl YtdlpManager {
             cmd.arg("-S").arg(&sort_str);
         }
 
-        if let Some(format_str) = payload.format.as_deref() {
-            if ["m4a", "mp3", "opus", "wav", "flac"].contains(&format_str) {
-                cmd.arg("--extract-audio")
-                    .arg("--audio-format")
-                    .arg(format_str);
-            }
+        if let Some(format_str) = payload.format.as_deref()
+            && ["m4a", "mp3", "opus", "wav", "flac"].contains(&format_str)
+        {
+            cmd.arg("--extract-audio")
+                .arg("--audio-format")
+                .arg(format_str);
         }
 
         cmd.arg("-P")
