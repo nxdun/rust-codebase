@@ -215,7 +215,10 @@ fn keep_watch_url_unchanged() {
 fn resolve_mp4_best_selector() {
     let (format_flag, sort_flag) = nadzu::services::ytdlp::resolve_format_selector("mp4", "best");
     assert_eq!(format_flag, "bv*+ba/b");
-    assert_eq!(sort_flag, Some("res,vcodec:h264,acodec:aac,ext:mp4:m4a".to_string()));
+    assert_eq!(
+        sort_flag,
+        Some("res,vcodec:h264,acodec:aac,ext:mp4:m4a".to_string())
+    );
 }
 
 #[test]
