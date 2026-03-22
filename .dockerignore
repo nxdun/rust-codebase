@@ -17,8 +17,6 @@ target/
 tmp/
 temp/
 
-# Environment and local overrides
-.env
 .env.*
 
 # Documentation and non-source files
@@ -30,3 +28,28 @@ docs/
 Dockerfile*
 docker-compose*.yml
 Makefile
+
+nadunssh
+*.pem
+*.key
+id_rsa
+id_ed25519
+cookies.txt
+
+.env
+infra/.terraform/
+**/.terraform/*
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+*.tfvars
+*.tfvars.json
+*.tfplan
+tfplan
+!*.tfvars.example
+**/.postman/**
