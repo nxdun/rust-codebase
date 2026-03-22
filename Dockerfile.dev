@@ -1,0 +1,69 @@
+# syntax=docker/dockerfile:1.7
+
+FROM rust:alpine
+
+ARG BGUTIL_VERSION=0.7.2
+ARG TARGETARCH
+
+# Install build, runtime, and development dependencies in a single stage
+RUN apk add --no-cache \
+    build-base \
+    musl-dev \
+    zstd-dev \
+    pkgconfig \
+    ca-certificates \
+    curl \
+    unzip \
+    tini \
+    gcompat \
+    python3 \
+    libgcc \
+    libstdc++ \
+    ffmpeg \
+    bash \
+    git
+
+# Setup Python venv and install yt-dlp
+RUN python3 -m venv /opt/yt && \
+    /opt/yt/bin/pip install --no-cache-dir --upgrade pip yt-dlp
+
+# Install bgutil-pot and its python plugin
+RUN set -e; \
+    case "${TARGETARCH:-amd64}" in \
+    amd64) BGUTIL_ARCH="x86_64"; BGUTIL_SHA256="55c3710d25a1f2b35976f76f2a4c7baa5f6c15c20e83ba72700f1cad21cf03b7" ;; \
+    arm64) BGUTIL_ARCH="aarch64"; BGUTIL_SHA256="7fa58d061dc01cf4cab44223b6cca51138673be335ec9ca57d1389c148528a96" ;; \
+    *) exit 1 ;; \
+    esac \
+    && BGUTIL_BASE_URL="https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs/releases/download/v${BGUTIL_VERSION}" \
+    && curl -fL "${BGUTIL_BASE_URL}/bgutil-pot-linux-${BGUTIL_ARCH}" -o /usr/local/bin/bgutil-pot \
+    && echo "${BGUTIL_SHA256}  /usr/local/bin/bgutil-pot" | sha256sum -c - \
+    && chmod +x /usr/local/bin/bgutil-pot \
+    && curl -fL "${BGUTIL_BASE_URL}/bgutil-ytdlp-pot-provider-rs.zip" -o /tmp/plugin.zip \
+    && PLUGIN_SITE_DIR="$(/opt/yt/bin/python -c 'import site; print(site.getsitepackages()[0])')" \
+    && unzip /tmp/plugin.zip -d "${PLUGIN_SITE_DIR}" \
+    && rm /tmp/plugin.zip
+
+# Install cargo-watch for hot-reloading during development
+RUN cargo install cargo-watch
+
+# Set up the application directory
+WORKDIR /app
+
+# Ensure runtime directories exist
+RUN mkdir -p /home/app/downloads
+
+# Environment Configuration for Development
+ENV YTDLP_PATH=/opt/yt/bin/yt-dlp \
+    YTDLP_POT_PROVIDER_URL=http://127.0.0.1:4416 \
+    DOWNLOAD_DIR=/home/app/downloads \
+    APP_HOST=0.0.0.0 \
+    APP_PORT=8080 \
+    APP_ENV=development \
+    RUST_LOG=debug
+
+EXPOSE 8080
+
+# Mount your source code to /app via docker-compose or docker run:
+# docker run -v .:/app -p 8080:8080 my-dev-image
+ENTRYPOINT ["/sbin/tini", "-g", "--"]
+CMD ["cargo", "watch", "-w", "src", "-x", "run"]

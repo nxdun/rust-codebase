@@ -1,0 +1,40 @@
+name: nadzu-dev
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: nadzu-app-dev
+    environment:
+      APP_HOST: "0.0.0.0"
+      APP_PORT: "8080"
+      APP_ENV: "development"
+      APP_NAME: "nadzu"
+      DOWNLOAD_DIR: "/app/downloads"
+      RUST_LOG: "debug"
+      ALLOWED_ORIGINS: "https://nadzu.localhost, http://localhost:8080"
+      CAPTCHA_SECRET_KEY: "bypass"
+    volumes:
+      - ./:/app
+      - app-target:/app/target_docker
+      - app-cargo:/usr/local/cargo/registry
+      - ./downloads:/app/downloads
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: nadzu-caddy-dev
+    ports:
+      - "80:80"
+      - "443:443"
+      - "2026:2026"
+      - "8080:8080"
+    volumes:
+      - ./Caddyfile.local:/etc/caddy/Caddyfile:ro
+      - ./downloads:/var/www/downloads:ro
+    depends_on:
+      - app
+
+volumes:
+  app-target:
+  app-cargo:

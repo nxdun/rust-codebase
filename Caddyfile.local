@@ -1,0 +1,28 @@
+{
+    debug
+    admin :2026
+    email admin@nadzu.me
+    auto_https disable_redirects
+}
+
+# HTTP Protocol
+http://:8080 {
+    handle {
+        reverse_proxy app:8080
+    }
+}
+
+# HTTPS Protocol
+nadzu.localhost {
+    tls internal
+
+    handle_path /downloads/* {
+        root * /var/www/downloads
+        file_server browse
+    }
+
+    # Proxy everything else to the Rust backend
+    handle {
+        reverse_proxy app:8080
+    }
+}

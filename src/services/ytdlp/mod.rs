@@ -67,7 +67,7 @@ impl YtdlpManager {
         let id = self.next_id();
         let quality = payload.quality.as_deref().unwrap_or("best").to_string();
         let format = payload.format.as_deref().unwrap_or("any").to_string();
-        let format_selector = resolve_format_selector(&format, &quality);
+        let (format_flag, sort_flag) = resolve_format_selector(&format, &quality);
 
         let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
         let output_dir = output_dir_res
@@ -79,7 +79,8 @@ impl YtdlpManager {
             url: normalized_url.clone(),
             status: YtdlpJobStatus::Queued,
             output_dir: output_dir.clone(),
-            format_selector: format_selector.clone(),
+            format_flag: format_flag.clone(),
+            sort_flag: sort_flag.clone(),
             started_at_unix: None,
             finished_at_unix: None,
             files: None,
@@ -106,7 +107,7 @@ impl YtdlpManager {
         let manager = self.clone();
         tokio::spawn(async move {
             manager
-                .run_job(id, payload, output_dir, format_selector)
+                .run_job(id, payload, output_dir, format_flag, sort_flag)
                 .await;
         });
 
@@ -159,7 +160,8 @@ impl YtdlpManager {
         id: String,
         payload: YtdlpDownloadRequest,
         output_dir: String,
-        selector: String,
+        format_flag: String,
+        sort_flag: Option<String>,
     ) {
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
@@ -189,8 +191,21 @@ impl YtdlpManager {
             .arg("--buffer-size")
             .arg("16K")
             .arg("-f")
-            .arg(&selector)
-            .arg("-P")
+            .arg(&format_flag);
+
+        if let Some(sort_str) = sort_flag {
+            cmd.arg("-S").arg(&sort_str);
+        }
+
+        if let Some(format_str) = payload.format.as_deref()
+            && ["m4a", "mp3", "opus", "wav", "flac"].contains(&format_str)
+        {
+            cmd.arg("--extract-audio")
+                .arg("--audio-format")
+                .arg(format_str);
+        }
+
+        cmd.arg("-P")
             .arg(&output_dir)
             .arg("-o")
             .arg(format!("{}.%(ext)s", id))
@@ -324,31 +339,25 @@ impl YtdlpManager {
     }
 }
 
-pub fn resolve_format_selector(format: &str, quality: &str) -> String {
+pub fn resolve_format_selector(format: &str, quality: &str) -> (String, Option<String>) {
     const AUDIO_FORMATS: [&str; 5] = ["m4a", "mp3", "opus", "wav", "flac"];
 
     if let Some(custom) = format.strip_prefix("custom:") {
-        return custom.to_string();
+        return (custom.to_string(), None);
     }
 
     if format == "thumbnail" {
-        return "bestaudio/best".to_string();
+        return ("bestaudio/best".to_string(), None);
     }
 
     if AUDIO_FORMATS.contains(&format) {
-        return format!("bestaudio[ext={format}]/bestaudio/best");
+        return ("ba/b".to_string(), Some(format!("aext:{}", format)));
     }
 
     if matches!(format, "mp4" | "any") {
         if quality == "audio" {
-            return "bestaudio/best".to_string();
+            return ("ba/b".to_string(), None);
         }
-
-        let (vfmt, afmt) = if format == "mp4" {
-            ("[ext=mp4]", "[ext=m4a]")
-        } else {
-            ("", "")
-        };
 
         let vres = if matches!(quality, "best" | "best_ios" | "worst") {
             String::new()
@@ -356,18 +365,18 @@ pub fn resolve_format_selector(format: &str, quality: &str) -> String {
             format!("[height<={quality}]")
         };
 
-        let vcombo = format!("{vres}{vfmt}");
+        let base_format = format!("bv*{vres}+ba/b");
 
-        if quality == "best_ios" {
-            return format!(
-                "bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio[acodec=aac]/bestvideo[vcodec~='^((he|a)vc|h26[45])']{vres}+bestaudio{afmt}/bestvideo{vcombo}+bestaudio{afmt}/best{vcombo}"
-            );
-        }
+        let sort = if format == "mp4" {
+            Some("res,vcodec:h264,acodec:aac,ext:mp4:m4a".to_string())
+        } else {
+            None
+        };
 
-        return format!("bestvideo{vcombo}+bestaudio{afmt}/best{vcombo}");
+        return (base_format, sort);
     }
 
-    "bestvideo+bestaudio/best".to_string()
+    ("bestvideo+bestaudio/best".to_string(), None)
 }
 
 fn now_unix() -> u64 {

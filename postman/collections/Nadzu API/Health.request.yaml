@@ -1,4 +1,5 @@
 $kind: http-request
+name: Health
 url: "{{base_url}}/health"
 method: GET
 scripts:
