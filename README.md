@@ -4,7 +4,7 @@ My Personal Backend API built with Rust.
 Highly focused on concurrency, performance, security, and future-proof design.
 
 ### Major Functions
-- YouTube videos and Shorts downloading.
+- Multi-platform media downloading with yt-dlp.
 - Anti-abuse measures: IP-based rate limiting, CAPTCHA verification.
 - IaC Terraform infrastructure using DigitalOcean provider.
 - Published to Private GitHub Container Registry.
@@ -52,6 +52,9 @@ infra/
 
 ### Technical Details
 
+- Download acceleration
+  - `yt-dlp` external downloader integration with `aria2c`
+
 - Dockerized
   - Dockerfile
     - 5 stage build.
@@ -77,4 +80,3 @@ infra/
 ### Third-Party Components
 
 - yt-dlp [yt-dlp](https://github.com/yt-dlp/yt-dlp)
-    - bgutil-ytdlp-pot-provider-rs [bgutil-ytdlp-pot-provider-rs](https://github.com/jim60105/bgutil-ytdlp-pot-provider-rs)
