@@ -9,8 +9,8 @@ use tower_governor::{
 use tracing::info;
 
 // Rate Limit configuration
-const RATE_LIMITER_PER_SECOND: u64 = 10;
-const RATE_LIMITER_BURST_SIZE: u32 = 30;
+const RATE_LIMITER_PER_SECOND: u64 = 20;
+const RATE_LIMITER_BURST_SIZE: u32 = 50;
 
 pub fn is_production(config: &AppConfig) -> bool {
     config.env == "production"

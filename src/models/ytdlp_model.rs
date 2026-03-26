@@ -32,6 +32,12 @@ pub struct YtdlpJob {
     pub sort_flag: Option<String>,
     pub started_at_unix: Option<u64>,
     pub finished_at_unix: Option<u64>,
+    pub progress_percent: Option<f32>,
+    pub progress_total: Option<String>,
+    pub progress_speed: Option<String>,
+    pub progress_eta: Option<String>,
+    pub progress_message: Option<String>,
+    pub updated_at_unix: Option<u64>,
     pub files: Option<Vec<String>>,
     pub error: Option<String>,
 }

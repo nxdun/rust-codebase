@@ -11,12 +11,20 @@ use crate::{
 pub fn router(state: AppState) -> Router<AppState> {
     let public_routes = Router::new()
         .route(
+            "/api/v1/ytdlp/sites",
+            get(ytdlp_controller::get_supported_sites),
+        )
+        .route(
             "/api/v1/ytdlp/jobs",
             get(ytdlp_controller::list_download_jobs),
         )
         .route(
             "/api/v1/ytdlp/jobs/{id}",
             get(ytdlp_controller::get_download_job),
+        )
+        .route(
+            "/api/v1/ytdlp/jobs/{id}/stream",
+            get(ytdlp_controller::stream_download_progress),
         )
         .route(
             "/api/v1/ytdlp/download/{id}",

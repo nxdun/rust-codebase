@@ -25,8 +25,8 @@ pub fn create_test_state_with(secret_key: Option<&str>, cookies_file: Option<&st
         download_dir: "downloads".into(),
         ytdlp_path: "yt-dlp".into(),
         ytdlp_cookies_file: cookies_file.map(str::to_string),
-        ytdlp_extractor_args: None,
-        ytdlp_pot_provider_url: None,
+        ytdlp_external_downloader: None,
+        ytdlp_external_downloader_args: None,
         max_concurrent_downloads: 3,
         captcha_secret_key: secret_key.map(str::to_string),
     });

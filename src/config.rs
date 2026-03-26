@@ -26,8 +26,8 @@ pub struct AppConfig {
     pub download_dir: String,
     pub ytdlp_path: String,
     pub ytdlp_cookies_file: Option<String>,
-    pub ytdlp_extractor_args: Option<String>,
-    pub ytdlp_pot_provider_url: Option<String>,
+    pub ytdlp_external_downloader: Option<String>,
+    pub ytdlp_external_downloader_args: Option<String>,
     pub max_concurrent_downloads: usize,
     pub captcha_secret_key: Option<String>,
 }
@@ -43,8 +43,8 @@ impl AppConfig {
             download_dir: env_or("DOWNLOAD_DIR", "downloads"),
             ytdlp_path: env_or("YTDLP_PATH", "yt-dlp"),
             ytdlp_cookies_file: env_opt("YTDLP_COOKIES_FILE"),
-            ytdlp_extractor_args: env_opt("YTDLP_EXTRACTOR_ARGS"),
-            ytdlp_pot_provider_url: env_opt("YTDLP_POT_PROVIDER_URL"),
+            ytdlp_external_downloader: env_opt("YTDLP_EXTERNAL_DOWNLOADER"),
+            ytdlp_external_downloader_args: env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
             max_concurrent_downloads: env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
             captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
         }
