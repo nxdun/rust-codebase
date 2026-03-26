@@ -1,0 +1,62 @@
+$kind: http-example
+request:
+  url: "{{base_url}}/api/v1/ytdlp/jobs/{{latest_job_id}}/stream"
+  method: GET
+  headers:
+    Accept: text/event-stream
+    x-bypass-dev: "true"
+response:
+  statusCode: 200
+  statusText: OK
+  headers:
+    content-type: text/event-stream
+    cache-control: no-cache
+    vary: origin, access-control-request-method, access-control-request-headers
+    access-control-allow-origin: "*"
+    transfer-encoding: chunked
+    date: Wed, 25 Mar 2026 13:11:28 GMT
+  body:
+    type: text
+    content: |+
+      event: progress
+      data: {"job":{"error":null,"files":null,"finished_at_unix":null,"format_flag":"bv*+ba/b","id":"ytdlp-1774444242-1","output_dir":"/home/app/downloads","progress_eta":null,"progress_message":null,"progress_percent":null,"progress_speed":null,"progress_total":null,"sort_flag":"res,vcodec:h264,acodec:aac,ext:mp4:m4a","started_at_unix":1774444242,"status":"running","updated_at_unix":1774444242,"url":"https://www.pornhub.org/view_video.php?viewkey=699c26c664732"}}
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+      : keep-alive
+
+order: 1774444587259
