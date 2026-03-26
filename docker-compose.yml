@@ -7,10 +7,14 @@ services:
       - "40000:40000"
 
   app:
-    image: ghcr.io/nxdun/nadzu:latest
+    # Use `nadzu:local` for local development. For production deployments, use
+    # the published image `ghcr.io/nxdun/nadzu:latest` or an appropriate tagged release.
+    image: nadzu:local
     container_name: nadzu
     depends_on:
       - warp
+    cap_add:
+      - NET_ADMIN
     environment:
       APP_PORT: "${APP_PORT}"
       APP_ENV: "${APP_ENV}"
@@ -18,7 +22,6 @@ services:
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
       MAX_CONCURRENT_DOWNLOADS: "${MAX_CONCURRENT_DOWNLOADS}"
       CAPTCHA_SECRET_KEY: "${CAPTCHA_SECRET_KEY}"
-
       HTTP_PROXY: "socks5h://warp:40000"
       HTTPS_PROXY: "socks5h://warp:40000"
       ALL_PROXY: "socks5h://warp:40000"
@@ -26,7 +29,6 @@ services:
       - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp-cookies.txt:ro
     ports:
       - "80:8080"
-
   # caddy:
   #   image: caddy:alpine
   #   restart: unless-stopped
