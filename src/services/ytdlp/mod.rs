@@ -224,7 +224,6 @@ impl YtdlpManager {
             .arg(format!("{}.%(ext)s", id))
             .arg(payload.url.clone());
 
-
         let aria2_args = self
             .cfg
             .ytdlp_external_downloader_args
@@ -284,7 +283,10 @@ impl YtdlpManager {
             }
             Ok(Ok(status)) => {
                 let error_message = truncate_message(&combined_output, 2_000);
-                self.mark_job_failed(&id, format!("yt-dlp failed ({}): {}", status, error_message));
+                self.mark_job_failed(
+                    &id,
+                    format!("yt-dlp failed ({}): {}", status, error_message),
+                );
                 let is_base_dir = output_dir == self.cfg.download_dir;
                 Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
