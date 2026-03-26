@@ -1,6 +1,6 @@
 .PHONY: help \
 	r b br rr t tt f fc l ck c \
-	builder builder-rm bd bdp rd rdp sd ld cd tf
+	builder builder-rm bd bdp rd rdd rdp sd ld cd tf
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
@@ -61,7 +61,7 @@ t: ## Run all tests (locked + all targets)
 
 tt: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
 	$(SAY) "$(BLUE)Running focused test for TDD...$(NC)"
-	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
+	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=resolve_mp4_best_selector" && exit 1)
 	$(Q)cargo test --locked -- --nocapture $(TEST)
 
 f: ## Format code
@@ -133,6 +133,11 @@ rd: ## Run local Docker Compose stack (Dev Environment)
 	$(SAY) "$(GREEN)Running local Compose dev stack...$(NC)"
 	$(Q)docker compose -f docker-compose.dev.yml up -d --build
 	$(Q)docker compose -f docker-compose.dev.yml logs app -f
+
+rdd: ## Run Docker Compose stack (prod Environment)
+	$(SAY) "$(GREEN)Cleaning up old containers and volumes...$(NC)"
+	$(SAY) "$(GREEN)Running local Compose prod stack...$(NC)"
+	$(Q)docker compose -f docker-compose.yml up -d
 
 rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
