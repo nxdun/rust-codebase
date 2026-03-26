@@ -135,7 +135,7 @@ rd: ## Run local Docker Compose stack (Dev Environment)
 	$(Q)docker compose -f docker-compose.dev.yml logs app -f
 
 rdd: ## Run Docker Compose stack (prod Environment)
-	$(SAY) "$(GREEN)Cleaning up old containers and volumes...$(NC)"
+	$(SAY) "$(GREEN)Preparing to run Docker Compose prod stack...$(NC)"
 	$(SAY) "$(GREEN)Running local Compose prod stack...$(NC)"
 	$(Q)docker compose -f docker-compose.yml up -d
 

@@ -224,17 +224,38 @@ impl YtdlpManager {
             .arg(format!("{}.%(ext)s", id))
             .arg(payload.url.clone());
 
-        let aria2_args = self
+        let downloader = self
+            .cfg
+            .ytdlp_external_downloader
+            .as_deref()
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+            .unwrap_or(ARIA2_DOWNLOADER);
+
+        let default_args = if downloader == ARIA2_DOWNLOADER {
+            DEFAULT_ARIA2_DOWNLOADER_ARGS
+        } else {
+            ""
+        };
+
+        let raw_args = self
             .cfg
             .ytdlp_external_downloader_args
             .as_deref()
             .map(str::trim)
             .filter(|value| !value.is_empty())
-            .unwrap_or(DEFAULT_ARIA2_DOWNLOADER_ARGS);
-        cmd.arg("--downloader")
-            .arg(ARIA2_DOWNLOADER)
-            .arg("--downloader-args")
-            .arg(aria2_args);
+            .unwrap_or(default_args);
+
+        cmd.arg("--downloader").arg(downloader);
+
+        if !raw_args.is_empty() {
+            let final_args = if raw_args.contains(':') {
+                raw_args.to_string()
+            } else {
+                format!("{}:{}", downloader, raw_args)
+            };
+            cmd.arg("--downloader-args").arg(final_args);
+        }
 
         let mut job_cookies_file = None;
         if let Some(cookies_file) = self.cfg.ytdlp_cookies_file.as_deref() {
@@ -267,6 +288,15 @@ impl YtdlpManager {
 
         let timeout_duration = tokio::time::Duration::from_secs(YTDLP_TIMEOUT_SECS);
         let wait_result = tokio::time::timeout(timeout_duration, child.wait()).await;
+
+        if wait_result.is_err() {
+            if let Err(e) = child.kill().await {
+                error!("Failed to kill timed-out yt-dlp process id={id}: {e}");
+            }
+            stdout_task.abort();
+            stderr_task.abort();
+        }
+
         let stdout_output = stdout_task.await.unwrap_or_else(|_| String::new());
         let stderr_output = stderr_task.await.unwrap_or_else(|_| String::new());
         let combined_output = combine_outputs(stdout_output, stderr_output);
@@ -291,15 +321,12 @@ impl YtdlpManager {
                 Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
             Ok(Err(err)) => {
-                self.mark_job_failed(&id, format!("failed to spawn yt-dlp: {err}"));
-                error!("failed ytdlp job id={id}: {err}");
+                self.mark_job_failed(&id, format!("failed to wait for yt-dlp: {err}"));
+                error!("yt-dlp process error for job id={id}: {err}");
                 let is_base_dir = output_dir == self.cfg.download_dir;
                 Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
             Err(_) => {
-                if let Err(e) = child.kill().await {
-                    error!("Failed to kill timed-out yt-dlp process id={id}: {e}");
-                }
                 self.mark_job_failed(&id, "yt-dlp process timed out".to_string());
                 error!("job timed out id={id}");
                 let is_base_dir = output_dir == self.cfg.download_dir;

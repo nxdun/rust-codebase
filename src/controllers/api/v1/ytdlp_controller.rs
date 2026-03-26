@@ -160,7 +160,7 @@ pub async fn stream_download_progress(
                 }
             }
 
-            sleep(Duration::from_millis(500)).await;
+            sleep(Duration::from_millis(1500)).await;
         }
 
         info!(
