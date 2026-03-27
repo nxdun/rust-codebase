@@ -85,6 +85,7 @@ async fn ytdlp_list_jobs_returns_array() {
         .oneshot(
             Request::builder()
                 .uri("/api/v1/ytdlp/jobs")
+                .header("x-api-key", "test_master_key")
                 .body(Body::empty())
                 .unwrap(),
         )
