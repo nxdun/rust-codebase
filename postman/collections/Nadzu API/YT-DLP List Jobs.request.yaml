@@ -3,7 +3,7 @@ name: YT-DLP List Jobs
 url: "{{base_url}}/api/v1/ytdlp/jobs"
 method: GET
 headers:
-  x-api-key: dev_master_key_change_me
+  x-api-key: "{{API_KEY}}"
 scripts:
   - type: afterResponse
     code: >-

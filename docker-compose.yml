@@ -20,11 +20,13 @@ services:
       ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
       MAX_CONCURRENT_DOWNLOADS: "${MAX_CONCURRENT_DOWNLOADS}"
       CAPTCHA_SECRET_KEY: "${CAPTCHA_SECRET_KEY}"
+      MASTER_API_KEY: "${MASTER_API_KEY}"
+      
       HTTP_PROXY: "socks5h://warp:40000"
       HTTPS_PROXY: "socks5h://warp:40000"
       ALL_PROXY: "socks5h://warp:40000"
     ports:
-      - "80:8080"
+      - "80:80"
   # caddy:
   #   image: caddy:alpine
   #   restart: unless-stopped
