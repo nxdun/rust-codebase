@@ -30,6 +30,7 @@ pub struct AppConfig {
     pub ytdlp_external_downloader_args: Option<String>,
     pub max_concurrent_downloads: usize,
     pub captcha_secret_key: Option<String>,
+    pub master_api_key: String,
 }
 
 impl AppConfig {
@@ -47,6 +48,7 @@ impl AppConfig {
             ytdlp_external_downloader_args: env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
             max_concurrent_downloads: env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
             captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
+            master_api_key: env_or("MASTER_API_KEY", "dev_master_key_change_me"),
         }
     }
 

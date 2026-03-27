@@ -29,6 +29,7 @@ pub fn create_test_state_with(secret_key: Option<&str>, cookies_file: Option<&st
         ytdlp_external_downloader_args: None,
         max_concurrent_downloads: 3,
         captcha_secret_key: secret_key.map(str::to_string),
+        master_api_key: "test_master_key".into(),
     });
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));

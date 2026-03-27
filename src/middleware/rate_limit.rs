@@ -8,9 +8,11 @@ use tower_governor::{
 };
 use tracing::info;
 
-// Rate Limit configuration
-const RATE_LIMITER_PER_SECOND: u64 = 20;
-const RATE_LIMITER_BURST_SIZE: u32 = 50;
+const RATE_LIMITER_PER_SECOND: u64 = 10;
+const RATE_LIMITER_BURST_SIZE: u32 = 20;
+
+const ENHANCED_RATE_LIMITER_PER_SECOND: u64 = 50;
+const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
 
 pub fn is_production(config: &AppConfig) -> bool {
     config.env == "production"
@@ -40,6 +42,30 @@ pub fn create_prod_limiter() -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddlewar
     )
 }
 
+pub fn create_enhanced_dev_limiter() -> GovernorLayer<GlobalKeyExtractor, NoOpMiddleware, Body> {
+    info!("Enhanced Rate Limiter: GlobalKeyExtractor (development mode)");
+    GovernorLayer::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(GlobalKeyExtractor)
+            .per_second(ENHANCED_RATE_LIMITER_PER_SECOND)
+            .burst_size(ENHANCED_RATE_LIMITER_BURST_SIZE)
+            .finish()
+            .unwrap(),
+    )
+}
+
+pub fn create_enhanced_prod_limiter() -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, Body> {
+    info!("Enhanced Rate Limiter: SmartIpKeyExtractor (production mode)");
+    GovernorLayer::new(
+        GovernorConfigBuilder::default()
+            .key_extractor(SmartIpKeyExtractor)
+            .per_second(ENHANCED_RATE_LIMITER_PER_SECOND)
+            .burst_size(ENHANCED_RATE_LIMITER_BURST_SIZE)
+            .finish()
+            .unwrap(),
+    )
+}
+
 #[macro_export]
 macro_rules! apply_rate_limiter {
     ($router:expr, $config:expr) => {{
@@ -47,6 +73,17 @@ macro_rules! apply_rate_limiter {
             $router.layer($crate::middleware::rate_limit::create_prod_limiter())
         } else {
             $router.layer($crate::middleware::rate_limit::create_dev_limiter())
+        }
+    }};
+}
+
+#[macro_export]
+macro_rules! apply_enhanced_rate_limiter {
+    ($router:expr, $config:expr) => {{
+        if $crate::middleware::rate_limit::is_production($config) {
+            $router.layer($crate::middleware::rate_limit::create_enhanced_prod_limiter())
+        } else {
+            $router.layer($crate::middleware::rate_limit::create_enhanced_dev_limiter())
         }
     }};
 }
