@@ -13,8 +13,6 @@ services:
     container_name: nadzu
     depends_on:
       - warp
-    cap_add:
-      - NET_ADMIN
     environment:
       APP_PORT: "${APP_PORT}"
       APP_ENV: "${APP_ENV}"
@@ -25,8 +23,6 @@ services:
       HTTP_PROXY: "socks5h://warp:40000"
       HTTPS_PROXY: "socks5h://warp:40000"
       ALL_PROXY: "socks5h://warp:40000"
-    volumes:
-      - ${YTDLP_COOKIES_FILE}:/run/secrets/ytdlp-cookies.txt:ro
     ports:
       - "80:8080"
   # caddy:

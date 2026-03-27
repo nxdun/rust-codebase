@@ -13,10 +13,5 @@ scripts:
         pm.expect(jsonData).to.have.property('status');
       });
 
-      pm.test('Response has cookies boolean', function () {
-        var jsonData = pm.response.json();
-        pm.expect(jsonData).to.have.property('cookies');
-        pm.expect(jsonData.cookies).to.be.a('boolean');
-      });
     language: text/javascript
 order: 2000

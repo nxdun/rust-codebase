@@ -257,17 +257,6 @@ impl YtdlpManager {
             cmd.arg("--downloader-args").arg(final_args);
         }
 
-        let mut job_cookies_file = None;
-        if let Some(cookies_file) = self.cfg.ytdlp_cookies_file.as_deref() {
-            let temp_cookies = PathBuf::from(&output_dir).join(format!("{id}.cookies.txt"));
-            if let Err(err) = fs::copy(cookies_file, &temp_cookies).await {
-                self.mark_job_failed(&id, format!("failed to copy cookies file: {err}"));
-                return;
-            }
-            cmd.arg("--cookies").arg(&temp_cookies);
-            job_cookies_file = Some(temp_cookies);
-        }
-
         cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
 
         info!("starting ytdlp job id={id} url={}", payload.url);
@@ -300,10 +289,6 @@ impl YtdlpManager {
         let stdout_output = stdout_task.await.unwrap_or_else(|_| String::new());
         let stderr_output = stderr_task.await.unwrap_or_else(|_| String::new());
         let combined_output = combine_outputs(stdout_output, stderr_output);
-
-        if let Some(temp_cookies) = job_cookies_file {
-            let _ = fs::remove_file(temp_cookies).await;
-        }
 
         match wait_result {
             Ok(Ok(status)) if status.success() => {

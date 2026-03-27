@@ -63,7 +63,6 @@ RUN apk add --no-cache \
   ca-certificates \
   curl \
   aria2 \
-  iproute2-tc \
   zstd-libs \
   tini \
   gcompat \
@@ -97,8 +96,7 @@ ENV YTDLP_PATH=/opt/yt/bin/yt-dlp \
   APP_HOST=0.0.0.0 \
   APP_PORT=${APP_PORT} \
   APP_ENV=production \
-  RUST_LOG=info \
-  YTDLP_COOKIES_FILE=/run/secrets/ytdlp-cookies.txt
+  RUST_LOG=info
 
 USER 65532:65532
 EXPOSE ${APP_PORT}

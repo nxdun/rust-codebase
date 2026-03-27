@@ -28,7 +28,6 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |-- LICENSE
 |-- Makefile
 |-- README.md
-|-- cookies.txt
 |-- docker-compose.dev.yml
 |-- docker-compose.yml
 |-- docker-entrypoint.sh
