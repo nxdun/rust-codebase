@@ -124,12 +124,6 @@ variable "CAPTCHA_SECRET_KEY" {
   default     = null
 }
 
-variable "YTDLP_PRESIGNED_URL" {
-  description = "Temporary pre-signed URL used by cloud-init to fetch ytdlp cookies file"
-  type        = string
-  sensitive   = true
-}
-
 variable "WARP_LICENSE_KEY" {
   description = "Cloudflare WARP+ license key for improved network performance"
   type        = string

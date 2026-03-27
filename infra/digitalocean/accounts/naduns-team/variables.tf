@@ -152,13 +152,6 @@ variable "CAPTCHA_SECRET_KEY" {
   sensitive   = true
 }
 
-variable "YTDLP_PRESIGNED_URL" {
-  //SECRET: Expected to be set via root TF_VAR_YTDLP_PRESIGNED_URL. never Declare
-  description = "Temporary pre-signed URL used by cloud-init to fetch ytdlp cookies file"
-  type        = string
-  sensitive   = true
-}
-
 variable "WARP_LICENSE_KEY" {
   //SECRET: Expected to be set via root TF_VAR_WARP_LICENSE_KEY. never Declare
   description = "Cloudflare WARP+ license key for improved network performance"
@@ -191,4 +184,10 @@ variable "CLOUDFLARE_RECORD_PROXIED" {
 variable "SSH_ALLOWED_IPS" {
   description = "List of IP addresses allowed to SSH into the droplet"
   type        = list(string)
+}
+
+variable "MASTER_API_KEY" {
+  description = "Master API key for the application"
+  type        = string
+  sensitive   = true
 }
