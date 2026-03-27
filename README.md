@@ -14,6 +14,104 @@ Highly focused on concurrency, performance, security, and future-proof design.
 - Sharding: DashMap, memory lifecycle: weak references, Tokio semaphore for concurrency control.
 - Makefile-first approach for task automation and consistency.
 
+### File Structure
+<details>
+<summary>Directory Structure (overall)</summary>
+
+```text
+.
+|-- Caddyfile.local
+|-- Cargo.lock
+|-- Cargo.toml
+|-- Dockerfile
+|-- Dockerfile.dev
+|-- LICENSE
+|-- Makefile
+|-- README.md
+|-- cookies.txt
+|-- docker-compose.dev.yml
+|-- docker-compose.yml
+|-- docker-entrypoint.sh
+|-- infra..[Refer to Infrastructure section]
+|-- docs
+|   `-- images
+|       |-- Themed-Architecture-Diagram-code.md
+|       `-- Themed-Architecture-Diagram.svg
+|-- nadunssh
+|-- postman
+|   |-- collections
+|   |   `-- Nadzu API
+|   |       |-- Health.request.yaml
+|   |       |-- Root.request.yaml
+|   |       |-- Validate User.request.yaml
+|   |       |-- YT-DLP Download File.request.yaml
+|   |       |-- YT-DLP Enqueue (watch URL).request.yaml
+|   |       |-- YT-DLP Get Job By ID.request.yaml
+|   |       |-- YT-DLP List Jobs.request.yaml
+|   |       |-- YT-DLP Stream Job Progress.request.yaml
+|   |       `-- supported sites.request.yaml
+|   `-- environments
+|       `-- Nadzu Local.yaml
+|-- rustfmt.toml
+|-- src
+|   |-- app.rs
+|   |-- config.rs
+|   |-- controllers
+|   |   |-- api
+|   |   |   |-- mod.rs
+|   |   |   `-- v1
+|   |   |       |-- mod.rs
+|   |   |       `-- ytdlp_controller.rs
+|   |   |-- error_controller.rs
+|   |   |-- health_controller.rs
+|   |   |-- mod.rs
+|   |   |-- root_controller.rs
+|   |   `-- validation_controller.rs
+|   |-- db
+|   |   |-- mod.rs
+|   |   |-- postgres.rs
+|   |   `-- redis.rs
+|   |-- error.rs
+|   |-- extractors
+|   |   |-- mod.rs
+|   |   `-- validated_json.rs
+|   |-- lib.rs
+|   |-- main.rs
+|   |-- middleware
+|   |   |-- captcha.rs
+|   |   |-- cors.rs
+|   |   |-- mod.rs
+|   |   `-- rate_limit.rs
+|   |-- models
+|   |   |-- health_model.rs
+|   |   |-- mod.rs
+|   |   |-- validation_model.rs
+|   |   `-- ytdlp_model.rs
+|   |-- routes
+|   |   |-- api
+|   |   |   |-- mod.rs
+|   |   |   `-- v1
+|   |   |       |-- mod.rs
+|   |   |       `-- ytdlp_routes.rs
+|   |   |-- health_routes.rs
+|   |   |-- mod.rs
+|   |   `-- validation_routes.rs
+|   |-- services
+|   |   |-- mod.rs
+|   |   `-- ytdlp
+|   |       `-- mod.rs
+|   `-- state.rs
+|-- tests
+|   |-- api
+|   |   |-- common.rs
+|   |   |-- health_tests.rs
+|   |   |-- root_tests.rs
+|   |   `-- ytdlp_tests.rs
+|   `-- api_tests.rs
+
+```
+</details>
+
 ### Infrastructure
 - CloudFlare R2 Backend for Terraform Backend.
 - DigitalOcean Terraform provider. with Droplets, Volumes.
