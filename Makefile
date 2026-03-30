@@ -1,6 +1,6 @@
 .PHONY: help \
 	r b br rr t tt f fc l ck c \
-	builder builder-rm bd bdp rd rdp sd ld cd tf
+	builder builder-rm bd bdp rd rdd rdp sd ld cd tf
 .DELETE_ON_ERROR:
 
 MAKEFLAGS += --warn-undefined-variables
@@ -21,7 +21,6 @@ PLATFORM ?= linux/amd64
 BUILDER_NAME ?= zstd-builder
 PUSH ?= false
 TF_STACK_DIR ?= infra/digitalocean/accounts/naduns-team
-YTDLP_COOKIES_FILE ?= $(PWD)/cookies.txt
 
 VERBOSE ?= true
 
@@ -61,7 +60,7 @@ t: ## Run all tests (locked + all targets)
 
 tt: ## TDD loop entrypoint (usage: make ltdd TEST=<name>)
 	$(SAY) "$(BLUE)Running focused test for TDD...$(NC)"
-	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=normalize_shorts_url" && exit 1)
+	$(Q)test -n "$(TEST)" || (echo "TEST is required. Example: make ltdd TEST=resolve_mp4_best_selector" && exit 1)
 	$(Q)cargo test --locked -- --nocapture $(TEST)
 
 f: ## Format code
@@ -134,6 +133,11 @@ rd: ## Run local Docker Compose stack (Dev Environment)
 	$(Q)docker compose -f docker-compose.dev.yml up -d --build
 	$(Q)docker compose -f docker-compose.dev.yml logs app -f
 
+rdd: ## Run Docker Compose stack (prod Environment)
+	$(SAY) "$(GREEN)Preparing to run Docker Compose prod stack...$(NC)"
+	$(SAY) "$(GREEN)Running local Compose prod stack...$(NC)"
+	$(Q)docker compose -f docker-compose.yml up -d
+
 rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 	$(SAY) "$(GREEN)Running $(IMAGE):$(TAG) as production simulation on port $(PORT)...$(NC)"
 	-$(Q)docker rm -f $(CONTAINER_NAME)-prod >/dev/null 2>&1 || true
@@ -145,9 +149,7 @@ rdp: ## Run local image as production simulation (uses $(IMAGE):$(TAG))
 		-e APP_PORT=$(PORT) \
 		-e APP_ENV=production \
 		-e DOWNLOAD_DIR=/home/app/downloads \
-		-e YTDLP_COOKIES_FILE=/run/secrets/ytdlp_cookies.txt \
 		-e MAX_CONCURRENT_DOWNLOADS=3 \
-		-v "$(YTDLP_COOKIES_FILE):/run/secrets/ytdlp_cookies.txt:ro" \
 		-v $(PWD)/downloads:/home/app/downloads \
 		$(IMAGE):$(TAG)
 	
@@ -174,21 +176,7 @@ tf: ## use this to spawn a loaded shell
 		set -a && \
 		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
 		set +a && \
-		if [ -n \"\$$TF_VAR_YTDLP_COOKIES_FILE\" ]; then \
-			aws s3 cp \"\$$TF_VAR_YTDLP_COOKIES_FILE\" \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\"; \
-			export TF_VAR_YTDLP_PRESIGNED_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/ytdlp/cookies.txt\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r'); \
-		fi && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \
 		exec bash -l"
 
-tft: ## TEST : use this to spawn a env loaded shell - no cookie upload or presigned URL generation (for testing)
-	$(SAY) "$(BLUE)Entering $(TF_STACK_DIR) with environment loaded from root .env$(NC)"
-	$(Q)bash -lc "\
-		set -a && \
-		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
-		set +a && \
-		export TF_VAR_YTDLP_PRESIGNED_URL=\"https://blavla.nadzu.me/fake-presigned-url\" && \
-		cd $(TF_STACK_DIR) && \
-		unset PROMPT_COMMAND && \
-		exec bash -l"

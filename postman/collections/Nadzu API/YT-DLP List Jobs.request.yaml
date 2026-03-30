@@ -3,7 +3,7 @@ name: YT-DLP List Jobs
 url: "{{base_url}}/api/v1/ytdlp/jobs"
 method: GET
 headers:
-  x-bypass-dev: "true"
+  x-api-key: "{{API_KEY}}"
 scripts:
   - type: afterResponse
     code: >-
@@ -16,4 +16,4 @@ scripts:
         pm.expect(jsonData.jobs).to.be.an('array');
       });
     language: text/javascript
-order: 6000
+order: 7000

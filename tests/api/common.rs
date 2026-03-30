@@ -10,12 +10,11 @@ use nadzu::{
 use serde_json::{Value, json};
 use std::sync::Arc;
 
-//test Configuration
 pub fn create_test_state(secret_key: Option<&str>) -> AppState {
-    create_test_state_with(secret_key, None)
+    create_test_state_with(secret_key)
 }
 
-pub fn create_test_state_with(secret_key: Option<&str>, cookies_file: Option<&str>) -> AppState {
+pub fn create_test_state_with(secret_key: Option<&str>) -> AppState {
     let config = Arc::new(AppConfig {
         name: "test".into(),
         env: "test".into(),
@@ -24,11 +23,11 @@ pub fn create_test_state_with(secret_key: Option<&str>, cookies_file: Option<&st
         allowed_origins: None,
         download_dir: "downloads".into(),
         ytdlp_path: "yt-dlp".into(),
-        ytdlp_cookies_file: cookies_file.map(str::to_string),
-        ytdlp_extractor_args: None,
-        ytdlp_pot_provider_url: None,
+        ytdlp_external_downloader: None,
+        ytdlp_external_downloader_args: None,
         max_concurrent_downloads: 3,
         captcha_secret_key: secret_key.map(str::to_string),
+        master_api_key: "test_master_key".into(),
     });
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));

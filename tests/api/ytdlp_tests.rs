@@ -85,6 +85,7 @@ async fn ytdlp_list_jobs_returns_array() {
         .oneshot(
             Request::builder()
                 .uri("/api/v1/ytdlp/jobs")
+                .header("x-api-key", "test_master_key")
                 .body(Body::empty())
                 .unwrap(),
         )
@@ -123,32 +124,6 @@ async fn ytdlp_get_job_returns_seeded_job() {
 }
 
 #[tokio::test]
-async fn ytdlp_get_job_normalizes_shorts_url() {
-    let state = create_test_state(None);
-    let app = create_router(state.clone()).with_state(state.clone());
-    let job_id = seed_ytdlp_job(
-        &state,
-        "https://youtube.com/shorts/5g4pLlLH6P4?si=jaO5XHPymDBSc5uL",
-    )
-    .await;
-
-    let response = app
-        .oneshot(
-            Request::builder()
-                .uri(format!("/api/v1/ytdlp/jobs/{job_id}"))
-                .body(Body::empty())
-                .unwrap(),
-        )
-        .await
-        .unwrap();
-
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = get_json_body(response).await;
-    let normalized_url = body["job"]["url"].as_str().unwrap();
-    assert!(normalized_url.starts_with("https://www.youtube.com/watch?v="));
-}
-
-#[tokio::test]
 async fn ytdlp_get_job_not_found_returns_404() {
     let app = create_test_app(None);
 
@@ -183,33 +158,6 @@ async fn ytdlp_download_file_not_found_returns_404() {
 }
 
 // Unit tests moved from mod.rs
-
-#[test]
-fn extract_shorts_id_works() {
-    let id =
-        nadzu::services::ytdlp::extract_shorts_id("https://youtube.com/shorts/5g4pLlLH6P4?si=abc");
-    assert_eq!(id, Some("5g4pLlLH6P4"));
-}
-
-#[test]
-fn normalize_shorts_to_watch_url() {
-    let normalized = nadzu::services::ytdlp::normalize_youtube_url(
-        "https://youtube.com/shorts/5g4pLlLH6P4?si=jaO5XHPymDBSc5uL",
-    );
-    assert_eq!(
-        normalized,
-        "https://www.youtube.com/watch?v=5g4pLlLH6P4".to_string()
-    );
-}
-
-#[test]
-fn keep_watch_url_unchanged() {
-    let source = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-    assert_eq!(
-        nadzu::services::ytdlp::normalize_youtube_url(source),
-        source.to_string()
-    );
-}
 
 #[test]
 fn resolve_mp4_best_selector() {

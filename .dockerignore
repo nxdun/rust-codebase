@@ -34,7 +34,6 @@ nadunssh
 *.key
 id_rsa
 id_ed25519
-cookies.txt
 
 .env
 infra/.terraform/
