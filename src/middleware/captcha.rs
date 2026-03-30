@@ -8,7 +8,7 @@ use axum::{
 use serde::Deserialize;
 use serde_json::json;
 
-use crate::state::AppState;
+use crate::{middleware::api_key::has_valid_master_api_key, state::AppState};
 
 #[derive(Debug, Deserialize)]
 struct CaptchaProviderResponse {
@@ -24,18 +24,10 @@ pub async fn verify_captcha_token(
         return Ok(next.run(req).await);
     }
 
-    // critical: If x-bypass-dev header is set to 'true' as a string, skip captcha verification :}
-    // if req
-    //     .headers()
-    //     .get("x-bypass-dev")
-    //     .and_then(|value| value.to_str().ok())
-    //     .map(str::trim)
-    //     .map(|v| v.eq_ignore_ascii_case("true"))
-    //     .unwrap_or(false)
-    // {
-    //     tracing::warn!("Captcha verification BYPASSED due to x-bypass-dev header");
-    //     return Ok(next.run(req).await);
-    // }
+    if has_valid_master_api_key(req.headers(), state.config.as_ref()) {
+        tracing::info!("Bypassing captcha check due to valid x-api-key");
+        return Ok(next.run(req).await);
+    }
 
     let captcha_token = match req
         .headers()

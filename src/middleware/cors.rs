@@ -1,4 +1,4 @@
-use crate::config::AppConfig;
+use crate::{config::AppConfig, middleware::api_key::API_KEY_HEADER};
 use axum::http::{
     Method,
     header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderName},
@@ -108,6 +108,7 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
             AUTHORIZATION,
             CONTENT_TYPE,
             ACCEPT,
+            HeaderName::from_static(API_KEY_HEADER),
             HeaderName::from_static("x-captcha-token"),
         ])
         .allow_credentials(true)

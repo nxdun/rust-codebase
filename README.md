@@ -5,7 +5,7 @@ Highly focused on concurrency, performance, security, and future-proof design.
 
 ### Major Functions
 - Multi-platform media downloading with yt-dlp.
-- Anti-abuse measures: IP-based rate limiting, CAPTCHA verification.
+- Anti-abuse measures: tiered rate limiting (enhanced for valid API key), CAPTCHA verification.
 - IaC Terraform infrastructure using DigitalOcean provider.
 - Published to Private GitHub Container Registry.
 
@@ -20,6 +20,7 @@ Highly focused on concurrency, performance, security, and future-proof design.
 
 ```text
 .
+|-- Caddyfile
 |-- Caddyfile.local
 |-- Cargo.lock
 |-- Cargo.toml
@@ -31,7 +32,6 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |-- docker-compose.dev.yml
 |-- docker-compose.yml
 |-- docker-entrypoint.sh
-|-- infra..[Refer to Infrastructure section]
 |-- docs
 |   `-- images
 |       |-- Themed-Architecture-Diagram-code.md
@@ -44,7 +44,7 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |   |       |-- Root.request.yaml
 |   |       |-- Validate User.request.yaml
 |   |       |-- YT-DLP Download File.request.yaml
-|   |       |-- YT-DLP Enqueue (watch URL).request.yaml
+|   |       |-- YT-DLP Enqueue.request.yaml
 |   |       |-- YT-DLP Get Job By ID.request.yaml
 |   |       |-- YT-DLP List Jobs.request.yaml
 |   |       |-- YT-DLP Stream Job Progress.request.yaml
@@ -77,6 +77,8 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |   |-- lib.rs
 |   |-- main.rs
 |   |-- middleware
+|   |   |-- api_key.rs
+|   |   |-- auth.rs
 |   |   |-- captcha.rs
 |   |   |-- cors.rs
 |   |   |-- mod.rs
@@ -102,11 +104,18 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |   `-- state.rs
 |-- tests
 |   |-- api
+|   |   |-- auth_tests.rs
+|   |   |-- captcha_tests.rs
 |   |   |-- common.rs
+|   |   |-- cors_tests.rs
 |   |   |-- health_tests.rs
+|   |   |-- rate_limit_tests.rs
 |   |   |-- root_tests.rs
+|   |   |-- routing_tests.rs
+|   |   |-- validation_tests.rs
 |   |   `-- ytdlp_tests.rs
-|   `-- api_tests.rs
+|   |-- api_tests.rs
+|   `-- layer_unit_tests.rs
 
 ```
 </details>
