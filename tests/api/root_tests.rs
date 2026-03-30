@@ -1,23 +1,13 @@
-use axum::{
-    body::Body,
-    http::{Request, StatusCode},
-};
-use http_body_util::BodyExt;
-use tower::ServiceExt;
+use axum::http::StatusCode;
 
-use crate::common::create_test_app;
+use crate::common::{EXPECTED_ROOT_MESSAGE, create_test_app, get, send_text};
 
 #[tokio::test]
 async fn root_endpoint_returns_alive_message() {
     let app = create_test_app(None);
 
-    let response = app
-        .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
-        .await
-        .unwrap();
+    let (status, body) = send_text(&app, get("/")).await;
 
-    assert_eq!(response.status(), StatusCode::OK);
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    let body_str = String::from_utf8(body.to_vec()).unwrap();
-    assert_eq!(body_str, "test - alive and listening");
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, EXPECTED_ROOT_MESSAGE);
 }
