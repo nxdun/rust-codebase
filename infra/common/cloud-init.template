@@ -26,7 +26,7 @@ write_files:
             - /dev/net/tun:/dev/net/tun
           ports:
             - "40000:40000"
-          
+
         app:
           image: ${GHCR_IMAGE}
           restart: ${DOCKER_RESTART_POLICY}
@@ -40,10 +40,10 @@ write_files:
             - HTTP_PROXY=socks5h://warp:40000
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
-            - NO_PROXY=google.com,www.google.com,recaptcha.net
+            - NO_PROXY=google.com,www.google.com,recaptcha.net,localhost,127.0.0.1,app,caddy,warp
 
         caddy:
-          image: caddy:alpine
+          image: caddy:2-alpine
           restart: ${DOCKER_RESTART_POLICY}
           ports:
             - "80:80"
@@ -54,24 +54,34 @@ write_files:
             - "${MOUNT_PATH}:/home/app/downloads:ro"
           depends_on:
             - app
-            
+
   - path: /opt/app/Caddyfile
     permissions: '0644'
     owner: root:root
     content: |
-      :80 {
-        redir https://api.nadzu.me{uri}
+      {
+        servers {
+          protocols h1
+          trusted_proxies static ${CADDY_CLOUDFLARE_TRUSTED_PROXIES}
+          trusted_proxies_strict
+          client_ip_headers CF-Connecting-IP X-Forwarded-For
+        }
       }
 
-      api.nadzu.me:443 {
-        tls /etc/caddy/certs/api.nadzu.me.pem /etc/caddy/certs/api.nadzu.me.key
+      :80 {
+        redir https://${PRODUCTION_DOMAIN}{uri}
+      }
 
-        # IP-Restrict For VPN
-        @notallowed not remote_ip 4.247.168.228
-        abort @notallowed
+      ${PRODUCTION_DOMAIN}:443 {
+        tls /etc/caddy/certs/${PRODUCTION_DOMAIN}.pem /etc/caddy/certs/${PRODUCTION_DOMAIN}.key
 
-        # File Browser & Streaming
         route /nadun/fs/* {
+          @blocked {
+            path /nadun/fs/*
+            not client_ip ${SSH_ALLOWED_IPS}
+          }
+          respond @blocked "Forbidden" 403
+
           uri strip_prefix /nadun/fs
 
           @mp4 path *.mp4
@@ -86,16 +96,21 @@ write_files:
           }
         }
 
-        reverse_proxy app:${APP_PORT}
+        reverse_proxy app:${APP_PORT} {
+          header_up Host {host}
+          transport http {
+            versions 1.1
+          }
+        }
       }
 
-  - path: /opt/app/certs/api.nadzu.me.key
+  - path: /opt/app/certs/${PRODUCTION_DOMAIN}.key
     permissions: '0600'
     owner: root:root
     content: |
       ${indent(6, CERT_KEY)}
 
-  - path: /opt/app/certs/api.nadzu.me.pem
+  - path: /opt/app/certs/${PRODUCTION_DOMAIN}.pem
     permissions: '0644'
     owner: root:root
     content: |
@@ -134,18 +149,18 @@ write_files:
       install -m 0755 -d /etc/apt/keyrings
       curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
       chmod a+r /etc/apt/keyrings/docker.asc
-      
+
       echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
-      
+
       apt-get update -y
       apt-get install -y --no-install-recommends docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-      
+
       iptables -A OUTPUT -d 169.254.169.254 -m owner ! --uid-owner root -j DROP
       netfilter-persistent save
 
       systemctl enable docker
       systemctl start docker
-      
+
       DEVICE="${VOLUME_DEVICE_BY_ID}"
       for i in {1..30}; do
         if [ -b "$DEVICE" ]; then
@@ -164,22 +179,21 @@ write_files:
       fi
 
       mkdir -p "${MOUNT_PATH}"
-      
+
       UUID=$(blkid -s UUID -o value "$DEVICE")
       if ! grep -q "$UUID" /etc/fstab; then
         echo "UUID=$UUID ${MOUNT_PATH} ext4 defaults,nofail,discard 0 2" >> /etc/fstab
       fi
-      
+
       mount -a
 
       chown 65532:65532 "${MOUNT_PATH}"
       chmod 775 "${MOUNT_PATH}"
 
-      # Login to GHCR
       cat /root/.ghcr_token | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
       cd /opt/app
       docker compose pull
-      
+
       rm -f /root/.ghcr_token
 
       docker compose up -d
