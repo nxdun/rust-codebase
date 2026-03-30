@@ -1,8 +1,14 @@
 use crate::{
-    apply_rate_limiter, config::AppConfig, middleware::cors::build_cors, routes,
-    services::ytdlp::YtdlpManager, state::AppState,
+    config::AppConfig,
+    middleware::{
+        cors::build_cors,
+        rate_limit::{RateLimiters, enforce_tiered_rate_limit, log_rate_limit_mode},
+    },
+    routes,
+    services::ytdlp::YtdlpManager,
+    state::AppState,
 };
-use axum::serve;
+use axum::{middleware, serve};
 use dotenvy::dotenv;
 use std::net::SocketAddr;
 use std::sync::Arc;
@@ -37,10 +43,13 @@ pub async fn run() {
     // 4. Load application config and build shared app state
     let config = Arc::new(AppConfig::from_env());
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
+    let rate_limiters = Arc::new(RateLimiters::new());
+    log_rate_limit_mode(&config);
     let http_client = reqwest::Client::new();
     let state = AppState {
         config: config.clone(),
         ytdlp_manager,
+        rate_limiters,
         http_client,
     };
 
@@ -49,8 +58,12 @@ pub async fn run() {
     let cors_layer = build_cors(&config);
 
     // 6. Compose router, state, and middleware stack (including rate limiter)
-    let app = apply_rate_limiter!(routes::create_router(state.clone()), &config)
+    let app = routes::create_router(state.clone())
         .with_state(state.clone())
+        .layer(middleware::from_fn_with_state(
+            state.clone(),
+            enforce_tiered_rate_limit,
+        ))
         .layer(trace_layer)
         .layer(cors_layer)
         .layer(compression_layer);
@@ -64,8 +77,8 @@ pub async fn run() {
 
     let listener = TcpListener::bind(addr).await.unwrap();
 
-    // 8. Start HTTP server with graceful shutdown handling
-    // SmartIpKeyExtractor needs peer socket address via ConnectInfo.
+    // 8. Start HTTP server with graceful shutdown handling.
+    // Tiered rate limiting reads client IP from ConnectInfo in production.
     if let Err(err) = serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
