@@ -1,5 +1,5 @@
 $kind: http-request
-name: YT-DLP Enqueue (watch URL)
+name: YT-DLP Enqueue
 url: "{{base_url}}/api/v1/ytdlp"
 method: POST
 headers:
@@ -14,7 +14,7 @@ body:
   type: text
   content: |-
     {
-      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "url": "{{url}}",
       "quality": "best",
       "format": "mp4"
     }
