@@ -3,7 +3,10 @@ use serde_json::json;
 
 use crate::common::{create_test_app, post_json, post_raw_json_with_headers, send_json};
 
-fn error_entry_for_field<'a>(errors: &'a [serde_json::Value], field: &str) -> &'a serde_json::Value {
+fn error_entry_for_field<'a>(
+    errors: &'a [serde_json::Value],
+    field: &str,
+) -> &'a serde_json::Value {
     errors
         .iter()
         .find(|entry| entry["field"] == field)

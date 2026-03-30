@@ -12,7 +12,8 @@ use nadzu::{
     },
     models::ytdlp_model::YtdlpDownloadRequest,
     routes::create_router,
-    services::ytdlp::YtdlpManager, state::AppState,
+    services::ytdlp::YtdlpManager,
+    state::AppState,
 };
 use serde_json::{Value, json};
 use std::sync::Arc;
@@ -124,11 +125,7 @@ pub fn post_json(uri: &str, body: Value) -> Request<Body> {
     post_json_with_headers(uri, body, &[])
 }
 
-pub fn post_json_with_headers(
-    uri: &str,
-    body: Value,
-    headers: &[(&str, &str)],
-) -> Request<Body> {
+pub fn post_json_with_headers(uri: &str, body: Value, headers: &[(&str, &str)]) -> Request<Body> {
     post_raw_json_with_headers(uri, body.to_string(), headers)
 }
 

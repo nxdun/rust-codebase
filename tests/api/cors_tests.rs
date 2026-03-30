@@ -15,7 +15,10 @@ async fn cors_preflight_allows_required_custom_headers() {
             &[
                 ("origin", "http://localhost:5173"),
                 ("access-control-request-method", "GET"),
-                ("access-control-request-headers", "x-api-key,x-captcha-token"),
+                (
+                    "access-control-request-headers",
+                    "x-api-key,x-captcha-token",
+                ),
             ],
         ),
     )

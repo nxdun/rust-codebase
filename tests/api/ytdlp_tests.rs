@@ -8,7 +8,10 @@ use crate::common::{
     send_json, ytdlp_enqueue_request,
 };
 
-fn validation_error_for_field<'a>(errors: &'a [serde_json::Value], field: &str) -> &'a serde_json::Value {
+fn validation_error_for_field<'a>(
+    errors: &'a [serde_json::Value],
+    field: &str,
+) -> &'a serde_json::Value {
     errors
         .iter()
         .find(|entry| entry["field"] == field)
@@ -74,7 +77,10 @@ async fn ytdlp_list_jobs_returns_array() {
 
     let (status, body) = send_json(
         &app,
-        get_with_headers("/api/v1/ytdlp/jobs", &[(API_KEY_HEADER, TEST_MASTER_API_KEY)]),
+        get_with_headers(
+            "/api/v1/ytdlp/jobs",
+            &[(API_KEY_HEADER, TEST_MASTER_API_KEY)],
+        ),
     )
     .await;
 
@@ -144,10 +150,7 @@ async fn ytdlp_supported_sites_returns_service_unavailable_without_generated_fil
     assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
     assert!(body["error"].is_string());
     assert!(
-        body["error"]
-            .as_str()
-            .unwrap()
-            .contains("missing")
+        body["error"].as_str().unwrap().contains("missing")
             || body["error"].as_str().unwrap().contains("not generated")
     );
 }

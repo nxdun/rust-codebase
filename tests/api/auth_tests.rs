@@ -1,8 +1,8 @@
 use axum::http::StatusCode;
 
 use crate::common::{
-    API_KEY_HEADER, TEST_MASTER_API_KEY, create_test_app, get, get_with_headers, send_text,
-    send_json,
+    API_KEY_HEADER, TEST_MASTER_API_KEY, create_test_app, get, get_with_headers, send_json,
+    send_text,
 };
 
 #[tokio::test]
@@ -26,7 +26,10 @@ async fn list_jobs_requires_api_key_when_invalid() {
 
     let (status, body) = send_text(
         &app,
-        get_with_headers("/api/v1/ytdlp/jobs", &[(API_KEY_HEADER, "not_the_master_key")]),
+        get_with_headers(
+            "/api/v1/ytdlp/jobs",
+            &[(API_KEY_HEADER, "not_the_master_key")],
+        ),
     )
     .await;
 
@@ -44,7 +47,10 @@ async fn list_jobs_returns_array_with_valid_api_key() {
 
     let (status, body) = send_json(
         &app,
-        get_with_headers("/api/v1/ytdlp/jobs", &[(API_KEY_HEADER, TEST_MASTER_API_KEY)]),
+        get_with_headers(
+            "/api/v1/ytdlp/jobs",
+            &[(API_KEY_HEADER, TEST_MASTER_API_KEY)],
+        ),
     )
     .await;
 
