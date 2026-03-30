@@ -51,6 +51,7 @@ write_files:
           volumes:
             - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
             - /opt/app/certs:/etc/caddy/certs:ro
+            - "${MOUNT_PATH}:/home/app/downloads:ro"
           depends_on:
             - app
             
@@ -61,8 +62,30 @@ write_files:
       :80 {
         redir https://api.nadzu.me{uri}
       }
+
       api.nadzu.me:443 {
         tls /etc/caddy/certs/api.nadzu.me.pem /etc/caddy/certs/api.nadzu.me.key
+
+        # IP-Restrict For VPN
+        @notallowed not remote_ip 4.247.168.228
+        abort @notallowed
+
+        # File Browser & Streaming
+        route /nadun/fs/* {
+          uri strip_prefix /nadun/fs
+
+          @mp4 path *.mp4
+          header @mp4 {
+            Content-Type "video/mp4"
+            Content-Disposition "inline"
+            Access-Control-Allow-Origin "*"
+          }
+
+          file_server browse {
+            root /home/app/downloads
+          }
+        }
+
         reverse_proxy app:${APP_PORT}
       }
 
@@ -93,11 +116,13 @@ write_files:
       ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       WARP_LICENSE_KEY=${WARP_LICENSE_KEY}
       MASTER_API_KEY=${MASTER_API_KEY}
+
   - path: /root/.ghcr_token
     permissions: '0600'
     owner: root:root
     content: |
       ${GHCR_PAT}
+
   - path: /opt/app/startup.sh
     permissions: '0755'
     owner: root:root
