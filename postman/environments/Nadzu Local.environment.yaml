@@ -3,8 +3,7 @@ values:
   - key: base_url
     value: 'http://127.0.0.1:8080'
     enabled: true
-    type: default
   - key: base_url_tls
     value: 'https://nadzu.localhost'
     enabled: true
-    type: default
+color: 0
