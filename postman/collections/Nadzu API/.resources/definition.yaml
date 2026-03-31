@@ -1,9 +1,0 @@
-$kind: collection
-name: Nadzu API
-description: Postman collection for Nadzu Rust backend (Axum) including yt-dlp
-  job queue endpoints.
-variables:
-  base_url: ""
-  latest_job_id: ""
-  captcha_token: ""
-  API_KEY: ""

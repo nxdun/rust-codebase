@@ -45,3 +45,4 @@ nadunssh
 *.key
 id_rsa
 id_ed25519
+postman\collections\Nadzu API\.resources\definition.yaml
