@@ -1,7 +1,10 @@
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
-    middleware::{api_key::has_valid_master_api_key, rate_limit::is_production},
+    middleware::{
+        api_key::{API_KEY_HEADER, has_valid_master_api_key},
+        rate_limit::is_production,
+    },
     models::health_model::Health,
 };
 
@@ -27,7 +30,7 @@ fn has_valid_master_api_key_returns_true_for_matching_header() {
     // Utility layer contract: header parser and key matcher should accept valid key.
     let config = test_config("test");
     let mut headers = HeaderMap::new();
-    headers.insert("x-api-key", "master_key".parse().unwrap());
+    headers.insert(API_KEY_HEADER, "master_key".parse().unwrap());
 
     assert!(has_valid_master_api_key(&headers, &config));
 }
@@ -41,7 +44,7 @@ fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
     assert!(!has_valid_master_api_key(&empty_headers, &config));
 
     let mut wrong_headers = HeaderMap::new();
-    wrong_headers.insert("x-api-key", "wrong_key".parse().unwrap());
+    wrong_headers.insert(API_KEY_HEADER, "wrong_key".parse().unwrap());
     assert!(!has_valid_master_api_key(&wrong_headers, &config));
 
     let mut unrelated_headers = HeaderMap::new();
@@ -65,4 +68,17 @@ fn health_ok_model_contains_expected_values() {
     assert_eq!(health.status, "ok");
     assert!(!health.version.is_empty());
     assert_eq!(health.version, env!("CARGO_PKG_VERSION"));
+}
+
+#[test]
+#[should_panic(expected = "MASTER_API_KEY must be set")]
+fn app_config_from_env_panics_when_master_api_key_missing() {
+    let original_key = std::env::var("MASTER_API_KEY").ok();
+    unsafe { std::env::remove_var("MASTER_API_KEY") };
+
+    let _config = AppConfig::from_env();
+
+    if let Some(key) = original_key {
+        unsafe { std::env::set_var("MASTER_API_KEY", key) };
+    }
 }
