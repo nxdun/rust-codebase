@@ -1,0 +1,9 @@
+name: nadzu prod
+values:
+  - key: base_url
+    value: ''
+    enabled: true
+  - key: API_KEY
+    value: ''
+    enabled: true
+color: 0

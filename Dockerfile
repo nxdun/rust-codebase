@@ -101,6 +101,6 @@ ENV YTDLP_PATH=/opt/yt/bin/yt-dlp \
 USER 65532:65532
 EXPOSE ${APP_PORT}
 HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-  CMD curl -f http://localhost:${APP_PORT}/health || exit 1
+  CMD curl -f http://127.0.0.1:${APP_PORT}/health || exit 1
 
 ENTRYPOINT ["/sbin/tini", "-g", "--", "/usr/local/bin/docker-entrypoint.sh"]

@@ -1,9 +1,8 @@
 $kind: http-request
-name: YT-DLP List Jobs
 url: "{{base_url}}/api/v1/ytdlp/jobs"
 method: GET
 headers:
-  x-api-key: "{{API_KEY}}"
+  x-api-key: "{{api_key}}"
 scripts:
   - type: afterResponse
     code: >-

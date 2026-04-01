@@ -1,5 +1,6 @@
 $kind: http-request
-url: https://github.com/nxdun.gpg
+name: Root
+url: "{{base_url}}/health"
 method: GET
 scripts:
   - type: afterResponse

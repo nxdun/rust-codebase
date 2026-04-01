@@ -1,23 +1,20 @@
 $kind: http-request
-name: YT-DLP Enqueue (watch URL)
+name: YT-DLP Enqueue
 url: "{{base_url}}/api/v1/ytdlp"
 method: POST
 headers:
-  - key: Content-Type
-    value: application/json
-  - key: x-captcha-token
-    value: "{{captcha_token}}"
-    disabled: true
-  - key: x-bypass-dev
-    value: "true"
+  Content-Type: application/json
+  x-captcha-token: "{{captcha_token}}"
+  x-api-key: "{{api_key}}"
 body:
-  type: text
+  type: json
   content: |-
     {
-      "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+      "url": "{{video_url}}",
       "quality": "best",
       "format": "mp4"
     }
+
 scripts:
   - type: afterResponse
     code: >-

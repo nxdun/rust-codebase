@@ -176,6 +176,7 @@ tf: ## use this to spawn a loaded shell
 		set -a && \
 		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
 		set +a && \
+		export MSYS_NO_PATHCONV=1 && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \
 		exec bash -l"

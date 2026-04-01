@@ -1,89 +1,141 @@
-use crate::config::AppConfig;
-use axum::body::Body;
-use governor::middleware::NoOpMiddleware;
-use tower_governor::{
-    GovernorLayer,
-    governor::GovernorConfigBuilder,
-    key_extractor::{GlobalKeyExtractor, SmartIpKeyExtractor},
-};
-use tracing::info;
+use std::{net::SocketAddr, num::NonZeroU32, sync::Arc};
 
-const RATE_LIMITER_PER_SECOND: u64 = 10;
+use axum::{
+    Json,
+    extract::{Request, State, connect_info::ConnectInfo},
+    http::{Method, StatusCode},
+    middleware::Next,
+    response::Response,
+};
+use governor::{
+    Quota, RateLimiter, clock::DefaultClock, middleware::NoOpMiddleware,
+    state::keyed::DefaultKeyedStateStore,
+};
+use serde_json::json;
+use tracing::{debug, info};
+
+use crate::{config::AppConfig, middleware::api_key::has_valid_master_api_key, state::AppState};
+
+const RATE_LIMITER_PER_SECOND: u32 = 10;
 const RATE_LIMITER_BURST_SIZE: u32 = 20;
 
-const ENHANCED_RATE_LIMITER_PER_SECOND: u64 = 50;
+const ENHANCED_RATE_LIMITER_PER_SECOND: u32 = 50;
 const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
+
+type KeyedLimiter =
+    RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>;
+
+#[derive(Clone)]
+pub struct RateLimiters {
+    normal: Arc<KeyedLimiter>,
+    enhanced: Arc<KeyedLimiter>,
+}
+
+impl RateLimiters {
+    pub fn new() -> Self {
+        Self {
+            normal: Arc::new(build_limiter(
+                RATE_LIMITER_PER_SECOND,
+                RATE_LIMITER_BURST_SIZE,
+            )),
+            enhanced: Arc::new(build_limiter(
+                ENHANCED_RATE_LIMITER_PER_SECOND,
+                ENHANCED_RATE_LIMITER_BURST_SIZE,
+            )),
+        }
+    }
+
+    fn limiter_for_api_key(&self, has_valid_api_key: bool) -> &KeyedLimiter {
+        if has_valid_api_key {
+            self.enhanced.as_ref()
+        } else {
+            self.normal.as_ref()
+        }
+    }
+}
+
+impl Default for RateLimiters {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
+fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
+    let quota = Quota::per_second(NonZeroU32::new(per_second).expect("per_second must be > 0"))
+        .allow_burst(NonZeroU32::new(burst_size).expect("burst_size must be > 0"));
+    RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(
+        quota,
+    )
+}
 
 pub fn is_production(config: &AppConfig) -> bool {
     config.env == "production"
 }
 
-pub fn create_dev_limiter() -> GovernorLayer<GlobalKeyExtractor, NoOpMiddleware, Body> {
-    info!("Rate Limiter: GlobalKeyExtractor (development mode)");
-    GovernorLayer::new(
-        GovernorConfigBuilder::default()
-            .key_extractor(GlobalKeyExtractor)
-            .per_second(RATE_LIMITER_PER_SECOND)
-            .burst_size(RATE_LIMITER_BURST_SIZE)
-            .finish()
-            .unwrap(),
-    )
+fn is_rate_limit_exempt(req: &Request) -> bool {
+    req.uri().path() == "/health"
 }
 
-pub fn create_prod_limiter() -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, Body> {
-    info!("Rate Limiter: SmartIpKeyExtractor (production mode)");
-    GovernorLayer::new(
-        GovernorConfigBuilder::default()
-            .key_extractor(SmartIpKeyExtractor)
-            .per_second(RATE_LIMITER_PER_SECOND)
-            .burst_size(RATE_LIMITER_BURST_SIZE)
-            .finish()
-            .unwrap(),
-    )
+fn request_client_key(req: &Request, config: &AppConfig) -> String {
+    if !is_production(config) {
+        return "global".to_string();
+    }
+
+    req.extensions()
+        .get::<ConnectInfo<SocketAddr>>()
+        .map(|connect_info| connect_info.0.ip().to_string())
+        .unwrap_or_else(|| "unknown-client".to_string())
 }
 
-pub fn create_enhanced_dev_limiter() -> GovernorLayer<GlobalKeyExtractor, NoOpMiddleware, Body> {
-    info!("Enhanced Rate Limiter: GlobalKeyExtractor (development mode)");
-    GovernorLayer::new(
-        GovernorConfigBuilder::default()
-            .key_extractor(GlobalKeyExtractor)
-            .per_second(ENHANCED_RATE_LIMITER_PER_SECOND)
-            .burst_size(ENHANCED_RATE_LIMITER_BURST_SIZE)
-            .finish()
-            .unwrap(),
-    )
-}
+pub async fn enforce_tiered_rate_limit(
+    State(state): State<AppState>,
+    req: Request,
+    next: Next,
+) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+    if req.method() == Method::OPTIONS || is_rate_limit_exempt(&req) {
+        return Ok(next.run(req).await);
+    }
 
-pub fn create_enhanced_prod_limiter() -> GovernorLayer<SmartIpKeyExtractor, NoOpMiddleware, Body> {
-    info!("Enhanced Rate Limiter: SmartIpKeyExtractor (production mode)");
-    GovernorLayer::new(
-        GovernorConfigBuilder::default()
-            .key_extractor(SmartIpKeyExtractor)
-            .per_second(ENHANCED_RATE_LIMITER_PER_SECOND)
-            .burst_size(ENHANCED_RATE_LIMITER_BURST_SIZE)
-            .finish()
-            .unwrap(),
-    )
-}
+    let has_valid_api_key = has_valid_master_api_key(req.headers(), state.config.as_ref());
+    let client_key = request_client_key(&req, state.config.as_ref());
+    let limiter = state.rate_limiters.limiter_for_api_key(has_valid_api_key);
 
-#[macro_export]
-macro_rules! apply_rate_limiter {
-    ($router:expr, $config:expr) => {{
-        if $crate::middleware::rate_limit::is_production($config) {
-            $router.layer($crate::middleware::rate_limit::create_prod_limiter())
+    if limiter.check_key(&client_key).is_err() {
+        let tier = if has_valid_api_key {
+            "enhanced"
         } else {
-            $router.layer($crate::middleware::rate_limit::create_dev_limiter())
-        }
-    }};
+            "normal"
+        };
+        debug!(
+            client_key = %client_key,
+            tier = tier,
+            "request rejected by rate limiter"
+        );
+        return Err((
+            StatusCode::TOO_MANY_REQUESTS,
+            Json(json!({ "message": "Rate limit exceeded", "tier": tier })),
+        ));
+    }
+
+    Ok(next.run(req).await)
 }
 
-#[macro_export]
-macro_rules! apply_enhanced_rate_limiter {
-    ($router:expr, $config:expr) => {{
-        if $crate::middleware::rate_limit::is_production($config) {
-            $router.layer($crate::middleware::rate_limit::create_enhanced_prod_limiter())
-        } else {
-            $router.layer($crate::middleware::rate_limit::create_enhanced_dev_limiter())
-        }
-    }};
+pub fn log_rate_limit_mode(config: &AppConfig) {
+    if is_production(config) {
+        info!(
+            "Rate Limiter: production mode (keyed by client IP), normal={}/s burst={}, enhanced={}/s burst={}",
+            RATE_LIMITER_PER_SECOND,
+            RATE_LIMITER_BURST_SIZE,
+            ENHANCED_RATE_LIMITER_PER_SECOND,
+            ENHANCED_RATE_LIMITER_BURST_SIZE
+        );
+    } else {
+        info!(
+            "Rate Limiter: development mode (global key), normal={}/s burst={}, enhanced={}/s burst={}",
+            RATE_LIMITER_PER_SECOND,
+            RATE_LIMITER_BURST_SIZE,
+            ENHANCED_RATE_LIMITER_PER_SECOND,
+            ENHANCED_RATE_LIMITER_BURST_SIZE
+        );
+    }
 }
