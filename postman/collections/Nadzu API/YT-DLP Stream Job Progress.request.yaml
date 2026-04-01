@@ -14,5 +14,4 @@ scripts:
         pm.expect(pm.response.headers.get('Content-Type')).to.include('text/event-stream');
       });
     language: text/javascript
-examples: .resources/YT-DLP Stream Job Progress.resources/examples
 order: 8100
