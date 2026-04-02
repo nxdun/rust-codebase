@@ -1,9 +1,9 @@
 name: Nadzu Local
 values:
   - key: base_url
-    value: 'http://127.0.0.1:8080'
+    value: 'http://127.0.0.1:80'
     enabled: true
   - key: base_url_tls
     value: 'https://nadzu.localhost'
     enabled: true
-color: 0
+color: 2

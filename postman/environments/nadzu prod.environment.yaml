@@ -6,4 +6,4 @@ values:
   - key: API_KEY
     value: ''
     enabled: true
-color: 0
+color: 1
