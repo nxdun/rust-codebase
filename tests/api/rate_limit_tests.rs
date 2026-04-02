@@ -3,8 +3,8 @@ use http_body_util::BodyExt;
 use serde_json::Value;
 
 use crate::common::{
-    API_KEY_HEADER, EXPECTED_ROOT_MESSAGE, TEST_MASTER_API_KEY, create_test_app_with_rate_limit,
-    get, get_with_headers, send, send_json, send_text,
+    API_KEY_HEADER, TEST_MASTER_API_KEY, create_test_app_with_rate_limit, get, get_with_headers,
+    send, send_json,
 };
 
 #[tokio::test]
@@ -21,7 +21,7 @@ async fn normal_tier_hits_limit_without_api_key() {
             break;
         }
 
-        assert_eq!(response.status(), StatusCode::OK);
+        assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
     }
 
     let throttle_body = throttle_body.expect("expected normal tier to hit limit");
@@ -34,14 +34,13 @@ async fn enhanced_tier_allows_higher_burst_with_valid_api_key() {
     let app = create_test_app_with_rate_limit(None);
 
     for _ in 0..40 {
-        let (status, body) = send_text(
+        let response = send(
             &app,
             get_with_headers("/", &[(API_KEY_HEADER, TEST_MASTER_API_KEY)]),
         )
         .await;
 
-        assert_eq!(status, StatusCode::OK);
-        assert_eq!(body, EXPECTED_ROOT_MESSAGE);
+        assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
     }
 }
 

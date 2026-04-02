@@ -25,7 +25,6 @@ pub const CAPTCHA_TOKEN_HEADER: &str = "x-captcha-token";
 pub const CONTENT_TYPE_JSON: &str = "application/json";
 pub const TEST_MASTER_API_KEY: &str = "test_master_key";
 pub const SAMPLE_YTDLP_URL: &str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-pub const EXPECTED_ROOT_MESSAGE: &str = "test - alive and listening";
 
 // State and app builders
 

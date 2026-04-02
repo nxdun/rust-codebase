@@ -1,13 +1,16 @@
 use axum::http::StatusCode;
 
-use crate::common::{EXPECTED_ROOT_MESSAGE, create_test_app, get, send_text};
+use crate::common::{create_test_app, get, send};
 
 #[tokio::test]
-async fn root_endpoint_returns_alive_message() {
+async fn root_endpoint_redirects_to_docs() {
     let app = create_test_app(None);
 
-    let (status, body) = send_text(&app, get("/")).await;
+    let response = send(&app, get("/")).await;
 
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body, EXPECTED_ROOT_MESSAGE);
+    assert_eq!(response.status(), StatusCode::PERMANENT_REDIRECT);
+    assert_eq!(
+        response.headers().get("location").unwrap(),
+        "https://nadzu.me"
+    );
 }
