@@ -1,4 +1,8 @@
-use std::{net::SocketAddr, num::NonZeroU32, sync::Arc};
+use std::{
+    net::{IpAddr, Ipv4Addr, SocketAddr},
+    num::NonZeroU32,
+    sync::Arc,
+};
 
 use axum::{
     Json,
@@ -22,8 +26,11 @@ const RATE_LIMITER_BURST_SIZE: u32 = 20;
 const ENHANCED_RATE_LIMITER_PER_SECOND: u32 = 50;
 const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
 
+pub const TIER_NORMAL: &str = "normal";
+pub const TIER_ENHANCED: &str = "enhanced";
+
 type KeyedLimiter =
-    RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>;
+    RateLimiter<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock, NoOpMiddleware>;
 
 #[derive(Clone)]
 pub struct RateLimiters {
@@ -45,11 +52,11 @@ impl RateLimiters {
         }
     }
 
-    fn limiter_for_api_key(&self, has_valid_api_key: bool) -> &KeyedLimiter {
+    fn get_limiter_and_tier(&self, has_valid_api_key: bool) -> (&KeyedLimiter, &'static str) {
         if has_valid_api_key {
-            self.enhanced.as_ref()
+            (self.enhanced.as_ref(), TIER_ENHANCED)
         } else {
-            self.normal.as_ref()
+            (self.normal.as_ref(), TIER_NORMAL)
         }
     }
 }
@@ -63,7 +70,7 @@ impl Default for RateLimiters {
 fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
     let quota = Quota::per_second(NonZeroU32::new(per_second).expect("per_second must be > 0"))
         .allow_burst(NonZeroU32::new(burst_size).expect("burst_size must be > 0"));
-    RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(
+    RateLimiter::<IpAddr, DefaultKeyedStateStore<IpAddr>, DefaultClock, NoOpMiddleware>::dashmap(
         quota,
     )
 }
@@ -76,15 +83,15 @@ fn is_rate_limit_exempt(req: &Request) -> bool {
     req.uri().path() == "/health"
 }
 
-fn request_client_key(req: &Request, config: &AppConfig) -> String {
+fn request_client_ip(req: &Request, config: &AppConfig) -> IpAddr {
     if !is_production(config) {
-        return "global".to_string();
+        return IpAddr::V4(Ipv4Addr::LOCALHOST);
     }
 
     req.extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|connect_info| connect_info.0.ip().to_string())
-        .unwrap_or_else(|| "unknown-client".to_string())
+        .map(|connect_info| connect_info.0.ip())
+        .unwrap_or(IpAddr::V4(Ipv4Addr::LOCALHOST))
 }
 
 pub async fn enforce_tiered_rate_limit(
@@ -97,17 +104,13 @@ pub async fn enforce_tiered_rate_limit(
     }
 
     let has_valid_api_key = has_valid_master_api_key(req.headers(), state.config.as_ref());
-    let client_key = request_client_key(&req, state.config.as_ref());
-    let limiter = state.rate_limiters.limiter_for_api_key(has_valid_api_key);
+    let client_ip = request_client_ip(&req, state.config.as_ref());
 
-    if limiter.check_key(&client_key).is_err() {
-        let tier = if has_valid_api_key {
-            "enhanced"
-        } else {
-            "normal"
-        };
+    let (limiter, tier) = state.rate_limiters.get_limiter_and_tier(has_valid_api_key);
+
+    if limiter.check_key(&client_ip).is_err() {
         debug!(
-            client_key = %client_key,
+            client_ip = %client_ip,
             tier = tier,
             "request rejected by rate limiter"
         );
@@ -121,21 +124,20 @@ pub async fn enforce_tiered_rate_limit(
 }
 
 pub fn log_rate_limit_mode(config: &AppConfig) {
-    if is_production(config) {
-        info!(
-            "Rate Limiter: production mode (keyed by client IP), normal={}/s burst={}, enhanced={}/s burst={}",
-            RATE_LIMITER_PER_SECOND,
-            RATE_LIMITER_BURST_SIZE,
-            ENHANCED_RATE_LIMITER_PER_SECOND,
-            ENHANCED_RATE_LIMITER_BURST_SIZE
-        );
+    let mode_desc = if is_production(config) {
+        "production mode (keyed by client IP)"
     } else {
-        info!(
-            "Rate Limiter: development mode (global key), normal={}/s burst={}, enhanced={}/s burst={}",
-            RATE_LIMITER_PER_SECOND,
-            RATE_LIMITER_BURST_SIZE,
-            ENHANCED_RATE_LIMITER_PER_SECOND,
-            ENHANCED_RATE_LIMITER_BURST_SIZE
-        );
-    }
+        "development mode (global key)"
+    };
+
+    info!(
+        "Rate Limiter: {}, {}={}/s burst={}, {}={}/s burst={}",
+        mode_desc,
+        TIER_NORMAL,
+        RATE_LIMITER_PER_SECOND,
+        RATE_LIMITER_BURST_SIZE,
+        TIER_ENHANCED,
+        ENHANCED_RATE_LIMITER_PER_SECOND,
+        ENHANCED_RATE_LIMITER_BURST_SIZE
+    );
 }

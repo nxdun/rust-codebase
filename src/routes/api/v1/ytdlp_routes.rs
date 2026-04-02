@@ -9,41 +9,34 @@ use crate::{
     state::AppState,
 };
 
+pub const ROUTE_YTDLP_BASE: &str = "/api/v1/ytdlp";
+
 pub fn router(state: AppState) -> Router<AppState> {
-    let public_routes = Router::new()
+    let nested_routes = Router::new()
+        .route("/sites", get(ytdlp_controller::get_supported_sites))
+        .route("/jobs/{id}", get(ytdlp_controller::get_download_job))
         .route(
-            "/api/v1/ytdlp/sites",
-            get(ytdlp_controller::get_supported_sites),
-        )
-        .route(
-            "/api/v1/ytdlp/jobs/{id}",
-            get(ytdlp_controller::get_download_job),
-        )
-        .route(
-            "/api/v1/ytdlp/jobs/{id}/stream",
+            "/jobs/{id}/stream",
             get(ytdlp_controller::stream_download_progress),
         )
-        .route(
-            "/api/v1/ytdlp/download/{id}",
-            get(ytdlp_controller::download_file),
+        .route("/download/{id}", get(ytdlp_controller::download_file))
+        .merge(
+            Router::new()
+                .route("/jobs", get(ytdlp_controller::list_download_jobs))
+                .layer(middleware::from_fn_with_state(
+                    state.clone(),
+                    require_api_key,
+                )),
         );
 
     let submit_route = Router::new()
-        .route("/api/v1/ytdlp", post(ytdlp_controller::create_download_job))
-        .layer(middleware::from_fn_with_state(
-            state.clone(),
-            verify_captcha_token,
-        ));
-
-    let auth_routes = Router::new()
         .route(
-            "/api/v1/ytdlp/jobs",
-            get(ytdlp_controller::list_download_jobs),
+            ROUTE_YTDLP_BASE,
+            post(ytdlp_controller::create_download_job),
         )
-        .layer(middleware::from_fn_with_state(state, require_api_key));
+        .layer(middleware::from_fn_with_state(state, verify_captcha_token));
 
     Router::new()
-        .merge(public_routes)
+        .nest(ROUTE_YTDLP_BASE, nested_routes)
         .merge(submit_route)
-        .merge(auth_routes)
 }
