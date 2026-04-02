@@ -11,9 +11,6 @@ async fn unknown_route_uses_structured_not_found_response() {
 
     assert_eq!(status, StatusCode::NOT_FOUND);
     assert_eq!(body["status"], 404);
-    assert_eq!(
-        body["message"],
-        "No route found for '/summon-pickachu'"
-    );
+    assert_eq!(body["message"], "No route found for '/summon-pickachu'");
     assert_eq!(body.as_object().unwrap().len(), 2);
 }
