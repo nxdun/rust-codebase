@@ -25,6 +25,13 @@ services:
       HTTP_PROXY: "socks5h://warp:40000"
       HTTPS_PROXY: "socks5h://warp:40000"
       ALL_PROXY: "socks5h://warp:40000"
+      NO_PROXY: google.com,www.google.com,recaptcha.net,localhost,127.0.0.1,app,caddy,warp
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
     ports:
       - "80:80"
   # caddy:

@@ -1,33 +1,46 @@
-# Production Caddyfile.
-:80 {
-	# note: Redirect all HTTP traffic to HTTPS
-	redir https://api.nadzu.me{uri}
+{
+servers {
+	protocols h1
+	# note : pass trusted proxies as SPACE separated list of CIDR blocks
+	trusted_proxies static ${CADDY_CLOUDFLARE_TRUSTED_PROXIES}
+	trusted_proxies_strict
+	client_ip_headers CF-Connecting-IP X-Forwarded-For
+}
 }
 
-api.nadzu.me:443 {
-	tls /etc/caddy/certs/api.nadzu.me.pem /etc/caddy/certs/api.nadzu.me.key
+:80 {
+redir https://${PRODUCTION_DOMAIN}{uri}
+}
 
-	@notallowed {
-		path /nadun/fs/*
-		not remote_ip <allowed_ip_address>
+${PRODUCTION_DOMAIN}:443 {
+tls /etc/caddy/certs/${PRODUCTION_DOMAIN}.pem /etc/caddy/certs/${PRODUCTION_DOMAIN}.key
+
+route /nadun/fs/* {
+	@blocked {
+	path /nadun/fs/*
+	# note: Only Allow MY Personal VPN IP
+	not client_ip ${SSH_ALLOWED_IPS}
 	}
-    # note: Only Allow MY Personal VPN IP
-	abort @notallowed
+	respond @blocked "Forbidden" 403
 
-	route /nadun/fs/* {
-		uri strip_prefix /nadun/fs
+	uri strip_prefix /nadun/fs
 
-		@mp4 path *.mp4
-		header @mp4 {
-			Content-Type "video/mp4"
-			Content-Disposition "inline"
-			Access-Control-Allow-Origin "*"
-		}
-
-		file_server browse {
-			root /home/app/downloads
-		}
+	@mp4 path *.mp4
+	header @mp4 {
+	Content-Type "video/mp4"
+	Content-Disposition "inline"
+	Access-Control-Allow-Origin "*"
 	}
-    # note: DockerCompose Native
-	reverse_proxy app:${APP_PORT}
+
+	file_server browse {
+	root /home/app/downloads
+	}
+}
+
+reverse_proxy app:${APP_PORT} {
+	header_up Host {host}
+	transport http {
+	versions 1.1
+	}
+}
 }

@@ -24,14 +24,18 @@ write_files:
             - NET_ADMIN
           devices:
             - /dev/net/tun:/dev/net/tun
-          ports:
-            - "40000:40000"
+          logging:
+            driver: "json-file"
+            options:
+              max-size: "10m"
+              max-file: "3"
 
         app:
           image: ${GHCR_IMAGE}
           restart: ${DOCKER_RESTART_POLICY}
           depends_on:
-            - warp
+            warp:
+              condition: service_healthy
           volumes:
             - "${MOUNT_PATH}:/home/app/downloads"
           env_file:
@@ -41,6 +45,11 @@ write_files:
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
             - NO_PROXY=google.com,www.google.com,recaptcha.net,localhost,127.0.0.1,app,caddy,warp
+          logging:
+            driver: "json-file"
+            options:
+              max-size: "10m"
+              max-file: "3"
 
         caddy:
           image: caddy:2-alpine
