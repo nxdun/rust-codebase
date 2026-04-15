@@ -1,13 +1,15 @@
 use axum::{
     Json,
     extract::{FromRequest, Request},
-    http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::de::DeserializeOwned;
 use serde_json::json;
 use validator::Validate;
 
+use crate::error::AppError;
+
+#[derive(Debug)]
 pub struct ValidatedJson<T>(pub T);
 
 impl<T, S> FromRequest<S> for ValidatedJson<T>
@@ -19,15 +21,8 @@ where
 
     async fn from_request(req: Request, state: &S) -> Result<Self, Self::Rejection> {
         let Json(value) = Json::<T>::from_request(req, state).await.map_err(|err| {
-            tracing::error!("Failed to deserialize payload: {}", err);
-            (
-                StatusCode::BAD_REQUEST,
-                Json(json!({
-                    "status": 400,
-                    "message": "Invalid JSON format",
-                })),
-            )
-                .into_response()
+            tracing::error!("Failed to deserialize payload: {err}");
+            AppError::Validation("Invalid JSON format".to_string()).into_response()
         })?;
 
         value.validate().map_err(|errors| {
@@ -37,7 +32,7 @@ where
                 .map(|(field, errs)| {
                     let messages: Vec<String> = errs
                         .iter()
-                        .filter_map(|e| e.message.as_ref().map(|m| m.to_string()))
+                        .filter_map(|e| e.message.as_ref().map(ToString::to_string))
                         .collect();
 
                     json!({
@@ -47,17 +42,10 @@ where
                 })
                 .collect();
 
-            (
-                StatusCode::UNPROCESSABLE_ENTITY,
-                Json(json!({
-                    "status": 422,
-                    "message": "Validation failed",
-                    "errors": error_map,
-                })),
-            )
-                .into_response()
+            let msg = format!("Validation failed: {error_map:?}");
+            AppError::Validation(msg).into_response()
         })?;
 
-        Ok(ValidatedJson(value))
+        Ok(Self(value))
     }
 }

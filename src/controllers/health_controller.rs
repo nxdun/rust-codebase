@@ -1,8 +1,7 @@
 use crate::{error::AppError, models::health_model::Health, state::AppState};
-use axum::{Json, extract::State, http::StatusCode};
-pub async fn check_health(
-    State(_state): State<AppState>,
-) -> Result<(StatusCode, Json<Health>), AppError> {
-    let data = Health::ok();
-    Ok((StatusCode::OK, Json(data)))
+use axum::{Json, extract::State};
+
+/// Health check endpoint.
+pub async fn check_health(State(_state): State<AppState>) -> Result<Json<Health>, AppError> {
+    Ok(Json(Health::ok()))
 }

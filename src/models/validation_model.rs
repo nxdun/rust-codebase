@@ -17,14 +17,14 @@ pub struct ValidateUserRequest {
     pub age: u8,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct ValidatedUserResponse {
     pub success: bool,
     pub message: String,
     pub data: UserData,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, Serialize)]
 pub struct UserData {
     pub name: String,
     pub email: String,

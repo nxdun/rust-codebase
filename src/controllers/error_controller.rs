@@ -1,17 +1,9 @@
-use axum::{
-    Json,
-    http::{StatusCode, Uri},
-    response::IntoResponse,
-};
-use serde_json::json;
+use crate::error::AppError;
+use axum::{http::Uri, response::IntoResponse};
 use tracing::warn;
 
+/// Fallback handler for unknown routes.
 pub async fn not_found_handler(uri: Uri) -> impl IntoResponse {
     warn!("404 Not Found: {}", uri.path());
-    let body = json!({
-        "status": 404,
-        "message": format!("No route found for '{}'", uri.path()),
-    });
-
-    (StatusCode::NOT_FOUND, Json(body))
+    AppError::NotFound(format!("No route found for '{}'", uri.path())).into_response()
 }

@@ -20,17 +20,23 @@ use tower_http::{
 use tracing::{Level, error, info};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
+/// Application entry point.
 pub async fn run() {
     // 1. Load environment variables from .env file
     dotenv().ok();
 
     // 2. Initialize structured logging and environment-based log filtering
+    #[allow(clippy::expect_used)]
+    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| "info".into())
+        .add_directive(
+            "tower_http=info"
+                .parse()
+                .expect("static directive should parse"),
+        );
+
     tracing_subscriber::registry()
-        .with(
-            tracing_subscriber::EnvFilter::from_default_env()
-                .add_directive("tower_http=info".parse().unwrap())
-                .add_directive("axum::rejection=trace".parse().unwrap()),
-        )
+        .with(env_filter)
         .with(tracing_subscriber::fmt::layer())
         .init();
 
@@ -75,25 +81,29 @@ pub async fn run() {
         config.name, addr, config.env
     );
 
-    let listener = TcpListener::bind(addr).await.unwrap();
-
-    // 8. Start HTTP server with graceful shutdown handling.
-    // Tiered rate limiting reads client IP from ConnectInfo in production.
-    if let Err(err) = serve(
-        listener,
-        app.into_make_service_with_connect_info::<SocketAddr>(),
-    )
-    .with_graceful_shutdown(shutdown_signal())
-    .await
-    {
-        error!("server error: {}", err);
+    match TcpListener::bind(&addr).await {
+        Ok(listener) => {
+            // 8. Start HTTP server with graceful shutdown handling.
+            if let Err(err) = serve(
+                listener,
+                app.into_make_service_with_connect_info::<SocketAddr>(),
+            )
+            .with_graceful_shutdown(shutdown_signal())
+            .await
+            {
+                error!("server error: {err}");
+            }
+        }
+        Err(err) => {
+            error!("Failed to bind to {addr}: {err}");
+        }
     }
 }
 
 async fn shutdown_signal() {
-    tokio::signal::ctrl_c()
-        .await
-        .expect("fail : CTRL+C graceful shutdown signal");
+    if let Err(err) = tokio::signal::ctrl_c().await {
+        error!("failed to listen for CTRL+C: {err}");
+    }
     println!();
-    info!("ready : graceful shutdown ");
+    info!("Initiating graceful shutdown");
 }

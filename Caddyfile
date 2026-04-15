@@ -26,6 +26,7 @@ api.nadzu.me:443 {
 
 		file_server browse {
 			root /home/app/downloads
+			hide lost+found
 		}
 	}
     # note: DockerCompose Native

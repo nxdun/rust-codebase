@@ -2,11 +2,17 @@
 name = "nadzu"
 version = "0.3.0"
 edition = "2024"
+authors = ["Nadun <nadun@nadzu.net>"]
+description = "A high-performance YouTube downloader backend built with Axum and Rust."
+repository = "https://github.com/nxdun/rust-codebase"
+license = "MIT"
+keywords = ["youtube-dl", "yt-dlp", "axum", "rust", "backend"]
+categories = ["web-programming::http-server", "multimedia::video"]
 
 [dependencies]
 anyhow = "1.0"
 async-trait = "0.1"
-axum = "0.8"
+axum = { version = "0.8", features = ["macros"] }
 dashmap = "6.1.0"
 dotenvy = "0.15"
 governor = "0.10"
@@ -22,9 +28,33 @@ tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 validator = { version = "0.20", features = ["derive"] }
 url = "2.5.8"
+thiserror = "2.0"
 
 [dev-dependencies]
 http-body-util = "0.1"
+
+[lints.rust]
+unsafe_code = "deny"
+missing_debug_implementations = "warn"
+unreachable_pub = "warn"
+unused_qualifications = "warn"
+rust_2018_idioms = { level = "warn", priority = -1 }
+
+[lints.clippy]
+all = { level = "warn", priority = -1 }
+pedantic = { level = "warn", priority = -1 }
+nursery = { level = "warn", priority = -1 }
+cargo = { level = "warn", priority = -1 }
+# Allow these to reduce noise for a prototype
+multiple_crate_versions = "allow"
+missing_errors_doc = "allow"
+missing_panics_doc = "allow"
+must_use_candidate = "allow"
+# Critical ones to keep
+unwrap_used = "warn"
+expect_used = "warn"
+todo = "warn"
+panic = "warn"
 
 [profile.release]
 lto = true

@@ -1,12 +1,14 @@
 use crate::{
+    error::AppError,
     extractors::validated_json::ValidatedJson,
     models::validation_model::{UserData, ValidateUserRequest, ValidatedUserResponse},
 };
-use axum::{Json, http::StatusCode};
+use axum::Json;
 
+/// Validates user data using the custom validator extractor.
 pub async fn validate_user(
     ValidatedJson(payload): ValidatedJson<ValidateUserRequest>,
-) -> (StatusCode, Json<ValidatedUserResponse>) {
+) -> Result<Json<ValidatedUserResponse>, AppError> {
     let response = ValidatedUserResponse {
         success: true,
         message: "Validation successful".to_string(),
@@ -17,5 +19,5 @@ pub async fn validate_user(
         },
     };
 
-    (StatusCode::OK, Json(response))
+    Ok(Json(response))
 }

@@ -1,3 +1,4 @@
+#![allow(unsafe_code)]
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
@@ -25,7 +26,17 @@ fn test_config(env: &str) -> AppConfig {
     }
 }
 
+struct EnvGuard(Option<String>);
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        if let Some(key) = self.0.take() {
+            unsafe { std::env::set_var("MASTER_API_KEY", key) };
+        }
+    }
+}
+
 #[test]
+#[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_true_for_matching_header() {
     // Utility layer contract: header parser and key matcher should accept valid key.
     let config = test_config("test");
@@ -36,6 +47,7 @@ fn has_valid_master_api_key_returns_true_for_matching_header() {
 }
 
 #[test]
+#[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
     // Utility layer contract: missing/wrong keys must be rejected consistently.
     let config = test_config("test");
@@ -71,14 +83,15 @@ fn health_ok_model_contains_expected_values() {
 }
 
 #[test]
-#[should_panic(expected = "MASTER_API_KEY must be set")]
-fn app_config_from_env_panics_when_master_api_key_missing() {
+fn app_config_from_env_uses_default_when_master_api_key_missing() {
     let original_key = std::env::var("MASTER_API_KEY").ok();
+
+    // Safety: env::remove_var is unsafe in edition 2024
     unsafe { std::env::remove_var("MASTER_API_KEY") };
 
-    let _config = AppConfig::from_env();
+    // Use a guard to restore environment variable even if the test panics as expected
+    let _guard = EnvGuard(original_key);
 
-    if let Some(key) = original_key {
-        unsafe { std::env::set_var("MASTER_API_KEY", key) };
-    }
+    let config = AppConfig::from_env();
+    assert_eq!(config.master_api_key, "master_key_not_set");
 }

@@ -86,6 +86,9 @@ c: ## Run format check + type check + lint
 	$(Q)cargo test --locked --all-targets
 	$(SAY) "$(GREEN):::All local checks passed:::$(NC)"
 
+r: c ## Run the app locally (non-Docker)
+	$(SAY) "$(BLUE)Running $(BIN) locally...$(NC)"
+	$(Q)cargo run --locked --bin $(BIN)
 # -----------------------
 # Docker - builder
 # -----------------------
