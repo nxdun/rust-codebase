@@ -1,65 +1,79 @@
-## Nadzu-API
+# Nadzu-API
 
-My Personal Backend API built with Rust.  
-Highly focused on concurrency, performance, security, and future-proof design.
+Personal backend API built with Rust. Focused on concurrency, performance, security, and future-proof design.
 
-### Major Functions
+## Features
 
-- Basic API Functions
-  - CORS support.
-  - Rate limiting. 
-  - API versioning (v1)
-  - Health checks.
-  - Postman v3 Collection.
-  - Logging
+### Core API Functionality
 
-- Development lifecycle features
-  - Complete Agile Lifecycle Faster Development/Deployment.
-  - Makefile for core task automation.
-  - CI with GitHub Actions for linting, testing, and building.
-  - Complete unit and integration test coverage.
-  - Local development with Docker Compose and Caddy.
-  - Active Public [Changelog](https://nadzu.me/posts/rust-backend-changelog/) with release notes.
+* CORS support.
+* Rate limiting.
+* API versioning (v1).
+* Health checks.
+* Logging.
+* Postman v3 Collection included.
 
-- Multi-platform media downloading with yt-dlp.
-  - Download acceleration via aria2c integration.
-  - Job Lifecycle management: enqueue, progress tracking, result retrieval.
-  - Supported sites listing.
+### Media Downloading
 
-- proxy obfuscation to bypass geo-restrictions and anti-bot measures.
-  - Seperate Container with Cloudflare WARP client for outbound requests.
-  - Container Pulled From [this repo](https://github.com/nxdun/docker-warp-proxy) Maintained by me. [Docker Hub (1.1k pulls)](https://hub.docker.com/r/nxdun/cloudflare-warp-proxy).
+* Multi-platform media downloading via yt-dlp.
+* Download acceleration via aria2c integration.
+* Job lifecycle management: enqueue, progress tracking, and result retrieval.
+* Server-Sent Events (SSE) for real-time job progress updates.
+* Endpoint to list supported sites.
 
-- Anti-abuse measures
-  - CAPTCHA verification middleware.
+### Proxy Obfuscation
 
-- Packaging and Deployment
-  - Dockerized with multi-stage/multi-platform builds.
-    - Cargo-Chef for optimized Rust builds.
-    - YT-DLP Python dependencies pre-installed in the image.
-      - FFMPEG support included via 
-      - FFProbe for media validation.
-  - Custom Docker Builder with ZSTD compression.
-  - Local/Production Like development with Docker Compose + Caddy. with Self-signed TLS for local development.
-  - Published to Private GitHub Container Registry.
+* Bypasses geo-restrictions and anti-bot measures.
+* Separate container utilizing the Cloudflare WARP client for outbound requests.
+* Uses a custom [**Cloudflare WARP Proxy Docker Image**][docker-hub-image] (1.1k pulls) maintained in [**its dedicated repository**][warp-proxy-repo].
 
-- IaC Terraform infrastructure
-  - DigitalOcean Provider
-    - Droplet Provisioning with cloud-init.
-    - Volume Management.
-    - DigitalOcean Firewall Configuration.
-  - Cloudflare Provider
-    - R2 Backend(Terraform Remote State).
-    - DNS Entry Management for API Endpoint(Full HTTPS Support).
+### Security and Anti-Abuse
 
-### Design and Architecture
-- Clean layered architecture (controllers → services → models)
-- Sharding: DashMap, memory lifecycle: weak references, Tokio semaphore for concurrency control.
-- Makefile-first approach for task automation and consistency.
+* CAPTCHA verification middleware powered by reCAPTCHA.
 
-### File Structure
+## Architecture and Design
+
+* Clean layered architecture (controllers -> services -> models).
+* Memory management utilizing DashMap for sharding and weak references for lifecycle control.
+* Concurrency control managed via Tokio semaphores.
+
+## Development Lifecycle
+
+* Complete agile lifecycle for fast development and deployment.
+* Makefile-first approach for task automation and consistency.
+* CI pipeline using GitHub Actions for linting (`cargo clippy`), testing (`cargo test`), and building.
+* Complete unit and integration test coverage.
+* Production-like local development environment using Docker Compose and Caddy with self-signed TLS.
+* Active [**Public Changelog**][changelog] including release notes.
+
+## Packaging and Deployment
+
+* Dockerized using multi-stage and multi-platform builds (5-stage build with tini).
+* Optimized Rust builds using Cargo-Chef.
+* Custom Docker builder implementing ZSTD compression.
+* Pre-installed dependencies: yt-dlp Python packages, FFmpeg, and FFprobe for media validation.
+* Published automatically to a private GitHub Container Registry.
+
+## Infrastructure
+
+[![DigitalOcean Referral Badge][do-referral-badge]][do-referral-link]
+
+Provisioned via Terraform using Infrastructure as Code principles.
+
+* **DigitalOcean Provider:** Droplet provisioning with cloud-init, block volume management, and firewall configuration.
+* **Cloudflare Provider:** R2 bucket utilized for Terraform remote state backend and DNS entry management for full HTTPS support.
+
 <details>
-<summary>Directory Structure (overall)</summary>
+<summary>Infrastructure Diagram</summary>
+
+![Themed Architecture Diagram][arch-diagram]
+
+</details>
+
+## Project Structure
+
+<details>
+<summary>Application Directory Structure</summary>
 
 ```text
 .
@@ -159,23 +173,12 @@ Highly focused on concurrency, performance, security, and future-proof design.
 |   |   `-- ytdlp_tests.rs
 |   |-- api_tests.rs
 |   `-- layer_unit_tests.rs
-
 ```
-</details>
-
-### Infrastructure
-- CloudFlare R2 Backend for Terraform Backend.
-- DigitalOcean Terraform provider. with Droplets, Volumes.
-- Cloud-init based provisioning for Droplets.
-<details>
-<summary>Infrastructure Diagram</summary>
-
-![Themed Architecture Diagram](docs/images/Themed-Architecture-Diagram.svg)
 
 </details>
 
 <details>
-<summary>Directory Structure (Terraform)</summary>
+<summary>Terraform Directory Structure</summary>
 
 ```text
 infra/
@@ -197,35 +200,17 @@ infra/
         ├── variables.tf                    # Component variable definitions
         └── versions.tf                     # Terraform & provider dependencies
 ```
+
 </details>
 
-### Technical Details
+## Acknowledgements
 
-- Download acceleration
-  - `yt-dlp` external downloader integration with `aria2c`
+* [**yt-dlp**][yt-dlp-repo]
 
-- Dockerized
-  - Dockerfile
-    - 5 stage build.
-    - Cargo-Chef.
-    - tini.
-  - Docker Compose for local development
-
-- CI with GitHub Actions
-  - Linting with `cargo clippy`
-  - Testing with `cargo test`
-  - Building with `cargo build`
-
-- Full test coverage capable with `cargo test`
-- Comprehensive Makefile.
-
-### Infrastructure
-
-[![DigitalOcean Referral Badge](https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg)](https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge)
-
-
-## Thanks to 🙌
-
-### Third-Party Components
-
-- yt-dlp [yt-dlp](https://github.com/yt-dlp/yt-dlp)
+[docker-hub-image]: https://hub.docker.com/r/nxdun/cloudflare-warp-proxy
+[warp-proxy-repo]: https://github.com/nxdun/docker-warp-proxy
+[changelog]: https://nadzu.me/posts/rust-backend-changelog/
+[do-referral-badge]: https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg
+[do-referral-link]: https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge
+[arch-diagram]: docs/images/Themed-Architecture-Diagram.svg
+[yt-dlp-repo]: https://github.com/yt-dlp/yt-dlp
