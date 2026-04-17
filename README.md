@@ -4,10 +4,53 @@ My Personal Backend API built with Rust.
 Highly focused on concurrency, performance, security, and future-proof design.
 
 ### Major Functions
+
+- Basic API Functions
+  - CORS support.
+  - Rate limiting. 
+  - API versioning (v1)
+  - Health checks.
+  - Postman v3 Collection.
+  - Logging
+
+- Development lifecycle features
+  - Complete Agile Lifecycle Faster Development/Deployment.
+  - Makefile for core task automation.
+  - CI with GitHub Actions for linting, testing, and building.
+  - Complete unit and integration test coverage.
+  - Local development with Docker Compose and Caddy.
+  - Active Public [Changelog](https://nadzu.me/posts/rust-backend-changelog/) with release notes.
+
 - Multi-platform media downloading with yt-dlp.
-- Anti-abuse measures: tiered rate limiting (enhanced for valid API key), CAPTCHA verification.
-- IaC Terraform infrastructure using DigitalOcean provider.
-- Published to Private GitHub Container Registry.
+  - Download acceleration via aria2c integration.
+  - Job Lifecycle management: enqueue, progress tracking, result retrieval.
+  - Supported sites listing.
+
+- proxy obfuscation to bypass geo-restrictions and anti-bot measures.
+  - Seperate Container with Cloudflare WARP client for outbound requests.
+  - Container Pulled From [this repo](https://github.com/nxdun/docker-warp-proxy) Maintained by me. [Docker Hub (1.1k pulls)](https://hub.docker.com/r/nxdun/cloudflare-warp-proxy).
+
+- Anti-abuse measures
+  - CAPTCHA verification middleware.
+
+- Packaging and Deployment
+  - Dockerized with multi-stage/multi-platform builds.
+    - Cargo-Chef for optimized Rust builds.
+    - YT-DLP Python dependencies pre-installed in the image.
+      - FFMPEG support included via 
+      - FFProbe for media validation.
+  - Custom Docker Builder with ZSTD compression.
+  - Local/Production Like development with Docker Compose + Caddy. with Self-signed TLS for local development.
+  - Published to Private GitHub Container Registry.
+
+- IaC Terraform infrastructure
+  - DigitalOcean Provider
+    - Droplet Provisioning with cloud-init.
+    - Volume Management.
+    - DigitalOcean Firewall Configuration.
+  - Cloudflare Provider
+    - R2 Backend(Terraform Remote State).
+    - DNS Entry Management for API Endpoint(Full HTTPS Support).
 
 ### Design and Architecture
 - Clean layered architecture (controllers → services → models)

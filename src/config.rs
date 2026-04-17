@@ -57,7 +57,7 @@ impl AppConfig {
             captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
             master_api_key: env_opt("MASTER_API_KEY").unwrap_or_else(|| {
                 tracing::error!("MASTER_API_KEY must be set to a non-empty value");
-                panic!("MASTER_API_KEY must be set to a non-empty value")
+                std::process::exit(1)
             }),
         }
     }

@@ -64,12 +64,17 @@ impl Default for RateLimiters {
 }
 
 fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
-    let quota = Quota::per_second(
-        NonZeroU32::new(per_second).expect("rate limiter per_second must be greater than 0"),
-    )
-    .allow_burst(
-        NonZeroU32::new(burst_size).expect("rate limiter burst_size must be greater than 0"),
-    );
+    let Some(per_second) = NonZeroU32::new(per_second) else {
+        tracing::error!("rate limiter per_second must be greater than 0");
+        std::process::exit(1)
+    };
+
+    let Some(burst_size) = NonZeroU32::new(burst_size) else {
+        tracing::error!("rate limiter burst_size must be greater than 0");
+        std::process::exit(1)
+    };
+
+    let quota = Quota::per_second(per_second).allow_burst(burst_size);
     RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(
         quota,
     )

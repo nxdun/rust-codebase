@@ -18,7 +18,9 @@ nadzu.localhost {
 
     handle_path /downloads/* {
         root * /var/www/downloads
-        file_server browse {
+
+        file_server {
+            browse /etc/caddy/browse.html
             hide lost+found
         }
     }

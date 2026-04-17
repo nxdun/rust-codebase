@@ -26,15 +26,6 @@ fn test_config(env: &str) -> AppConfig {
     }
 }
 
-struct EnvGuard(Option<String>);
-impl Drop for EnvGuard {
-    fn drop(&mut self) {
-        if let Some(key) = self.0.take() {
-            unsafe { std::env::set_var("MASTER_API_KEY", key) };
-        }
-    }
-}
-
 #[test]
 #[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_true_for_matching_header() {
@@ -83,15 +74,18 @@ fn health_ok_model_contains_expected_values() {
 }
 
 #[test]
-fn app_config_from_env_uses_default_when_master_api_key_missing() {
-    let original_key = std::env::var("MASTER_API_KEY").ok();
+fn app_config_from_env_exits_when_master_api_key_missing() -> std::io::Result<()> {
+    let helper_binary = env!("CARGO_BIN_EXE_config_exit");
 
-    // Safety: env::remove_var is unsafe in edition 2024
-    unsafe { std::env::remove_var("MASTER_API_KEY") };
+    let output = std::process::Command::new(helper_binary)
+        .env_remove("MASTER_API_KEY")
+        .output()?;
 
-    // Use a guard to restore environment variable even if the test panics as expected
-    let _guard = EnvGuard(original_key);
+    assert!(
+        !output.status.success(),
+        "expected exit status to be non-zero"
+    );
+    assert_eq!(output.status.code(), Some(1));
 
-    let config = AppConfig::from_env();
-    assert_eq!(config.master_api_key, "master_key_not_set");
+    Ok(())
 }

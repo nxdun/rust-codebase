@@ -49,4 +49,4 @@ EXPOSE 8080
 # Mount your source code to /app via docker-compose or docker run:
 # docker run -v .:/app -p 8080:8080 my-dev-image
 ENTRYPOINT ["/sbin/tini", "-g", "--"]
-CMD ["cargo", "watch", "-w", "src", "-x", "run"]
+CMD ["cargo", "watch", "-w", "src", "-x", "run --bin nadzu"]
