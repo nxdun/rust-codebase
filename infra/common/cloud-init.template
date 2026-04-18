@@ -51,6 +51,7 @@ write_files:
           volumes:
             - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
             - /opt/app/certs:/etc/caddy/certs:ro
+            - /opt/app/browse.html:/etc/caddy/browse.html:ro
             - "${MOUNT_PATH}:/home/app/downloads:ro"
           depends_on:
             - app
@@ -91,7 +92,8 @@ write_files:
             Access-Control-Allow-Origin "*"
           }
 
-          file_server browse {
+          file_server {
+            browse /etc/caddy/browse.html
             root /home/app/downloads
             hide lost+found
           }
@@ -116,6 +118,12 @@ write_files:
     owner: root:root
     content: |
       ${indent(6, CERT_PEM)}
+
+  - path: /opt/app/browse.html
+    permissions: '0644'
+    owner: root:root
+    content: |
+      ${indent(6, BROWSE_HTML)}
 
   - path: /opt/app/.env
     permissions: '0600'
