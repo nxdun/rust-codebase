@@ -31,6 +31,15 @@ Personal backend API built with Rust. Focused on concurrency, performance, secur
 
 * CAPTCHA verification middleware powered by reCAPTCHA.
 
+### Operational
+
+* CI Pipelines for linting, testing, and building.
+* CD pipeline for Docker image building and publishing to GitHub Container Registry, including:
+    * zstd compression
+    * zstd builder
+    * custom BuildKit caching for faster builds
+    * multi-platform Docker image support
+
 ## Architecture and Design
 
 * Clean layered architecture (controllers -> services -> models).
@@ -214,3 +223,9 @@ infra/
 [do-referral-link]: https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge
 [arch-diagram]: docs/images/Themed-Architecture-Diagram.svg
 [yt-dlp-repo]: https://github.com/yt-dlp/yt-dlp
+
+## Things i learned
+
+- rust: Iniital leraning curve is steep but the long term benefits in performance and safety and low level control are worth it ```❤️```
+- tf: cloud init is perfect to bootstrap the server, it have max size limitation depending on the provider.
+- tf: Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.
