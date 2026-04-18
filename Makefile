@@ -179,6 +179,8 @@ tf: ## use this to spawn a loaded shell
 		set -a && \
 		source <(tr -d '\r' < .env | sed -E 's/^[[:space:]]*([A-Za-z_][A-Za-z0-9_]*)[[:space:]]*=[[:space:]]*(.*)$$/\1=\2/' | grep -E '^[A-Za-z_][A-Za-z0-9_]*=') && \
 		set +a && \
+		aws s3 cp infra/common/browse.html \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/browse.html\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
+		export TF_VAR_CADDY_CUSTOM_BROWSE_FILE_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/browse.html\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r') && \
 		export MSYS_NO_PATHCONV=1 && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \

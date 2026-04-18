@@ -27,7 +27,7 @@ locals {
     MASTER_API_KEY            = coalesce(var.MASTER_API_KEY, "NOT-SET")
     CERT_PEM                  = file("${path.module}/../../common/certificates/api.nadzu.me.pem")
     CERT_KEY                  = file("${path.module}/../../common/certificates/api.nadzu.me.key")
-    BROWSE_HTML               = file("${path.module}/../../common/browse.html")
+    CADDY_CUSTOM_BROWSE_FILE_URL = var.CADDY_CUSTOM_BROWSE_FILE_URL 
     SSH_ALLOWED_IPS           = join(" ", var.SSH_ALLOWED_IPS)
     PRODUCTION_DOMAIN         = join(".", [var.CLOUDFLARE_RECORD_NAME, var.CLOUDFLARE_ZONE_NAME])
     CADDY_CLOUDFLARE_TRUSTED_PROXIES = join(" ", concat(

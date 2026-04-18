@@ -119,12 +119,6 @@ write_files:
     content: |
       ${indent(6, CERT_PEM)}
 
-  - path: /opt/app/browse.html
-    permissions: '0644'
-    owner: root:root
-    content: |
-      ${indent(6, BROWSE_HTML)}
-
   - path: /opt/app/.env
     permissions: '0600'
     owner: root:root
@@ -198,6 +192,13 @@ write_files:
 
       chown 65532:65532 "${MOUNT_PATH}"
       chmod 775 "${MOUNT_PATH}"
+      
+      # Download browse.html via presigned URL securely
+      if [ -n "${CADDY_CUSTOM_BROWSE_FILE_URL}" ]; then
+        curl -sSfL "${CADDY_CUSTOM_BROWSE_FILE_URL}" -o /opt/app/browse.html
+        chmod 644 /opt/app/browse.html
+        chown root:root /opt/app/browse.html
+      fi
 
       cat /root/.ghcr_token | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
       cd /opt/app
