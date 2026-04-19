@@ -54,7 +54,7 @@ impl YtdlpManager {
         let jobs_weak = Arc::downgrade(&manager.jobs);
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600));
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_mins(10));
             loop {
                 interval.tick().await;
 
@@ -714,8 +714,7 @@ pub fn resolve_format_selector(format: &str, quality: &str) -> (String, Option<S
 fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }
 
 fn truncate_message(message: &str, max: usize) -> String {
