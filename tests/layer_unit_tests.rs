@@ -1,3 +1,4 @@
+#![allow(unsafe_code)]
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
@@ -26,6 +27,7 @@ fn test_config(env: &str) -> AppConfig {
 }
 
 #[test]
+#[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_true_for_matching_header() {
     // Utility layer contract: header parser and key matcher should accept valid key.
     let config = test_config("test");
@@ -36,6 +38,7 @@ fn has_valid_master_api_key_returns_true_for_matching_header() {
 }
 
 #[test]
+#[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
     // Utility layer contract: missing/wrong keys must be rejected consistently.
     let config = test_config("test");
@@ -71,14 +74,18 @@ fn health_ok_model_contains_expected_values() {
 }
 
 #[test]
-#[should_panic(expected = "MASTER_API_KEY must be set")]
-fn app_config_from_env_panics_when_master_api_key_missing() {
-    let original_key = std::env::var("MASTER_API_KEY").ok();
-    unsafe { std::env::remove_var("MASTER_API_KEY") };
+fn app_config_from_env_exits_when_master_api_key_missing() -> std::io::Result<()> {
+    let helper_binary = env!("CARGO_BIN_EXE_config_exit");
 
-    let _config = AppConfig::from_env();
+    let output = std::process::Command::new(helper_binary)
+        .env_remove("MASTER_API_KEY")
+        .output()?;
 
-    if let Some(key) = original_key {
-        unsafe { std::env::set_var("MASTER_API_KEY", key) };
-    }
+    assert!(
+        !output.status.success(),
+        "expected exit status to be non-zero"
+    );
+    assert_eq!(output.status.code(), Some(1));
+
+    Ok(())
 }

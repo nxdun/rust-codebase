@@ -1,4 +1,7 @@
-use crate::{config::AppConfig, models::ytdlp_model::*};
+use crate::{
+    config::AppConfig,
+    models::ytdlp_model::{YtdlpDownloadRequest, YtdlpJob, YtdlpJobStatus},
+};
 use dashmap::DashMap;
 use std::{
     path::{Component, Path, PathBuf},
@@ -20,6 +23,7 @@ const ARIA2_DOWNLOADER: &str = "aria2c";
 const DEFAULT_ARIA2_DOWNLOADER_ARGS: &str =
     "aria2c:-x16 -j16 -s16 -k1M --file-allocation=none --summary-interval=0";
 
+#[derive(Debug, Default)]
 struct ParsedProgress {
     percent: Option<f32>,
     total: Option<String>,
@@ -27,7 +31,7 @@ struct ParsedProgress {
     eta: Option<String>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct YtdlpManager {
     cfg: Arc<AppConfig>,
     jobs: Arc<DashMap<String, YtdlpJob>>,
@@ -36,6 +40,8 @@ pub struct YtdlpManager {
 }
 
 impl YtdlpManager {
+    /// Creates a new instance of `YtdlpManager`.
+    #[must_use]
     pub fn new(cfg: Arc<AppConfig>) -> Self {
         let manager = Self {
             semaphore: Arc::new(Semaphore::new(cfg.max_concurrent_downloads)),
@@ -48,7 +54,7 @@ impl YtdlpManager {
         let jobs_weak = Arc::downgrade(&manager.jobs);
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(tokio::time::Duration::from_secs(600));
+            let mut interval = tokio::time::interval(tokio::time::Duration::from_mins(10));
             loop {
                 interval.tick().await;
 
@@ -81,7 +87,9 @@ impl YtdlpManager {
         manager
     }
 
-    pub async fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
+    /// Enqueues a download job and returns its initial state.
+    #[allow(clippy::expect_used)]
+    pub fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
         let id = self.next_id();
         let quality = payload.quality.as_deref().unwrap_or("best").to_string();
         let format = payload.format.as_deref().unwrap_or("any").to_string();
@@ -121,7 +129,6 @@ impl YtdlpManager {
             });
             return self
                 .get_job(&id)
-                .await
                 .expect("job should exist immediately after insert");
         }
 
@@ -135,11 +142,13 @@ impl YtdlpManager {
         job
     }
 
-    pub async fn get_job(&self, id: &str) -> Option<YtdlpJob> {
+    /// Retrieves a job by ID.
+    pub fn get_job(&self, id: &str) -> Option<YtdlpJob> {
         self.jobs.get(id).map(|entry| entry.value().clone())
     }
 
-    pub async fn list_jobs(&self) -> Vec<YtdlpJob> {
+    /// Lists all jobs.
+    pub fn list_jobs(&self) -> Vec<YtdlpJob> {
         self.jobs
             .iter()
             .map(|entry| entry.value().clone())
@@ -151,7 +160,7 @@ impl YtdlpManager {
         let counter = self
             .job_counter
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-        format!("ytdlp-{}-{}", ts, counter)
+        format!("ytdlp-{ts}-{counter}")
     }
 
     fn resolve_output_dir(&self, folder: Option<&str>) -> Result<String, String> {
@@ -176,6 +185,7 @@ impl YtdlpManager {
         Ok(dir.to_string_lossy().to_string())
     }
 
+    #[allow(clippy::too_many_lines)]
     async fn run_job(
         &self,
         id: String,
@@ -184,6 +194,7 @@ impl YtdlpManager {
         format_flag: String,
         sort_flag: Option<String>,
     ) {
+        #[allow(clippy::expect_used)]
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
         self.mark_job_started(&id);
@@ -221,7 +232,7 @@ impl YtdlpManager {
         cmd.arg("-P")
             .arg(&output_dir)
             .arg("-o")
-            .arg(format!("{}.%(ext)s", id))
+            .arg(format!("{id}.%(ext)s"))
             .arg(payload.url.clone());
 
         let downloader = self
@@ -252,7 +263,7 @@ impl YtdlpManager {
             let final_args = if raw_args.contains(':') {
                 raw_args.to_string()
             } else {
-                format!("{}:{}", downloader, raw_args)
+                format!("{downloader}:{raw_args}")
             };
             cmd.arg("--downloader-args").arg(final_args);
         }
@@ -298,10 +309,7 @@ impl YtdlpManager {
             }
             Ok(Ok(status)) => {
                 let error_message = truncate_message(&combined_output, 2_000);
-                self.mark_job_failed(
-                    &id,
-                    format!("yt-dlp failed ({}): {}", status, error_message),
-                );
+                self.mark_job_failed(&id, format!("yt-dlp failed ({status}): {error_message}"));
                 let is_base_dir = output_dir == self.cfg.download_dir;
                 Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
             }
@@ -376,7 +384,7 @@ impl YtdlpManager {
         self.update_job(id, |job| {
             if matches!(job.status, YtdlpJobStatus::Queued) {
                 job.status = YtdlpJobStatus::Running;
-                job.started_at_unix = job.started_at_unix.or(Some(now_unix()));
+                job.started_at_unix = job.started_at_unix.or_else(|| Some(now_unix()));
             }
         });
     }
@@ -562,10 +570,7 @@ fn extract_peak_percent(line: &str) -> Option<f32> {
         if let Some(start_idx) = upto.rfind('(')
             && let Ok(value) = upto[(start_idx + 1)..].parse::<f32>()
         {
-            max_pct = Some(match max_pct {
-                Some(current) => current.max(value),
-                None => value,
-            });
+            max_pct = Some(max_pct.map_or(value, |current| current.max(value)));
         }
         remaining = &remaining[(end_idx + 3)..];
     }
@@ -664,6 +669,8 @@ async fn collect_downloaded_files(output_dir: &str, id: &str) -> Vec<String> {
     files
 }
 
+/// Resolves the yt-dlp format selector and sort flags based on requested format and quality.
+#[must_use]
 pub fn resolve_format_selector(format: &str, quality: &str) -> (String, Option<String>) {
     const AUDIO_FORMATS: [&str; 5] = ["m4a", "mp3", "opus", "wav", "flac"];
 
@@ -676,7 +683,7 @@ pub fn resolve_format_selector(format: &str, quality: &str) -> (String, Option<S
     }
 
     if AUDIO_FORMATS.contains(&format) {
-        return ("ba/b".to_string(), Some(format!("aext:{}", format)));
+        return ("ba/b".to_string(), Some(format!("aext:{format}")));
     }
 
     if matches!(format, "mp4" | "any") {
@@ -707,8 +714,7 @@ pub fn resolve_format_selector(format: &str, quality: &str) -> (String, Option<S
 fn now_unix() -> u64 {
     SystemTime::now()
         .duration_since(SystemTime::UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0)
+        .map_or(0, |d| d.as_secs())
 }
 
 fn truncate_message(message: &str, max: usize) -> String {

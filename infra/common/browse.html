@@ -1,0 +1,1202 @@
+{{ $nonce := uuidv4 -}}
+{{ $nonceAttribute := print "nonce=" (quote $nonce) -}}
+{{ $csp := printf "default-src 'none'; img-src 'self'; object-src 'none'; base-uri 'none'; script-src 'nonce-%s'; style-src 'nonce-%s'; frame-ancestors 'self'; form-action 'self';" $nonce $nonce -}}
+{{/* To disable the Content-Security-Policy, set this to false */}}{{ $enableCsp := true -}}
+{{ if $enableCsp -}}
+{{- .RespHeader.Set "Content-Security-Policy" $csp -}}
+{{ end -}}
+{{- define "icon"}}
+{{- if .IsDir}}
+{{- if .IsSymlink}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-folder-filled" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M9 3a1 1 0 0 1 .608 .206l.1 .087l2.706 2.707h6.586a3 3 0 0 1 2.995 2.824l.005 .176v8a3 3 0 0 1 -2.824 2.995l-.176 .005h-14a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-11a3 3 0 0 1 2.824 -2.995l.176 -.005h4z"
+        stroke-width="0" fill="currentColor" />
+    <path fill="#000"
+        d="M2.795 17.306c0-2.374 1.792-4.314 4.078-4.538v-1.104a.38.38 0 0 1 .651-.272l2.45 2.492a.132.132 0 0 1 0 .188l-2.45 2.492a.381.381 0 0 1-.651-.272V15.24c-1.889.297-3.436 1.39-3.817 3.26a2.809 2.809 0 0 1-.261-1.193Z"
+        stroke-width=".127478" />
+</svg>
+{{- else}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-folder-filled" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M9 3a1 1 0 0 1 .608 .206l.1 .087l2.706 2.707h6.586a3 3 0 0 1 2.995 2.824l.005 .176v8a3 3 0 0 1 -2.824 2.995l-.176 .005h-14a3 3 0 0 1 -2.995 -2.824l-.005 -.176v-11a3 3 0 0 1 2.824 -2.995l.176 -.005h4z"
+        stroke-width="0" fill="currentColor" />
+</svg>
+{{- end}}
+{{- else if or (eq .Name "LICENSE") (eq .Name "README")}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-license" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M15 21h-9a3 3 0 0 1 -3 -3v-1h10v2a2 2 0 0 0 4 0v-14a2 2 0 1 1 2 2h-2m2 -4h-11a3 3 0 0 0 -3 3v11" />
+    <path d="M9 7l4 0" />
+    <path d="M9 11l4 0" />
+</svg>
+{{- else if .HasExt ".jpg" ".jpeg" ".png" ".gif" ".webp" ".tiff" ".bmp" ".heif" ".heic" ".svg" ".avif"}}
+{{- if eq .Tpl.Layout "grid"}}
+<img loading="lazy" src="{{.Name | pathEscape}}">
+{{- else}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-photo" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M15 8h.01" />
+    <path d="M3 6a3 3 0 0 1 3 -3h12a3 3 0 0 1 3 3v12a3 3 0 0 1 -3 3h-12a3 3 0 0 1 -3 -3v-12z" />
+    <path d="M3 16l5 -5c.928 -.893 2.072 -.893 3 0l5 5" />
+    <path d="M14 14l1 -1c.928 -.893 2.072 -.893 3 0l3 3" />
+</svg>
+{{- end}}
+{{- else if .HasExt ".mp4" ".mov" ".m4v" ".mpeg" ".mpg" ".avi" ".ogg" ".webm" ".mkv" ".vob" ".gifv" ".3gp"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-movie" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v12a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+    <path d="M8 4l0 16" />
+    <path d="M16 4l0 16" />
+    <path d="M4 8l4 0" />
+    <path d="M4 16l4 0" />
+    <path d="M4 12l16 0" />
+    <path d="M16 8l4 0" />
+    <path d="M16 16l4 0" />
+</svg>
+{{- else if .HasExt ".mp3" ".m4a" ".aac" ".ogg" ".flac" ".wav" ".wma" ".midi" ".cda"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-music" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M16 17m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M9 17l0 -13l10 0l0 13" />
+    <path d="M9 8l10 0" />
+</svg>
+{{- else if .HasExt ".pdf"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-pdf" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+    <path d="M5 18h1.5a1.5 1.5 0 0 0 0 -3h-1.5v6" />
+    <path d="M17 18h2" />
+    <path d="M20 15h-3v6" />
+    <path d="M11 15v6h1a2 2 0 0 0 2 -2v-2a2 2 0 0 0 -2 -2h-1z" />
+</svg>
+{{- else if .HasExt ".csv" ".tsv"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-csv" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+    <path d="M7 16.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0" />
+    <path
+        d="M10 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+    <path d="M16 15l2 6l2 -6" />
+</svg>
+{{- else if .HasExt ".txt" ".doc" ".docx" ".odt" ".fodt" ".rtf"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-text" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+    <path d="M9 9l1 0" />
+    <path d="M9 13l6 0" />
+    <path d="M9 17l6 0" />
+</svg>
+{{- else if .HasExt ".xls" ".xlsx" ".ods" ".fods"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-spreadsheet" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+    <path d="M8 11h8v7h-8z" />
+    <path d="M8 15h8" />
+    <path d="M11 11v7" />
+</svg>
+{{- else if .HasExt ".ppt" ".pptx" ".odp" ".fodp"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-presentation-analytics" width="24"
+    height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M9 12v-4" />
+    <path d="M15 12v-2" />
+    <path d="M12 12v-1" />
+    <path d="M3 4h18" />
+    <path d="M4 4v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-10" />
+    <path d="M12 16v4" />
+    <path d="M9 20h6" />
+</svg>
+{{- else if .HasExt ".zip" ".gz" ".xz" ".tar" ".7z" ".rar" ".xz" ".zst"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-zip" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M6 20.735a2 2 0 0 1 -1 -1.735v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-1" />
+    <path d="M11 17a2 2 0 0 1 2 2v2a1 1 0 0 1 -1 1h-2a1 1 0 0 1 -1 -1v-2a2 2 0 0 1 2 -2z" />
+    <path d="M11 5l-1 0" />
+    <path d="M13 7l-1 0" />
+    <path d="M11 9l-1 0" />
+    <path d="M13 11l-1 0" />
+    <path d="M11 13l-1 0" />
+    <path d="M13 15l-1 0" />
+</svg>
+{{- else if .HasExt ".deb" ".dpkg"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-debian" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M12 17c-2.397 -.943 -4 -3.153 -4 -5.635c0 -2.19 1.039 -3.14 1.604 -3.595c2.646 -2.133 6.396 -.27 6.396 3.23c0 2.5 -2.905 2.121 -3.5 1.5c-.595 -.621 -1 -1.5 -.5 -2.5" />
+    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+</svg>
+{{- else if .HasExt ".rpm" ".exe" ".flatpak" ".appimage" ".jar" ".msi" ".apk"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-package" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M12 3l8 4.5l0 9l-8 4.5l-8 -4.5l0 -9l8 -4.5" />
+    <path d="M12 12l8 -4.5" />
+    <path d="M12 12l0 9" />
+    <path d="M12 12l-8 -4.5" />
+    <path d="M16 5.25l-8 4.5" />
+</svg>
+{{- else if .HasExt ".ps1"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-powershell" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M4.887 20h11.868c.893 0 1.664 -.665 1.847 -1.592l2.358 -12c.212 -1.081 -.442 -2.14 -1.462 -2.366a1.784 1.784 0 0 0 -.385 -.042h-11.868c-.893 0 -1.664 .665 -1.847 1.592l-2.358 12c-.212 1.081 .442 2.14 1.462 2.366c.127 .028 .256 .042 .385 .042z" />
+    <path d="M9 8l4 4l-6 4" />
+    <path d="M12 16h3" />
+</svg>
+{{- else if .HasExt ".py" ".pyc" ".pyo"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-python" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M12 9h-7a2 2 0 0 0 -2 2v4a2 2 0 0 0 2 2h3" />
+    <path d="M12 15h7a2 2 0 0 0 2 -2v-4a2 2 0 0 0 -2 -2h-3" />
+    <path
+        d="M8 9v-4a2 2 0 0 1 2 -2h4a2 2 0 0 1 2 2v5a2 2 0 0 1 -2 2h-4a2 2 0 0 0 -2 2v5a2 2 0 0 0 2 2h4a2 2 0 0 0 2 -2v-4" />
+    <path d="M11 6l0 .01" />
+    <path d="M13 18l0 .01" />
+</svg>
+{{- else if .HasExt ".bash" ".sh" ".com" ".bat" ".dll" ".so"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-script" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M17 20h-11a3 3 0 0 1 0 -6h11a3 3 0 0 0 0 6h1a3 3 0 0 0 3 -3v-11a2 2 0 0 0 -2 -2h-10a2 2 0 0 0 -2 2v8" />
+</svg>
+{{- else if .HasExt ".dmg"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-finder" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M3 4m0 1a1 1 0 0 1 1 -1h16a1 1 0 0 1 1 1v14a1 1 0 0 1 -1 1h-16a1 1 0 0 1 -1 -1z" />
+    <path d="M7 8v1" />
+    <path d="M17 8v1" />
+    <path d="M12.5 4c-.654 1.486 -1.26 3.443 -1.5 9h2.5c-.19 2.867 .094 5.024 .5 7" />
+    <path d="M7 15.5c3.667 2 6.333 2 10 0" />
+</svg>
+{{- else if .HasExt ".iso" ".img"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-disc" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M12 12m-9 0a9 9 0 1 0 18 0a9 9 0 1 0 -18 0" />
+    <path d="M12 12m-1 0a1 1 0 1 0 2 0a1 1 0 1 0 -2 0" />
+    <path d="M7 12a5 5 0 0 1 5 -5" />
+    <path d="M12 17a5 5 0 0 0 5 -5" />
+</svg>
+{{- else if .HasExt ".md" ".mdown" ".markdown"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-markdown" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M3 5m0 2a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2z" />
+    <path d="M7 15v-6l2 2l2 -2v6" />
+    <path d="M14 13l2 2l2 -2m-2 2v-6" />
+</svg>
+{{- else if .HasExt ".ttf" ".otf" ".woff" ".woff2" ".eof"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-typography" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+    <path d="M11 18h2" />
+    <path d="M12 18v-7" />
+    <path d="M9 12v-1h6v1" />
+</svg>
+{{- else if .HasExt ".go"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-brand-golang" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M15.695 14.305c1.061 1.06 2.953 .888 4.226 -.384c1.272 -1.273 1.444 -3.165 .384 -4.226c-1.061 -1.06 -2.953 -.888 -4.226 .384c-1.272 1.273 -1.444 3.165 -.384 4.226z" />
+    <path
+        d="M12.68 9.233c-1.084 -.497 -2.545 -.191 -3.591 .846c-1.284 1.273 -1.457 3.165 -.388 4.226c1.07 1.06 2.978 .888 4.261 -.384a3.669 3.669 0 0 0 1.038 -1.921h-2.427" />
+    <path d="M5.5 15h-1.5" />
+    <path d="M6 9h-2" />
+    <path d="M5 12h-3" />
+</svg>
+{{- else if .HasExt ".html" ".htm"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-html" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+    <path d="M2 21v-6" />
+    <path d="M5 15v6" />
+    <path d="M2 18h3" />
+    <path d="M20 15v6h2" />
+    <path d="M13 21v-6l2 3l2 -3v6" />
+    <path d="M7.5 15h3" />
+    <path d="M9 15v6" />
+</svg>
+{{- else if .HasExt ".js"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-js" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M3 15h3v4.5a1.5 1.5 0 0 1 -3 0" />
+    <path
+        d="M9 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-1" />
+</svg>
+{{- else if .HasExt ".css"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-css" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+    <path d="M8 16.5a1.5 1.5 0 0 0 -3 0v3a1.5 1.5 0 0 0 3 0" />
+    <path
+        d="M11 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+    <path
+        d="M17 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+</svg>
+{{- else if .HasExt ".json" ".json5" ".jsonc"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-json" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M20 16v-8l3 8v-8" />
+    <path d="M15 8a2 2 0 0 1 2 2v4a2 2 0 1 1 -4 0v-4a2 2 0 0 1 2 -2z" />
+    <path d="M1 8h3v6.5a1.5 1.5 0 0 1 -3 0v-.5" />
+    <path
+        d="M7 15a1 1 0 0 0 1 1h1a1 1 0 0 0 1 -1v-2a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-2a1 1 0 0 1 1 -1h1a1 1 0 0 1 1 1" />
+</svg>
+{{- else if .HasExt ".ts"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-ts" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-1" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path
+        d="M9 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+    <path d="M3.5 15h3" />
+    <path d="M5 15v6" />
+</svg>
+{{- else if .HasExt ".sql"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-type-sql" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path
+        d="M5 20.25c0 .414 .336 .75 .75 .75h1.25a1 1 0 0 0 1 -1v-1a1 1 0 0 0 -1 -1h-1a1 1 0 0 1 -1 -1v-1a1 1 0 0 1 1 -1h1.25a.75 .75 0 0 1 .75 .75" />
+    <path d="M5 12v-7a2 2 0 0 1 2 -2h7l5 5v4" />
+    <path d="M18 15v6h2" />
+    <path d="M13 15a2 2 0 0 1 2 2v2a2 2 0 1 1 -4 0v-2a2 2 0 0 1 2 -2z" />
+    <path d="M14 20l1.5 1.5" />
+</svg>
+{{- else if .HasExt ".db" ".sqlite" ".bak" ".mdb"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-database" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M12 6m-8 0a8 3 0 1 0 16 0a8 3 0 1 0 -16 0" />
+    <path d="M4 6v6a8 3 0 0 0 16 0v-6" />
+    <path d="M4 12v6a8 3 0 0 0 16 0v-6" />
+</svg>
+{{- else if .HasExt ".eml" ".email" ".mailbox" ".mbox" ".msg"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-mail" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M3 7a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-10z" />
+    <path d="M3 7l9 6l9 -6" />
+</svg>
+{{- else if .HasExt ".crt" ".pem" ".x509" ".cer" ".ca-bundle"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-certificate" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M15 15m-3 0a3 3 0 1 0 6 0a3 3 0 1 0 -6 0" />
+    <path d="M13 17.5v4.5l2 -1.5l2 1.5v-4.5" />
+    <path d="M10 19h-5a2 2 0 0 1 -2 -2v-10c0 -1.1 .9 -2 2 -2h14a2 2 0 0 1 2 2v10a2 2 0 0 1 -1 1.73" />
+    <path d="M6 9l12 0" />
+    <path d="M6 12l3 0" />
+    <path d="M6 15l2 0" />
+</svg>
+{{- else if .HasExt ".key" ".keystore" ".jks" ".p12" ".pfx" ".pub"}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-key" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path
+        d="M16.555 3.843l3.602 3.602a2.877 2.877 0 0 1 0 4.069l-2.643 2.643a2.877 2.877 0 0 1 -4.069 0l-.301 -.301l-6.558 6.558a2 2 0 0 1 -1.239 .578l-.175 .008h-1.172a1 1 0 0 1 -.993 -.883l-.007 -.117v-1.172a2 2 0 0 1 .467 -1.284l.119 -.13l.414 -.414h2v-2h2v-2l2.144 -2.144l-.301 -.301a2.877 2.877 0 0 1 0 -4.069l2.643 -2.643a2.877 2.877 0 0 1 4.069 0z" />
+    <path d="M15 9h.01" />
+</svg>
+{{- else}}
+{{- if .IsSymlink}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file-symlink" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M4 21v-4a3 3 0 0 1 3 -3h5" />
+    <path d="M9 17l3 -3l-3 -3" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M5 11v-6a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2h-9.5" />
+</svg>
+{{- else}}
+<svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-file" width="24" height="24"
+    viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+    stroke-linejoin="round">
+    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+    <path d="M14 3v4a1 1 0 0 0 1 1h4" />
+    <path d="M17 21h-10a2 2 0 0 1 -2 -2v-14a2 2 0 0 1 2 -2h7l5 5v11a2 2 0 0 1 -2 2z" />
+</svg>
+{{- end}}
+{{- end}}
+{{- end}}
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <title>{{html .Name}}</title>
+    <link rel="canonical" href="{{.Path}}/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style {{ $nonceAttribute }}>
+        :root {
+            /* Soft AMOLED / Normal Dark Mix Theme */
+            --bg-pure: #0a0a0a;
+            --bg-surface: #141414;
+            --bg-hover: #1f1f1f;
+            --border-dim: #262626;
+            --border-hover: #3a3a3a;
+
+            /* Text Colors - Softened to reduce harsh contrast */
+            --text-main: #e5e5e5;
+            --text-muted: #a3a3a3;
+            --text-dim: #737373;
+
+            /* Accents */
+            --accent: #00f0ff;
+            /* Neon Cyan */
+            --accent-glow: rgba(0, 240, 255, 0.15);
+
+            /* Typography */
+            --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background-color: var(--bg-pure);
+            color: var(--text-main);
+            line-height: 1.5;
+            min-height: 100vh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        a {
+            color: inherit;
+            text-decoration: none;
+            transition: all 0.2s ease;
+        }
+
+        img,
+        svg {
+            vertical-align: middle;
+        }
+
+        /* Global Icons Override for Dark Mode */
+        .icon-tabler {
+            stroke-width: 1.5;
+            color: var(--text-main);
+        }
+
+        .icon-tabler-folder-filled {
+            color: #ffffff !important;
+        }
+
+        /* Layout Shell */
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 2rem 5%;
+        }
+
+        /* Breadcrumbs / Header */
+        header {
+            margin-bottom: 2rem;
+        }
+
+        .breadcrumbs {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            font-size: 2.5rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            line-height: 1.2;
+        }
+
+        .breadcrumbs a {
+            color: var(--text-muted);
+        }
+
+        .breadcrumbs a:hover {
+            color: var(--text-main);
+        }
+
+        .breadcrumbs a:last-of-type {
+            color: var(--text-main);
+        }
+
+        .breadcrumb-separator {
+            color: var(--border-dim);
+            font-weight: 400;
+        }
+
+        /* Toolbar (Search + Stats + Toggles) */
+        .toolbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            padding-bottom: 1.5rem;
+            border-bottom: 1px solid var(--border-dim);
+            margin-bottom: 1.5rem;
+        }
+
+        /* Search input */
+        .search-container {
+            position: relative;
+            flex: 1;
+            max-width: 400px;
+        }
+
+        .search-container svg {
+            position: absolute;
+            left: 14px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-muted);
+            width: 20px;
+            height: 20px;
+            transition: color 0.2s ease;
+        }
+
+        #filter {
+            width: 100%;
+            padding: 0.8rem 1rem 0.8rem 2.8rem;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            color: var(--text-main);
+            font-family: var(--font-mono);
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+        }
+
+        #filter:focus {
+            outline: none;
+            border-color: var(--accent);
+            background-color: var(--bg-pure);
+            box-shadow: 0 0 15px var(--accent-glow);
+        }
+
+        #filter:focus+svg,
+        .search-container:focus-within svg {
+            color: var(--accent);
+        }
+
+        #filter::placeholder {
+            color: var(--text-dim);
+        }
+
+        /* Meta Info */
+        .meta-info {
+            display: flex;
+            gap: 1.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        .meta-info b {
+            color: var(--text-main);
+            font-weight: 500;
+        }
+
+        /* View Toggles */
+        .view-toggles {
+            display: flex;
+            gap: 0.5rem;
+        }
+
+        .layout-btn {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 40px;
+            height: 40px;
+            background-color: var(--bg-surface);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            cursor: pointer;
+            color: var(--text-muted);
+            transition: all 0.2s ease;
+        }
+
+        .layout-btn:hover {
+            border-color: var(--border-hover);
+            color: var(--text-main);
+        }
+
+        .layout-btn.current {
+            background-color: var(--accent-glow);
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        /* ==================== LIST VIEW (Flexbox) ==================== */
+        .list-container {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .list-header {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border-dim);
+            margin-bottom: 0.5rem;
+        }
+
+        .list-header a {
+            display: flex;
+            align-items: center;
+            gap: 0.25rem;
+        }
+
+        .list-header a:hover {
+            color: var(--text-main);
+        }
+
+        .col-icon {
+            width: 40px;
+            flex-shrink: 0;
+            text-align: center;
+        }
+
+        .col-name {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .col-size {
+            width: 120px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .col-time {
+            width: 180px;
+            flex-shrink: 0;
+            text-align: right;
+        }
+
+        .file-row {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 1rem;
+            border-radius: 4px;
+            border: 1px solid transparent;
+            transition: all 0.15s ease;
+        }
+
+        .file-row:hover {
+            background-color: var(--bg-surface);
+            border-color: var(--border-dim);
+        }
+
+        /* Neon accent bar on left side on hover */
+        .file-row {
+            position: relative;
+        }
+
+        .file-row::before {
+            content: '';
+            position: absolute;
+            left: -2px;
+            top: 10%;
+            height: 80%;
+            width: 2px;
+            background-color: var(--accent);
+            opacity: 0;
+            transition: opacity 0.2s ease;
+            box-shadow: 0 0 8px var(--accent);
+        }
+
+        .file-row:hover::before {
+            opacity: 1;
+        }
+
+        .file-row .name-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            color: var(--text-main);
+            font-weight: 500;
+            text-decoration: none;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .file-row .name {
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .file-row .size,
+        .file-row .timestamp {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            color: var(--text-muted);
+        }
+
+        /* AMOLED Size Bar (Thin neon line underneath) */
+        .sizebar-container {
+            position: relative;
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-end;
+            width: 100%;
+        }
+
+        .sizebar-text {
+            position: relative;
+            z-index: 1;
+        }
+
+        .sizebar-bar {
+            height: 1px;
+            background-color: var(--accent);
+            box-shadow: 0 0 5px var(--accent);
+            margin-top: 4px;
+            border-radius: 1px;
+            transition: width 0.3s ease;
+            align-self: flex-end;
+        }
+
+        /* ==================== GRID VIEW ==================== */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+            gap: 1rem;
+        }
+
+        .grid-item {
+            background-color: var(--bg-pure);
+            border: 1px solid var(--border-dim);
+            border-radius: 4px;
+            padding: 2rem 1rem;
+            text-align: center;
+            transition: all 0.2s ease;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 1rem;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .grid-item:hover {
+            border-color: var(--accent);
+            background-color: var(--bg-surface);
+            box-shadow: 0 0 20px var(--accent-glow);
+        }
+
+        .grid-item svg {
+            width: 48px;
+            height: 48px;
+            color: var(--text-main);
+            transition: transform 0.2s ease;
+        }
+
+        .grid-item:hover svg {
+            transform: scale(1.05);
+            color: var(--accent);
+        }
+
+        .grid-item .name {
+            font-weight: 500;
+            color: var(--text-main);
+            word-break: break-word;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            font-size: 0.95rem;
+        }
+
+        .grid-item .size {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .breadcrumbs {
+                font-size: 1.8rem;
+            }
+
+            .col-time {
+                display: none;
+            }
+
+            .toolbar {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .search-container {
+                max-width: 100%;
+            }
+
+            .meta-info {
+                flex-wrap: wrap;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="app-container">
+        <header>
+            <div class="breadcrumbs">
+                <a href="/" title="Root">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-home" width="32"
+                        height="32" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M5 12l-2 0l9 -9l9 9l-2 0" />
+                        <path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7" />
+                        <path d="M9 21v-6a2 2 0 0 1 2 -2h2a2 2 0 0 1 2 2v6" />
+                    </svg>
+                </a>
+                {{- range $i, $crumb := .Breadcrumbs -}}
+                <span class="breadcrumb-separator">/</span>
+                <a href="{{html $crumb.Link}}">{{html $crumb.Text}}</a>
+                {{- end -}}
+            </div>
+        </header>
+
+        <div class="toolbar">
+            <div class="search-container">
+                <input type="search" placeholder="grep 'files'" id="filter" aria-label="Search files">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                    fill="none" stroke-linecap="round" stroke-linejoin="round">
+                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                    <path d="M10 10m-7 0a7 7 0 1 0 14 0a7 7 0 1 0 -14 0" />
+                    <path d="M21 21l-6 -6" />
+                </svg>
+            </div>
+
+            <div class="meta-info">
+                <span><b>{{.NumDirs}}</b> DIR{{if ne 1 .NumDirs}}S{{end}}</span>
+                <span><b>{{.NumFiles}}</b> FILE{{if ne 1 .NumFiles}}S{{end}}</span>
+                <span><b>{{.HumanTotalFileSize}}</b> TOT</span>
+                {{- if ne 0 .Limit}}
+                <span>(SHOWING <b>{{.Limit}}</b>)</span>
+                {{- end}}
+            </div>
+
+            <div class="view-toggles">
+                <a id="layout-list" class='layout-btn {{if ne $.Layout "grid"}}current{{end}}' aria-label="List View">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" stroke-width="2"
+                        stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 4m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                        <path d="M4 14m0 2a2 2 0 0 1 2 -2h12a2 2 0 0 1 2 2v2a2 2 0 0 1 -2 2h-12a2 2 0 0 1 -2 -2z" />
+                    </svg>
+                </a>
+                <a id="layout-grid" class='layout-btn {{if eq $.Layout "grid"}}current{{end}}' aria-label="Grid View">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" stroke-width="2"
+                        stroke="currentColor" fill="none" stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M4 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                        <path d="M14 4m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                        <path d="M4 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                        <path d="M14 14m0 1a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v4a1 1 0 0 1 -1 1h-4a1 1 0 0 1 -1 -1z" />
+                    </svg>
+                </a>
+            </div>
+        </div>
+
+        <main>
+            {{- if eq .Layout "grid"}}
+            <!-- Grid Layout -->
+            <div class="grid-container" id="grid-view">
+                {{- if .CanGoUp}}
+                <a href=".." class="grid-item file-item search-target">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-corner-left-up"
+                        width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                        stroke-linecap="round" stroke-linejoin="round">
+                        <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                        <path d="M18 18h-6a3 3 0 0 1 -3 -3v-10l-4 4m8 0l-4 -4" />
+                    </svg>
+                    <div class="name">..</div>
+                </a>
+                {{- end}}
+
+                {{- range .Items}}
+                <a href="{{html .URL}}" class="grid-item file-item search-target"
+                    title='{{html (.HumanModTime "January 2, 2006 at 15:04:05")}}'>
+                    {{template "icon" .}}
+                    <div class="name">{{html .Name}}</div>
+                    {{- if not .IsDir}}
+                    <div class="size">{{.HumanSize}}</div>
+                    {{- end}}
+                </a>
+                {{- end}}
+            </div>
+            {{- else}}
+            <!-- List Layout -->
+            <div class="list-container" id="list-view">
+                <div class="list-header">
+                    <div class="col-icon">
+                        {{- if and (eq .Sort "namedirfirst") (ne .Order "desc")}}
+                        <a
+                            href="?sort=namedirfirst&order=desc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 14l-6 -6l-6 6h12" />
+                            </svg>
+                        </a>
+                        {{- else if and (eq .Sort "namedirfirst") (ne .Order "asc")}}
+                        <a
+                            href="?sort=namedirfirst&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M6 10l6 6l6 -6h-12" />
+                            </svg>
+                        </a>
+                        {{- else}}
+                        <a
+                            href="?sort=namedirfirst&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 14l-6 -6l-6 6h12" />
+                            </svg>
+                        </a>
+                        {{- end}}
+                    </div>
+                    <div class="col-name">
+                        {{- if and (eq .Sort "name") (ne .Order "desc")}}
+                        <a
+                            href="?sort=name&order=desc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            NAME
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 14l-6 -6l-6 6h12" />
+                            </svg>
+                        </a>
+                        {{- else if and (eq .Sort "name") (ne .Order "asc")}}
+                        <a
+                            href="?sort=name&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            NAME
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M6 10l6 6l6 -6h-12" />
+                            </svg>
+                        </a>
+                        {{- else}}
+                        <a
+                            href="?sort=name&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">NAME</a>
+                        {{- end}}
+                    </div>
+                    <div class="col-size">
+                        {{- if and (eq .Sort "size") (ne .Order "desc")}}
+                        <a
+                            href="?sort=size&order=desc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            SIZE
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 14l-6 -6l-6 6h12" />
+                            </svg>
+                        </a>
+                        {{- else if and (eq .Sort "size") (ne .Order "asc")}}
+                        <a
+                            href="?sort=size&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            SIZE
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M6 10l6 6l6 -6h-12" />
+                            </svg>
+                        </a>
+                        {{- else}}
+                        <a
+                            href="?sort=size&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">SIZE</a>
+                        {{- end}}
+                    </div>
+                    <div class="col-time hideable">
+                        {{- if and (eq .Sort "time") (ne .Order "desc")}}
+                        <a
+                            href="?sort=time&order=desc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            MODIFIED
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 14l-6 -6l-6 6h12" />
+                            </svg>
+                        </a>
+                        {{- else if and (eq .Sort "time") (ne .Order "asc")}}
+                        <a
+                            href="?sort=time&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">
+                            MODIFIED
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"
+                                stroke-width="2" stroke="currentColor" fill="none" stroke-linecap="round"
+                                stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M6 10l6 6l6 -6h-12" />
+                            </svg>
+                        </a>
+                        {{- else}}
+                        <a
+                            href="?sort=time&order=asc{{if ne 0 .Limit}}&limit={{.Limit}}{{end}}{{if ne 0 .Offset}}&offset={{.Offset}}{{end}}">MODIFIED</a>
+                        {{- end}}
+                    </div>
+                </div>
+
+                {{- if .CanGoUp}}
+                <div class="file-row file-item search-target">
+                    <div class="col-icon"></div>
+                    <div class="col-name">
+                        <a href=".." class="name-wrapper">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="icon icon-tabler icon-tabler-corner-left-up"
+                                width="24" height="24" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor"
+                                fill="none" stroke-linecap="round" stroke-linejoin="round">
+                                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                <path d="M18 18h-6a3 3 0 0 1 -3 -3v-10l-4 4m8 0l-4 -4" />
+                            </svg>
+                            <span class="name">..</span>
+                        </a>
+                    </div>
+                    <div class="col-size"></div>
+                    <div class="col-time hideable"></div>
+                </div>
+                {{- end}}
+
+                {{- range .Items}}
+                <div class="file-row file-item search-target">
+                    <div class="col-icon">
+                        {{template "icon" .}}
+                    </div>
+                    <div class="col-name">
+                        <a href="{{html .URL}}" class="name-wrapper">
+                            {{- if not .SymlinkPath}}
+                            <span class="name">{{html .Name}}</span>
+                            {{- else}}
+                            <span class="name">{{html .Name}} <svg xmlns="http://www.w3.org/2000/svg" width="16"
+                                    height="16" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" fill="none"
+                                    stroke-linecap="round" stroke-linejoin="round" style="margin: 0 4px; opacity: 0.5;">
+                                    <path stroke="none" d="M0 0h24v24H0z" fill="none" />
+                                    <path d="M5 12l14 0" />
+                                    <path d="M15 16l4 -4" />
+                                    <path d="M15 8l4 4" />
+                                </svg> {{html .SymlinkPath}}</span>
+                            {{- end}}
+                        </a>
+                    </div>
+                    <div class="col-size">
+                        {{- if .IsDir}}
+                        <span class="size" style="color: var(--text-dim);">&mdash;</span>
+                        {{- else}}
+                        <div class="sizebar-container size" data-size="{{.Size}}">
+                            <div class="sizebar-text">{{if .IsSymlink}}↱&nbsp;{{end}}{{.HumanSize}}</div>
+                            <div class="sizebar-bar"></div>
+                        </div>
+                        {{- end}}
+                    </div>
+                    <div class="col-time hideable">
+                        <span class="timestamp">
+                            <time datetime="{{.HumanModTime "2006-01-02T15:04:05Z"}}">{{.HumanModTime "01/02/2006 03:04:05 PM -07:00"}}</time>
+                        </span>
+                    </div>
+                </div>
+                {{- end}}
+            </div>
+            {{- end}}
+        </main>
+    </div>
+
+    <script {{ $nonceAttribute }}>
+        // @license magnet:?xt=urn:btih:8e4f440f4c65981c5bf93c76d35135ba5064d8b7&dn=apache-2.0.txt Apache-2.0
+        const filterEl = document.getElementById('filter');
+        filterEl?.focus({ preventScroll: true });
+
+        function initPage() {
+            // populate and evaluate filter
+            if (!filterEl?.value) {
+                const filterParam = new URL(window.location.href).searchParams.get('filter');
+                if (filterParam) {
+                    filterEl.value = filterParam;
+                }
+            }
+            filter();
+
+            // Setup AMOLED thin sizebars
+            let largest = 0;
+            document.querySelectorAll('.size').forEach(el => {
+                largest = Math.max(largest, Number(el.dataset.size || 0));
+            });
+            document.querySelectorAll('.size').forEach(el => {
+                const size = Number(el.dataset.size || 0);
+                const sizebar = el.querySelector('.sizebar-bar');
+                if (sizebar && largest > 0) {
+                    sizebar.style.width = `${size / largest * 100}%`;
+                }
+            });
+        }
+
+        function filter() {
+            if (!filterEl) return;
+            const q = filterEl.value.trim().toLowerCase();
+            document.querySelectorAll('.search-target').forEach(function (el) {
+                if (!q) {
+                    el.style.display = '';
+                    return;
+                }
+                const nameEl = el.querySelector('.name');
+                if (!nameEl) return;
+                const nameVal = nameEl.textContent.trim().toLowerCase();
+                if (nameVal.indexOf(q) !== -1) {
+                    el.style.display = '';
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+        }
+
+        const filterElem = document.getElementById("filter");
+        if (filterElem) {
+            filterElem.addEventListener("keyup", filter);
+        }
+
+        document.getElementById("layout-list")?.addEventListener("click", function () {
+            queryParam('layout', '');
+        });
+        document.getElementById("layout-grid")?.addEventListener("click", function () {
+            queryParam('layout', 'grid');
+        });
+
+        window.addEventListener("load", initPage);
+
+        function queryParam(k, v) {
+            const qs = new URLSearchParams(window.location.search);
+            if (!v) {
+                qs.delete(k);
+            } else {
+                qs.set(k, v);
+            }
+            const qsStr = qs.toString();
+            if (qsStr) {
+                window.location.search = qsStr;
+            } else {
+                window.location = window.location.pathname;
+            }
+        }
+
+        function localizeDatetime(e, index, ar) {
+            if (e.textContent === undefined) {
+                return;
+            }
+            var d = new Date(e.getAttribute('datetime'));
+            if (isNaN(d)) {
+                d = new Date(e.textContent);
+                if (isNaN(d)) {
+                    return;
+                }
+            }
+            // Makes the timestamp slightly nicer based on the user's local timezone
+            e.textContent = d.toLocaleString(undefined, {
+                year: 'numeric',
+                month: 'short',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        }
+        var timeList = Array.prototype.slice.call(document.getElementsByTagName("time"));
+        timeList.forEach(localizeDatetime);
+        // @license-end
+    </script>
+</body>
+
+</html>

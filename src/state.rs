@@ -3,7 +3,7 @@ use crate::middleware::rate_limit::RateLimiters;
 use crate::services::ytdlp::YtdlpManager;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct AppState {
     pub config: Arc<AppConfig>,
     pub ytdlp_manager: Arc<YtdlpManager>,

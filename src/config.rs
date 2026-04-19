@@ -5,7 +5,15 @@ fn env_or<T: std::str::FromStr>(key: &str, default: &str) -> T {
     env::var(key)
         .unwrap_or_else(|_| default.to_string())
         .parse::<T>()
-        .unwrap_or_else(|_| panic!("{} must be a valid {}", key, std::any::type_name::<T>()))
+        .unwrap_or_else(|_| {
+            tracing::error!("{} must be a valid {}", key, std::any::type_name::<T>());
+            #[allow(clippy::expect_used)]
+            default
+                .to_string()
+                .parse::<T>()
+                .ok()
+                .expect("default must be valid")
+        })
 }
 
 /// Helper: Fetches an optional env var and trims it, returning None if empty.
@@ -33,6 +41,7 @@ pub struct AppConfig {
 }
 
 impl AppConfig {
+    /// Loads the application configuration from environment variables.
     pub fn from_env() -> Self {
         Self {
             name: env_or("APP_NAME", "nadzu-backend"),
@@ -46,11 +55,14 @@ impl AppConfig {
             ytdlp_external_downloader_args: env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
             max_concurrent_downloads: env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
             captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
-            // special case
-            master_api_key: env::var("MASTER_API_KEY").expect("MASTER_API_KEY must be set"),
+            master_api_key: env_opt("MASTER_API_KEY").unwrap_or_else(|| {
+                tracing::error!("MASTER_API_KEY must be set to a non-empty value");
+                std::process::exit(1)
+            }),
         }
     }
 
+    /// Returns the full address string for the server.
     pub fn addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
     }

@@ -1,3 +1,4 @@
+#![allow(unreachable_pub)]
 use axum::{
     body::Body,
     http::{Method, Request, Response, StatusCode},
@@ -25,7 +26,7 @@ pub const CAPTCHA_TOKEN_HEADER: &str = "x-captcha-token";
 pub const CONTENT_TYPE_JSON: &str = "application/json";
 pub const TEST_MASTER_API_KEY: &str = "test_master_key";
 pub const SAMPLE_YTDLP_URL: &str = "https://www.youtube.com/watch?v=dQw4w9WgXcQ";
-pub const EXPECTED_ROOT_MESSAGE: &str = "test - alive and listening";
+pub const EXPECTED_ROOT_MESSAGE: &str = "alive";
 
 // State and app builders
 
@@ -97,6 +98,13 @@ pub fn create_test_app_with_full_layers(
 
 // Request builders
 
+#[allow(clippy::expect_used)]
+pub fn empty_request(method: Method, uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
+    with_headers(Request::builder().method(method).uri(uri), headers)
+        .body(Body::empty())
+        .expect("failed to build empty request")
+}
+
 fn with_headers(
     mut builder: axum::http::request::Builder,
     headers: &[(&str, &str)],
@@ -107,12 +115,6 @@ fn with_headers(
     builder
 }
 
-pub fn empty_request(method: Method, uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
-    with_headers(Request::builder().method(method).uri(uri), headers)
-        .body(Body::empty())
-        .expect("failed to build empty request")
-}
-
 pub fn get(uri: &str) -> Request<Body> {
     empty_request(Method::GET, uri, &[])
 }
@@ -121,14 +123,15 @@ pub fn get_with_headers(uri: &str, headers: &[(&str, &str)]) -> Request<Body> {
     empty_request(Method::GET, uri, headers)
 }
 
-pub fn post_json(uri: &str, body: Value) -> Request<Body> {
+pub fn post_json(uri: &str, body: &Value) -> Request<Body> {
     post_json_with_headers(uri, body, &[])
 }
 
-pub fn post_json_with_headers(uri: &str, body: Value, headers: &[(&str, &str)]) -> Request<Body> {
+pub fn post_json_with_headers(uri: &str, body: &Value, headers: &[(&str, &str)]) -> Request<Body> {
     post_raw_json_with_headers(uri, body.to_string(), headers)
 }
 
+#[allow(clippy::expect_used)]
 pub fn post_raw_json_with_headers(
     uri: &str,
     raw_body: impl Into<String>,
@@ -147,6 +150,7 @@ pub fn post_raw_json_with_headers(
 
 // Response helpers
 
+#[allow(clippy::expect_used)]
 pub async fn send(app: &axum::Router, request: Request<Body>) -> Response<Body> {
     app.clone()
         .oneshot(request)
@@ -161,21 +165,10 @@ pub async fn send_json(app: &axum::Router, request: Request<Body>) -> (StatusCod
     (status, body)
 }
 
-pub async fn send_text(app: &axum::Router, request: Request<Body>) -> (StatusCode, String) {
-    let response = send(app, request).await;
-    let status = response.status();
-    let body = get_text_body(response).await;
-    (status, body)
-}
-
+#[allow(clippy::unwrap_used)]
 async fn get_json_body(response: Response<Body>) -> Value {
     let body = response.into_body().collect().await.unwrap().to_bytes();
     serde_json::from_slice(&body).unwrap()
-}
-
-async fn get_text_body(response: Response<Body>) -> String {
-    let body = response.into_body().collect().await.unwrap().to_bytes();
-    String::from_utf8(body.to_vec()).expect("response body should be utf-8")
 }
 
 pub fn ytdlp_enqueue_request(url: &str) -> Value {
@@ -187,15 +180,12 @@ pub fn ytdlp_enqueue_request(url: &str) -> Value {
 }
 
 pub async fn seed_ytdlp_job(state: &AppState, url: &str) -> String {
-    let job = state
-        .ytdlp_manager
-        .enqueue_download(YtdlpDownloadRequest {
-            url: url.to_string(),
-            quality: Some("best".into()),
-            format: Some("mp4".into()),
-            folder: None,
-        })
-        .await;
+    let job = state.ytdlp_manager.enqueue_download(YtdlpDownloadRequest {
+        url: url.to_string(),
+        quality: Some("best".into()),
+        format: Some("mp4".into()),
+        folder: None,
+    });
 
     job.id
 }

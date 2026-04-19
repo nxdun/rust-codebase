@@ -161,3 +161,8 @@ variable "MASTER_API_KEY" {
   type        = string
   sensitive   = true
 }
+
+variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
+  description = "Presigned URL to download custom browse.html"
+  type        = string
+}

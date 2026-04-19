@@ -25,9 +25,6 @@ RUN apk add --no-cache \
 RUN python3 -m venv /opt/yt && \
     /opt/yt/bin/pip install --no-cache-dir --upgrade pip yt-dlp
 
-# Install cargo-watch for hot-reloading during development
-RUN cargo install cargo-watch
-
 # Set up the application directory
 WORKDIR /app
 
@@ -49,4 +46,4 @@ EXPOSE 8080
 # Mount your source code to /app via docker-compose or docker run:
 # docker run -v .:/app -p 8080:8080 my-dev-image
 ENTRYPOINT ["/sbin/tini", "-g", "--"]
-CMD ["cargo", "watch", "-w", "src", "-x", "run"]
+CMD ["cargo", "run", "--bin", "nadzu"]

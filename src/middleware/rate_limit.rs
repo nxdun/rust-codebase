@@ -1,9 +1,8 @@
 use std::{net::SocketAddr, num::NonZeroU32, sync::Arc};
 
 use axum::{
-    Json,
     extract::{Request, State, connect_info::ConnectInfo},
-    http::{Method, StatusCode},
+    http::Method,
     middleware::Next,
     response::Response,
 };
@@ -11,10 +10,12 @@ use governor::{
     Quota, RateLimiter, clock::DefaultClock, middleware::NoOpMiddleware,
     state::keyed::DefaultKeyedStateStore,
 };
-use serde_json::json;
 use tracing::{debug, info};
 
-use crate::{config::AppConfig, middleware::api_key::has_valid_master_api_key, state::AppState};
+use crate::{
+    config::AppConfig, error::AppError, middleware::api_key::has_valid_master_api_key,
+    state::AppState,
+};
 
 const RATE_LIMITER_PER_SECOND: u32 = 10;
 const RATE_LIMITER_BURST_SIZE: u32 = 20;
@@ -25,13 +26,15 @@ const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
 type KeyedLimiter =
     RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct RateLimiters {
     normal: Arc<KeyedLimiter>,
     enhanced: Arc<KeyedLimiter>,
 }
 
 impl RateLimiters {
+    /// Creates a new instance of `RateLimiters` with normal and enhanced buckets.
+    #[must_use]
     pub fn new() -> Self {
         Self {
             normal: Arc::new(build_limiter(
@@ -61,13 +64,24 @@ impl Default for RateLimiters {
 }
 
 fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
-    let quota = Quota::per_second(NonZeroU32::new(per_second).expect("per_second must be > 0"))
-        .allow_burst(NonZeroU32::new(burst_size).expect("burst_size must be > 0"));
+    let Some(per_second) = NonZeroU32::new(per_second) else {
+        tracing::error!("rate limiter per_second must be greater than 0");
+        std::process::exit(1)
+    };
+
+    let Some(burst_size) = NonZeroU32::new(burst_size) else {
+        tracing::error!("rate limiter burst_size must be greater than 0");
+        std::process::exit(1)
+    };
+
+    let quota = Quota::per_second(per_second).allow_burst(burst_size);
     RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(
         quota,
     )
 }
 
+/// Helper to check if the app is running in production mode.
+#[must_use]
 pub fn is_production(config: &AppConfig) -> bool {
     config.env == "production"
 }
@@ -83,15 +97,18 @@ fn request_client_key(req: &Request, config: &AppConfig) -> String {
 
     req.extensions()
         .get::<ConnectInfo<SocketAddr>>()
-        .map(|connect_info| connect_info.0.ip().to_string())
-        .unwrap_or_else(|| "unknown-client".to_string())
+        .map_or_else(
+            || "unknown-client".to_string(),
+            |connect_info| connect_info.0.ip().to_string(),
+        )
 }
 
+/// Middleware that enforces tiered rate limits based on API key presence and client IP.
 pub async fn enforce_tiered_rate_limit(
     State(state): State<AppState>,
     req: Request,
     next: Next,
-) -> Result<Response, (StatusCode, Json<serde_json::Value>)> {
+) -> Result<Response, AppError> {
     if req.method() == Method::OPTIONS || is_rate_limit_exempt(&req) {
         return Ok(next.run(req).await);
     }
@@ -111,10 +128,7 @@ pub async fn enforce_tiered_rate_limit(
             tier = tier,
             "request rejected by rate limiter"
         );
-        return Err((
-            StatusCode::TOO_MANY_REQUESTS,
-            Json(json!({ "message": "Rate limit exceeded", "tier": tier })),
-        ));
+        return Err(AppError::Forbidden(format!("Rate limit exceeded ({tier})")));
     }
 
     Ok(next.run(req).await)

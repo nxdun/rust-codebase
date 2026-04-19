@@ -9,7 +9,7 @@ use crate::{
     state::AppState,
 };
 
-pub fn router(state: AppState) -> Router<AppState> {
+pub(super) fn router(state: AppState) -> Router<AppState> {
     let public_routes = Router::new()
         .route(
             "/api/v1/ytdlp/sites",

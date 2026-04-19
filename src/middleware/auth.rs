@@ -1,13 +1,12 @@
 use axum::{
     extract::{Request, State},
-    http::StatusCode,
     middleware::Next,
     response::Response,
 };
 
-use crate::{middleware::api_key::API_KEY_HEADER, state::AppState};
+use crate::{error::AppError, middleware::api_key::API_KEY_HEADER, state::AppState};
 
-// Safe: onstant time comparison.
+/// Performs a constant-time comparison of two strings to prevent timing attacks.
 fn constant_time_eq(a: &str, b: &str) -> bool {
     if a.len() != b.len() {
         return false;
@@ -18,11 +17,12 @@ fn constant_time_eq(a: &str, b: &str) -> bool {
         == 0
 }
 
+/// Middleware that requires a valid master API key to be present in the headers.
 pub async fn require_api_key(
     State(state): State<AppState>,
     req: Request,
     next: Next,
-) -> Result<Response, StatusCode> {
+) -> Result<Response, AppError> {
     let api_key = req
         .headers()
         .get(API_KEY_HEADER)
@@ -30,6 +30,8 @@ pub async fn require_api_key(
 
     match api_key {
         Some(key) if constant_time_eq(key, &state.config.master_api_key) => Ok(next.run(req).await),
-        _ => Err(StatusCode::UNAUTHORIZED),
+        _ => Err(AppError::Unauthorized(
+            "Invalid or missing API key".to_string(),
+        )),
     }
 }

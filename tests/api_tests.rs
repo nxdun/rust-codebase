@@ -1,3 +1,4 @@
+#![allow(clippy::unwrap_used, clippy::expect_used)]
 #[path = "api/auth_tests.rs"]
 mod auth_tests;
 #[path = "api/captcha_tests.rs"]
