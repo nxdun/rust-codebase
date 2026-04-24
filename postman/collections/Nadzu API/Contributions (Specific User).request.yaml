@@ -1,0 +1,22 @@
+$kind: http-request
+name: Contributions (Specific User)
+url: "{{base_url}}/api/v1/contributions?username=nxdun"
+method: GET
+scripts:
+  - type: afterResponse
+    code: >-
+      pm.test("Status is 200", function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test("Response matches expected schema and specific user", function () {
+          var jsonData = pm.response.json();
+          pm.expect(jsonData.username).to.eql('nxdun');
+          pm.expect(jsonData.meta.provider).to.eql('github');
+          pm.expect(jsonData.meta.schemaVersion).to.eql(1);
+          pm.expect(jsonData.cells).to.be.an('array');
+          pm.expect(jsonData.months).to.be.an('array');
+          pm.expect(jsonData.summary).to.have.property('totalWeeks');
+      });
+    language: text/javascript
+order: 3001
