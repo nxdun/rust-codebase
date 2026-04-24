@@ -38,6 +38,8 @@ pub struct AppConfig {
     pub max_concurrent_downloads: usize,
     pub captcha_secret_key: Option<String>,
     pub master_api_key: String,
+    pub github_pat: Option<String>,
+    pub github_username: Option<String>,
 }
 
 impl AppConfig {
@@ -59,6 +61,8 @@ impl AppConfig {
                 tracing::error!("MASTER_API_KEY must be set to a non-empty value");
                 std::process::exit(1)
             }),
+            github_pat: env_opt("GITHUB_PAT"),
+            github_username: env_opt("GITHUB_USERNAME"),
         }
     }
 
