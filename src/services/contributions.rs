@@ -23,6 +23,14 @@ const MONTH_LABELS: [&str; 12] = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
 ];
 
+const CONTRIBUTION_COLORS: [&str; 5] = [
+    "#2b2c3494", // Level 0
+    "#9be9a8",   // Level 1
+    "#40c463",   // Level 2
+    "#30a14e",   // Level 3
+    "#216e39",   // Level 4
+];
+
 #[derive(Debug, Deserialize)]
 struct GithubGqlResponse {
     data: Option<GithubGraphQLUser>,
@@ -51,7 +59,6 @@ struct GithubContributionsCollection {
 #[serde(rename_all = "camelCase")]
 struct GithubContributionCalendar {
     total_contributions: u32,
-    colors: Vec<String>,
     weeks: Vec<GithubWeek>,
 }
 
@@ -68,7 +75,6 @@ struct GithubContributionDay {
     weekday: u8, // 0 = Sunday
     contribution_count: u32,
     contribution_level: String,
-    color: String,
 }
 
 pub struct ContributionsService {
@@ -108,6 +114,17 @@ impl ContributionsService {
     ) -> Result<ContributionsResponse, AppError> {
         let now = SystemTime::now();
         let cache_key = username.to_string();
+
+        if username.trim().is_empty() {
+            return Err(AppError::Validation("Username cannot be empty".into()));
+        }
+
+        //not allow any other username other than default for now.
+        if username != self.default_username {
+            return Err(AppError::Validation(
+                "Only the default username is allowed".into(),
+            ));
+        }
 
         if let Some(entry) = self.cache.get(&cache_key) {
             let (cached_resp, expires_at) = entry.value();
@@ -149,14 +166,12 @@ impl ContributionsService {
                 contributionsCollection {
                   contributionCalendar {
                     totalContributions
-                    colors
                     weeks {
                       contributionDays {
                         date
                         weekday
                         contributionCount
                         contributionLevel
-                        color
                       }
                     }
                   }
@@ -279,7 +294,7 @@ impl ContributionsService {
                     weekday_label,
                     count: day.contribution_count,
                     level,
-                    color: day.color.clone(),
+                    color: CONTRIBUTION_COLORS[level as usize].to_string(),
                     is_future,
                     is_in_current_month,
                 });
@@ -293,21 +308,14 @@ impl ContributionsService {
         level_mins[0] = 0;
         level_maxs[0] = 0;
 
-        let mut level_colors: [Option<String>; 5] = Default::default();
-
         for cell in &cells {
             let l = cell.level as usize;
-            if l < 5 {
-                if level_colors[l].is_none() {
-                    level_colors[l] = Some(cell.color.clone());
+            if l < 5 && l > 0 {
+                if cell.count < level_mins[l] {
+                    level_mins[l] = cell.count;
                 }
-                if l > 0 {
-                    if cell.count < level_mins[l] {
-                        level_mins[l] = cell.count;
-                    }
-                    if cell.count > level_maxs[l] {
-                        level_maxs[l] = cell.count;
-                    }
+                if cell.count > level_maxs[l] {
+                    level_maxs[l] = cell.count;
                 }
             }
         }
@@ -324,50 +332,35 @@ impl ContributionsService {
                 label: "No contributions".into(),
                 min: level_mins[0],
                 max: level_maxs[0],
-                color: level_colors[0]
-                    .clone()
-                    .or_else(|| calendar.colors.first().cloned())
-                    .unwrap_or_default(),
+                color: CONTRIBUTION_COLORS[0].to_string(),
             },
             ContributionLegend {
                 level: 1,
                 label: "Low".into(),
                 min: level_mins[1],
                 max: level_maxs[1],
-                color: level_colors[1]
-                    .clone()
-                    .or_else(|| calendar.colors.get(1).cloned())
-                    .unwrap_or_default(),
+                color: CONTRIBUTION_COLORS[1].to_string(),
             },
             ContributionLegend {
                 level: 2,
                 label: "Medium".into(),
                 min: level_mins[2],
                 max: level_maxs[2],
-                color: level_colors[2]
-                    .clone()
-                    .or_else(|| calendar.colors.get(2).cloned())
-                    .unwrap_or_default(),
+                color: CONTRIBUTION_COLORS[2].to_string(),
             },
             ContributionLegend {
                 level: 3,
                 label: "High".into(),
                 min: level_mins[3],
                 max: level_maxs[3],
-                color: level_colors[3]
-                    .clone()
-                    .or_else(|| calendar.colors.get(3).cloned())
-                    .unwrap_or_default(),
+                color: CONTRIBUTION_COLORS[3].to_string(),
             },
             ContributionLegend {
                 level: 4,
                 label: "Very high".into(),
                 min: level_mins[4],
                 max: level_maxs[4],
-                color: level_colors[4]
-                    .clone()
-                    .or_else(|| calendar.colors.get(4).cloned())
-                    .unwrap_or_default(),
+                color: CONTRIBUTION_COLORS[4].to_string(),
             },
         ];
 
@@ -453,4 +446,65 @@ fn format_iso_time(sys_time: SystemTime) -> String {
     let mm = (rem % 3600) / 60;
     let ss = rem % 60;
     format!("{y:04}-{m:02}-{d:02}T{hh:02}:{mm:02}:{ss:02}Z")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_transform_calendar_colors() {
+        let calendar = GithubContributionCalendar {
+            total_contributions: 10,
+            weeks: vec![GithubWeek {
+                contribution_days: vec![
+                    GithubContributionDay {
+                        date: "2023-01-01".into(),
+                        weekday: 0,
+                        contribution_count: 0,
+                        contribution_level: "NONE".into(),
+                    },
+                    GithubContributionDay {
+                        date: "2023-01-02".into(),
+                        weekday: 1,
+                        contribution_count: 1,
+                        contribution_level: "FIRST_QUARTILE".into(),
+                    },
+                    GithubContributionDay {
+                        date: "2023-01-03".into(),
+                        weekday: 2,
+                        contribution_count: 5,
+                        contribution_level: "SECOND_QUARTILE".into(),
+                    },
+                    GithubContributionDay {
+                        date: "2023-01-04".into(),
+                        weekday: 3,
+                        contribution_count: 10,
+                        contribution_level: "THIRD_QUARTILE".into(),
+                    },
+                    GithubContributionDay {
+                        date: "2023-01-05".into(),
+                        weekday: 4,
+                        contribution_count: 20,
+                        contribution_level: "FOURTH_QUARTILE".into(),
+                    },
+                ],
+            }],
+        };
+
+        let resp =
+            ContributionsService::transform_calendar("testuser", &calendar, SystemTime::now());
+
+        assert_eq!(resp.cells[0].color, CONTRIBUTION_COLORS[0]);
+        assert_eq!(resp.cells[1].color, CONTRIBUTION_COLORS[1]);
+        assert_eq!(resp.cells[2].color, CONTRIBUTION_COLORS[2]);
+        assert_eq!(resp.cells[3].color, CONTRIBUTION_COLORS[3]);
+        assert_eq!(resp.cells[4].color, CONTRIBUTION_COLORS[4]);
+
+        assert_eq!(resp.legend[0].color, CONTRIBUTION_COLORS[0]);
+        assert_eq!(resp.legend[1].color, CONTRIBUTION_COLORS[1]);
+        assert_eq!(resp.legend[2].color, CONTRIBUTION_COLORS[2]);
+        assert_eq!(resp.legend[3].color, CONTRIBUTION_COLORS[3]);
+        assert_eq!(resp.legend[4].color, CONTRIBUTION_COLORS[4]);
+    }
 }

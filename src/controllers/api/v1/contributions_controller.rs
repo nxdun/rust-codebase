@@ -15,12 +15,20 @@ pub async fn get_contributions(
     State(state): State<AppState>,
     Query(query): Query<ContributionsQuery>,
 ) -> Result<Json<ContributionsResponse>, AppError> {
-    let username = query.username.unwrap_or_else(|| {
-        state
-            .contributions_service
-            .get_default_username()
-            .to_string()
-    });
+    let username = query
+        .username
+        .as_deref()
+        .map(str::trim)
+        .filter(|u| !u.is_empty())
+        .map_or_else(
+            || {
+                state
+                    .contributions_service
+                    .get_default_username()
+                    .to_string()
+            },
+            ToOwned::to_owned,
+        );
 
     let resp = state
         .contributions_service
