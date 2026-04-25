@@ -25,6 +25,7 @@ fn test_config(env: &str) -> AppConfig {
         master_api_key: "master_key".to_string(),
         github_pat: None,
         github_username: None,
+        github_graphql_url: "https://api.github.com/graphql".to_string(),
     }
 }
 

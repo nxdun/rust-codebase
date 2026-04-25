@@ -61,6 +61,7 @@ pub async fn run() {
                 .github_username
                 .clone()
                 .unwrap_or_else(|| "nxdun".to_string()),
+            config.github_graphql_url.clone(),
         ));
 
     let state = AppState {

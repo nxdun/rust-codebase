@@ -40,6 +40,7 @@ pub struct AppConfig {
     pub master_api_key: String,
     pub github_pat: Option<String>,
     pub github_username: Option<String>,
+    pub github_graphql_url: String,
 }
 
 impl AppConfig {
@@ -63,6 +64,7 @@ impl AppConfig {
             }),
             github_pat: env_opt("GITHUB_PAT"),
             github_username: env_opt("GITHUB_USERNAME"),
+            github_graphql_url: env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
         }
     }
 

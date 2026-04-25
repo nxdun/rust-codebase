@@ -5,6 +5,8 @@ mod auth_tests;
 mod captcha_tests;
 #[path = "api/common.rs"]
 mod common;
+#[path = "api/contributions_tests.rs"]
+mod contributions_tests;
 #[path = "api/cors_tests.rs"]
 mod cors_tests;
 #[path = "api/health_tests.rs"]
