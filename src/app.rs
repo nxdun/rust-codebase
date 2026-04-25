@@ -52,11 +52,24 @@ pub async fn run() {
     let rate_limiters = Arc::new(RateLimiters::new());
     log_rate_limit_mode(&config);
     let http_client = reqwest::Client::new();
+
+    let contributions_service =
+        Arc::new(crate::services::contributions::ContributionsService::new(
+            http_client.clone(),
+            config.github_pat.clone().unwrap_or_default(),
+            config
+                .github_username
+                .clone()
+                .unwrap_or_else(|| "nxdun".to_string()),
+            config.github_graphql_url.clone(),
+        ));
+
     let state = AppState {
         config: config.clone(),
         ytdlp_manager,
         rate_limiters,
         http_client,
+        contributions_service,
     };
 
     // 5. Build middleware layers (compression + CORS)

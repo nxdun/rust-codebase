@@ -73,6 +73,7 @@ variable "HOST_PORT" {
 // - - - - - - - - - - - - - -
 variable "GHCR_PAT" {
   //SECRET: Expected to be set via root TF_VAR_GHCR_PAT. never Declare
+  //update: I use this to process contribtion grapth in backend server. to avoid confusion it passed to backend as GITHUB_PAT. im using the same 
   description = "GitHub Personal Access Token for GHCR login"
   type        = string
   sensitive   = true

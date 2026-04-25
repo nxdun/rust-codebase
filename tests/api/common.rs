@@ -13,7 +13,7 @@ use nadzu::{
     },
     models::ytdlp_model::YtdlpDownloadRequest,
     routes::create_router,
-    services::ytdlp::YtdlpManager,
+    services::{contributions::ContributionsService, ytdlp::YtdlpManager},
     state::AppState,
 };
 use serde_json::{Value, json};
@@ -51,17 +51,27 @@ pub fn create_test_state_with_options(
         max_concurrent_downloads: 3,
         captcha_secret_key: secret_key.map(str::to_string),
         master_api_key: TEST_MASTER_API_KEY.into(),
+        github_pat: None,
+        github_username: None,
+        github_graphql_url: "https://api.github.com/graphql".into(),
     });
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
     let rate_limiters = Arc::new(RateLimiters::new());
     let http_client = reqwest::Client::new();
+    let contributions_service = Arc::new(ContributionsService::new(
+        http_client.clone(),
+        "fake_pat".into(),
+        "nxdun".into(),
+        config.github_graphql_url.clone(),
+    ));
 
     AppState {
         config,
         ytdlp_manager,
         rate_limiters,
         http_client,
+        contributions_service,
     }
 }
 

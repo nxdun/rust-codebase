@@ -134,6 +134,7 @@ write_files:
       ALLOWED_ORIGINS=${ALLOWED_ORIGINS}
       WARP_LICENSE_KEY=${WARP_LICENSE_KEY}
       MASTER_API_KEY=${MASTER_API_KEY}
+      GITHUB_PAT=${GHCR_PAT}
 
   - path: /root/.ghcr_token
     permissions: '0600'
