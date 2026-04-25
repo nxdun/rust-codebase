@@ -108,7 +108,7 @@ impl ContributionsService {
         let cache_weak = Arc::downgrade(&cache);
 
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(600)); // Clean every 10 mins
+            let mut interval = tokio::time::interval(Duration::from_mins(10)); // Clean every 10 mins
             loop {
                 interval.tick().await;
                 if let Some(cache) = cache_weak.upgrade() {
