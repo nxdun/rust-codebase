@@ -1,9 +1,10 @@
 use crate::{
     error::AppError,
     extractors::validated_json::ValidatedJson,
-    models::validation_model::{UserData, ValidateUserRequest, ValidatedUserResponse},
+    models::validation::{UserData, ValidateUserRequest, ValidatedUserResponse},
 };
 use axum::Json;
+use std::borrow::Cow;
 
 /// Validates user data using the custom validator extractor.
 pub async fn validate_user(
@@ -11,7 +12,7 @@ pub async fn validate_user(
 ) -> Result<Json<ValidatedUserResponse>, AppError> {
     let response = ValidatedUserResponse {
         success: true,
-        message: "Validation successful".to_string(),
+        message: Cow::Borrowed("Validation successful"),
         data: UserData {
             name: payload.name,
             email: payload.email,
