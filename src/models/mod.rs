@@ -1,4 +1,6 @@
-pub mod contributions_model;
-pub mod health_model;
-pub mod validation_model;
-pub mod ytdlp_model;
+pub mod contributions;
+pub mod github_dto;
+pub mod health;
+pub mod validation;
+pub mod ytdlp;
+pub mod ytdlp_dto;
