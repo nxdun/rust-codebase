@@ -35,6 +35,9 @@ pub enum AppError {
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    #[error("Upstream Service Error: {0}")]
+    UpstreamError(String),
+
     #[error("Service Unavailable: {0}")]
     ServiceUnavailable(String),
 }
@@ -74,6 +77,11 @@ impl IntoResponse for AppError {
                 StatusCode::CONFLICT,
                 msg.clone(),
                 Some("CONFLICT".to_string()),
+            ),
+            Self::UpstreamError(msg) => (
+                StatusCode::BAD_GATEWAY,
+                msg.clone(),
+                Some("UPSTREAM_ERROR".to_string()),
             ),
             Self::ServiceUnavailable(msg) => (
                 StatusCode::SERVICE_UNAVAILABLE,

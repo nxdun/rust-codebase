@@ -1,4 +1,15 @@
 use std::env;
+use thiserror::Error;
+
+use crate::middleware::constant_time_eq;
+
+#[derive(Debug, Error)]
+pub enum ConfigError {
+    #[error("Missing required environment variable: {0}")]
+    MissingVar(String),
+    #[error("Invalid value for {key}: {details}")]
+    InvalidValue { key: String, details: String },
+}
 
 /// Helper: Fetches an env var, applies a default, and parses to the required type.
 fn env_or<T: std::str::FromStr>(key: &str, default: &str) -> T {
@@ -24,6 +35,7 @@ fn env_opt(key: &str) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
+/// Application configuration loaded from environment variables.
 #[derive(Debug, Clone)]
 pub struct AppConfig {
     pub name: String,
@@ -37,39 +49,91 @@ pub struct AppConfig {
     pub ytdlp_external_downloader_args: Option<String>,
     pub max_concurrent_downloads: usize,
     pub captcha_secret_key: Option<String>,
-    pub master_api_key: String,
+    master_api_key: String, // Private: use check_api_key
     pub github_pat: Option<String>,
     pub github_username: Option<String>,
     pub github_graphql_url: String,
 }
 
 impl AppConfig {
-    /// Loads the application configuration from environment variables.
-    pub fn from_env() -> Self {
+    /// Internal constructor for creating config instances.
+    #[allow(clippy::too_many_arguments)]
+    pub const fn new(
+        name: String,
+        env: String,
+        host: String,
+        port: u16,
+        allowed_origins: Option<String>,
+        download_dir: String,
+        ytdlp_path: String,
+        ytdlp_external_downloader: Option<String>,
+        ytdlp_external_downloader_args: Option<String>,
+        max_concurrent_downloads: usize,
+        captcha_secret_key: Option<String>,
+        master_api_key: String,
+        github_pat: Option<String>,
+        github_username: Option<String>,
+        github_graphql_url: String,
+    ) -> Self {
         Self {
-            name: env_or("APP_NAME", "nadzu-backend"),
-            env: env_or("APP_ENV", "production"),
-            host: env_or("APP_HOST", "127.0.0.1"),
-            port: env_or("APP_PORT", "8080"),
-            allowed_origins: env_opt("ALLOWED_ORIGINS"),
-            download_dir: env_or("DOWNLOAD_DIR", "downloads"),
-            ytdlp_path: env_or("YTDLP_PATH", "yt-dlp"),
-            ytdlp_external_downloader: env_opt("YTDLP_EXTERNAL_DOWNLOADER"),
-            ytdlp_external_downloader_args: env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
-            max_concurrent_downloads: env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
-            captcha_secret_key: env_opt("CAPTCHA_SECRET_KEY"),
-            master_api_key: env_opt("MASTER_API_KEY").unwrap_or_else(|| {
-                tracing::error!("MASTER_API_KEY must be set to a non-empty value");
-                std::process::exit(1)
-            }),
-            github_pat: env_opt("GITHUB_PAT"),
-            github_username: env_opt("GITHUB_USERNAME"),
-            github_graphql_url: env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
+            name,
+            env,
+            host,
+            port,
+            allowed_origins,
+            download_dir,
+            ytdlp_path,
+            ytdlp_external_downloader,
+            ytdlp_external_downloader_args,
+            max_concurrent_downloads,
+            captcha_secret_key,
+            master_api_key,
+            github_pat,
+            github_username,
+            github_graphql_url,
         }
+    }
+
+    /// Loads the application configuration from environment variables.
+    pub fn from_env() -> Result<Self, ConfigError> {
+        let master_api_key = env_opt("MASTER_API_KEY")
+            .ok_or_else(|| ConfigError::MissingVar("MASTER_API_KEY".to_string()))?;
+
+        Ok(Self::new(
+            env_or("APP_NAME", "nadzu-backend"),
+            env_or("APP_ENV", "production"),
+            env_or("APP_HOST", "127.0.0.1"),
+            env_or("APP_PORT", "8080"),
+            env_opt("ALLOWED_ORIGINS"),
+            env_or("DOWNLOAD_DIR", "downloads"),
+            env_or("YTDLP_PATH", "yt-dlp"),
+            env_opt("YTDLP_EXTERNAL_DOWNLOADER"),
+            env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
+            env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
+            env_opt("CAPTCHA_SECRET_KEY"),
+            master_api_key,
+            env_opt("GITHUB_PAT"),
+            env_opt("GITHUB_USERNAME"),
+            env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
+        ))
+    }
+
+    /// Securely checks if the provided key matches the master API key using constant-time comparison.
+    #[must_use]
+    pub fn check_api_key(&self, provided_key: &str) -> bool {
+        constant_time_eq(provided_key, &self.master_api_key)
     }
 
     /// Returns the full address string for the server.
     pub fn addr(&self) -> String {
         format!("{}:{}", self.host, self.port)
+    }
+
+    /// Helper for testing to inject a master API key.
+    #[cfg(test)]
+    #[must_use]
+    pub fn with_master_key(mut self, key: &str) -> Self {
+        self.master_api_key = key.to_string();
+        self
     }
 }
