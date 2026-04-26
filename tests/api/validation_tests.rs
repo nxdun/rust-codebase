@@ -60,5 +60,13 @@ async fn validate_user_rejects_semantically_invalid_payload() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["status"], 422);
     assert_eq!(body["error_code"], "VALIDATION_ERROR");
-    assert!(body["message"].as_str().unwrap().contains("messages"));
+    let message_str = body["message"].as_str().unwrap();
+    let message_val: serde_json::Value = serde_json::from_str(message_str).unwrap();
+    assert!(message_val.is_array());
+    let validation_errors = message_val.as_array().unwrap();
+    assert!(!validation_errors.is_empty());
+    let first_error = &validation_errors[0];
+    assert!(first_error.is_object());
+    assert!(first_error["field"].is_string());
+    assert!(first_error["messages"].is_array());
 }

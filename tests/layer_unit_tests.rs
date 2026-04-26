@@ -71,6 +71,7 @@ fn health_ok_model_contains_expected_values() {
 
 #[test]
 fn app_config_from_env_fails_when_master_api_key_missing() {
+    let original_master_key = std::env::var("MASTER_API_KEY").ok();
     // Clear env to ensure a clean state for the test
     #[allow(deprecated)]
     unsafe {
@@ -78,4 +79,12 @@ fn app_config_from_env_fails_when_master_api_key_missing() {
     }
     let result = AppConfig::from_env();
     assert!(result.is_err());
+
+    // Restore the original environment variable if it existed
+    if let Some(key) = original_master_key {
+        #[allow(deprecated)]
+        unsafe {
+            std::env::set_var("MASTER_API_KEY", key);
+        }
+    }
 }
