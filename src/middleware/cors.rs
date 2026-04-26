@@ -50,7 +50,7 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
     info!("CORS allowed origins: {:?}", raw_origins);
 
     // PRE-COMPUTE MATCHERS (Runs only once on startup)
-    let mut matchers = Vec::new();
+    let mut matchers = Vec::with_capacity(raw_origins.len());
     for allowed in raw_origins {
         if allowed.contains('*') {
             let parts: Vec<&str> = allowed.split('*').collect();

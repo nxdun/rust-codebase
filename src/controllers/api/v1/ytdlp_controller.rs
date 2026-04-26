@@ -62,8 +62,10 @@ pub async fn list_download_jobs(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, AppError> {
     let jobs = state.ytdlp_manager.list_jobs();
-    let response_jobs: Vec<YtdlpJobResponse> =
-        jobs.into_iter().map(YtdlpJobResponse::from).collect();
+    let mut response_jobs = Vec::with_capacity(jobs.len());
+    for job in jobs {
+        response_jobs.push(YtdlpJobResponse::from(job));
+    }
     Ok((
         StatusCode::OK,
         Json(YtdlpListResponse {
