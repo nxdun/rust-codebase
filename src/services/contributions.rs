@@ -104,7 +104,7 @@ impl ContributionsService {
 
         // Background task to prune expired entries every 10 minutes
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(Duration::from_secs(600));
+            let mut interval = tokio::time::interval(Duration::from_mins(10));
             loop {
                 interval.tick().await;
                 if let Some(cache) = cache_weak.upgrade() {
