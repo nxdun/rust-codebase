@@ -78,11 +78,14 @@ impl IntoResponse for AppError {
                 msg.clone(),
                 Some("CONFLICT".to_string()),
             ),
-            Self::UpstreamError(msg) => (
-                StatusCode::BAD_GATEWAY,
-                msg.clone(),
-                Some("UPSTREAM_ERROR".to_string()),
-            ),
+            Self::UpstreamError(msg) => {
+                tracing::error!("Upstream service error: {}", msg);
+                (
+                    StatusCode::BAD_GATEWAY,
+                    "Upstream service error".to_string(),
+                    Some("UPSTREAM_ERROR".to_string()),
+                )
+            }
             Self::ServiceUnavailable(msg) => (
                 StatusCode::SERVICE_UNAVAILABLE,
                 msg.clone(),

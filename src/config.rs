@@ -7,6 +7,7 @@ use crate::middleware::constant_time_eq;
 pub enum ConfigError {
     #[error("Missing required environment variable: {0}")]
     MissingVar(String),
+    // TODO: Use this variant when validating env values in `from_env()`
     #[error("Invalid value for {key}: {details}")]
     InvalidValue { key: String, details: String },
 }
