@@ -20,7 +20,7 @@ pub struct ValidateUserRequest {
 #[derive(Debug, Serialize)]
 pub struct ValidatedUserResponse {
     pub success: bool,
-    pub message: String,
+    pub message: std::borrow::Cow<'static, str>,
     pub data: UserData,
 }
 

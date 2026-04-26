@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContributionsResponse {
@@ -31,15 +32,15 @@ pub struct ContributionSummary {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContributionLegend {
     pub level: u32,
-    pub label: String,
+    pub label: Cow<'static, str>,
     pub min: u32,
     pub max: u32,
-    pub color: String,
+    pub color: Cow<'static, str>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContributionMonth {
-    pub label: String,
+    pub label: Cow<'static, str>,
     #[serde(rename = "weekIndex")]
     pub week_index: usize,
 }
@@ -51,10 +52,10 @@ pub struct ContributionCell {
     pub week_index: usize,
     pub weekday: u8,
     #[serde(rename = "weekdayLabel")]
-    pub weekday_label: String,
+    pub weekday_label: Cow<'static, str>,
     pub count: u32,
     pub level: u32,
-    pub color: String,
+    pub color: Cow<'static, str>,
     #[serde(rename = "isFuture")]
     pub is_future: bool,
     #[serde(rename = "isInCurrentMonth")]
