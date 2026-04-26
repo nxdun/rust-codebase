@@ -11,7 +11,7 @@ use nadzu::{
         cors::build_cors,
         rate_limit::{RateLimiters, enforce_tiered_rate_limit},
     },
-    models::ytdlp_model::YtdlpDownloadRequest,
+    models::ytdlp_dto::YtdlpDownloadRequest,
     routes::create_router,
     services::{contributions::ContributionsService, ytdlp::YtdlpManager},
     state::AppState,
@@ -20,8 +20,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use tower::ServiceExt;
 
-pub use nadzu::middleware::api_key::API_KEY_HEADER;
-
+pub const API_KEY_HEADER: &str = "x-api-key";
 pub const CAPTCHA_TOKEN_HEADER: &str = "x-captcha-token";
 pub const CONTENT_TYPE_JSON: &str = "application/json";
 pub const TEST_MASTER_API_KEY: &str = "test_master_key";
@@ -38,23 +37,23 @@ pub fn create_test_state_with_options(
     secret_key: Option<&str>,
     allowed_origins: Option<&str>,
 ) -> AppState {
-    let config = Arc::new(AppConfig {
-        name: "test".into(),
-        env: "test".into(),
-        host: "127.0.0.1".into(),
-        port: 8080,
-        allowed_origins: allowed_origins.map(str::to_string),
-        download_dir: "downloads".into(),
-        ytdlp_path: "yt-dlp".into(),
-        ytdlp_external_downloader: None,
-        ytdlp_external_downloader_args: None,
-        max_concurrent_downloads: 3,
-        captcha_secret_key: secret_key.map(str::to_string),
-        master_api_key: TEST_MASTER_API_KEY.into(),
-        github_pat: None,
-        github_username: None,
-        github_graphql_url: "https://api.github.com/graphql".into(),
-    });
+    let config = Arc::new(AppConfig::new(
+        "test".into(),
+        "test".into(),
+        "127.0.0.1".into(),
+        8080,
+        allowed_origins.map(str::to_string),
+        "downloads".into(),
+        "yt-dlp".into(),
+        None,
+        None,
+        3,
+        secret_key.map(str::to_string),
+        TEST_MASTER_API_KEY.into(),
+        None,
+        None,
+        "https://api.github.com/graphql".into(),
+    ));
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
     let rate_limiters = Arc::new(RateLimiters::new());

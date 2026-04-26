@@ -2,40 +2,36 @@
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
-    middleware::{
-        api_key::{API_KEY_HEADER, has_valid_master_api_key},
-        rate_limit::is_production,
-    },
-    models::health_model::Health,
+    middleware::{api_key::has_valid_master_api_key, rate_limit::is_production},
+    models::health::Health,
 };
 
 fn test_config(env: &str) -> AppConfig {
-    AppConfig {
-        name: "nadzu-test".to_string(),
-        env: env.to_string(),
-        host: "127.0.0.1".to_string(),
-        port: 8080,
-        allowed_origins: None,
-        download_dir: "downloads".to_string(),
-        ytdlp_path: "yt-dlp".to_string(),
-        ytdlp_external_downloader: None,
-        ytdlp_external_downloader_args: None,
-        max_concurrent_downloads: 3,
-        captcha_secret_key: None,
-        master_api_key: "master_key".to_string(),
-        github_pat: None,
-        github_username: None,
-        github_graphql_url: "https://api.github.com/graphql".to_string(),
-    }
+    AppConfig::new(
+        "nadzu-test".to_string(),
+        env.to_string(),
+        "127.0.0.1".to_string(),
+        8080,
+        None,
+        "downloads".to_string(),
+        "yt-dlp".to_string(),
+        None,
+        None,
+        3,
+        None,
+        "master_key".to_string(),
+        None,
+        None,
+        "https://api.github.com/graphql".to_string(),
+    )
 }
 
 #[test]
 #[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_true_for_matching_header() {
-    // Utility layer contract: header parser and key matcher should accept valid key.
     let config = test_config("test");
     let mut headers = HeaderMap::new();
-    headers.insert(API_KEY_HEADER, "master_key".parse().unwrap());
+    headers.insert("x-api-key", "master_key".parse().unwrap());
 
     assert!(has_valid_master_api_key(&headers, &config));
 }
@@ -43,14 +39,13 @@ fn has_valid_master_api_key_returns_true_for_matching_header() {
 #[test]
 #[allow(clippy::unwrap_used)]
 fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
-    // Utility layer contract: missing/wrong keys must be rejected consistently.
     let config = test_config("test");
 
     let empty_headers = HeaderMap::new();
     assert!(!has_valid_master_api_key(&empty_headers, &config));
 
     let mut wrong_headers = HeaderMap::new();
-    wrong_headers.insert(API_KEY_HEADER, "wrong_key".parse().unwrap());
+    wrong_headers.insert("x-api-key", "wrong_key".parse().unwrap());
     assert!(!has_valid_master_api_key(&wrong_headers, &config));
 
     let mut unrelated_headers = HeaderMap::new();
@@ -60,7 +55,6 @@ fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
 
 #[test]
 fn is_production_uses_environment_flag() {
-    // Rate-limit policy helper should only treat literal production env as production.
     assert!(is_production(&test_config("production")));
     assert!(!is_production(&test_config("test")));
     assert!(!is_production(&test_config("staging")));
@@ -68,7 +62,6 @@ fn is_production_uses_environment_flag() {
 
 #[test]
 fn health_ok_model_contains_expected_values() {
-    // Model layer contract for health payload should remain stable.
     let health = Health::ok();
 
     assert_eq!(health.status, "ok");
@@ -77,18 +70,12 @@ fn health_ok_model_contains_expected_values() {
 }
 
 #[test]
-fn app_config_from_env_exits_when_master_api_key_missing() -> std::io::Result<()> {
-    let helper_binary = env!("CARGO_BIN_EXE_config_exit");
-
-    let output = std::process::Command::new(helper_binary)
-        .env_remove("MASTER_API_KEY")
-        .output()?;
-
-    assert!(
-        !output.status.success(),
-        "expected exit status to be non-zero"
-    );
-    assert_eq!(output.status.code(), Some(1));
-
-    Ok(())
+fn app_config_from_env_fails_when_master_api_key_missing() {
+    // Clear env to ensure a clean state for the test
+    #[allow(deprecated)]
+    unsafe {
+        std::env::remove_var("MASTER_API_KEY");
+    }
+    let result = AppConfig::from_env();
+    assert!(result.is_err());
 }

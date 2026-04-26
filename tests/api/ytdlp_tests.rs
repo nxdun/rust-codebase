@@ -37,9 +37,8 @@ async fn ytdlp_enqueue_fails_when_secret_key_missing() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(body["message"], "Internal Server Error");
-    assert_eq!(body["error_code"], "INTERNAL_SERVER_ERROR");
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["error_code"], "SERVICE_UNAVAILABLE");
 }
 
 #[tokio::test]
@@ -56,9 +55,8 @@ async fn ytdlp_enqueue_fails_when_secret_key_empty() {
     )
     .await;
 
-    assert_eq!(status, StatusCode::INTERNAL_SERVER_ERROR);
-    assert_eq!(body["message"], "Internal Server Error");
-    assert_eq!(body["error_code"], "INTERNAL_SERVER_ERROR");
+    assert_eq!(status, StatusCode::SERVICE_UNAVAILABLE);
+    assert_eq!(body["error_code"], "SERVICE_UNAVAILABLE");
 }
 
 #[tokio::test]
@@ -90,9 +88,9 @@ async fn ytdlp_get_job_returns_seeded_job() {
     let (status, body) = send_json(&app, get(&uri)).await;
 
     assert_eq!(status, StatusCode::OK);
-    assert_eq!(body["job"]["id"], job_id);
-    assert_eq!(body["job"]["url"], SAMPLE_YTDLP_URL);
-    assert_eq!(body["job"]["status"], "queued");
+    assert_eq!(body["id"], job_id);
+    assert_eq!(body["url"], SAMPLE_YTDLP_URL);
+    assert_eq!(body["status"], "queued");
 }
 
 #[tokio::test]

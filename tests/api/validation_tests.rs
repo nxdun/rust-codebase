@@ -60,10 +60,5 @@ async fn validate_user_rejects_semantically_invalid_payload() {
     assert_eq!(status, StatusCode::UNPROCESSABLE_ENTITY);
     assert_eq!(body["status"], 422);
     assert_eq!(body["error_code"], "VALIDATION_ERROR");
-    assert!(
-        body["message"]
-            .as_str()
-            .unwrap()
-            .contains("Validation failed")
-    );
+    assert!(body["message"].as_str().unwrap().contains("messages"));
 }
