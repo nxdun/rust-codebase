@@ -1,4 +1,4 @@
-use crate::{error::AppError, models::health_model::Health, state::AppState};
+use crate::{error::AppError, models::health::Health, state::AppState};
 use axum::{Json, extract::State};
 
 /// Health check endpoint.

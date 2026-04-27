@@ -6,7 +6,11 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{error::AppError, middleware::api_key::has_valid_master_api_key, state::AppState};
+use crate::{
+    error::AppError,
+    middleware::{X_CAPTCHA_TOKEN, api_key::has_valid_master_api_key},
+    state::AppState,
+};
 
 #[derive(Debug, Deserialize)]
 struct CaptchaProviderResponse {
@@ -30,7 +34,7 @@ pub async fn verify_captcha_token(
 
     let captcha_token = req
         .headers()
-        .get("x-captcha-token")
+        .get(X_CAPTCHA_TOKEN)
         .and_then(|value| value.to_str().ok())
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -38,11 +42,10 @@ pub async fn verify_captcha_token(
 
     let secret_key = state
         .config
-        .captcha_secret_key
-        .as_deref()
+        .captcha_secret_key()
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| {
-            AppError::Internal(anyhow::anyhow!("CAPTCHA_SECRET_KEY is not configured"))
+            AppError::ServiceUnavailable("CAPTCHA_SECRET_KEY is not configured".to_string())
         })?;
 
     let response = state
@@ -52,13 +55,13 @@ pub async fn verify_captcha_token(
         .form(&[("secret", secret_key), ("response", captcha_token)])
         .send()
         .await
-        .map_err(|err| AppError::Internal(anyhow::anyhow!("Failed to verify captcha: {err}")))?;
+        .map_err(|err| AppError::UpstreamError(format!("Failed to verify captcha: {err}")))?;
 
     let body = response
         .json::<CaptchaProviderResponse>()
         .await
         .map_err(|err| {
-            AppError::Internal(anyhow::anyhow!("Failed to parse captcha response: {err}"))
+            AppError::UpstreamError(format!("Failed to parse captcha response: {err}"))
         })?;
 
     if !body.success {

@@ -42,7 +42,8 @@ where
                 })
                 .collect();
 
-            let msg = format!("Validation failed: {error_map:?}");
+            let msg = serde_json::to_string(&error_map)
+                .unwrap_or_else(|_| "Validation failed".to_string());
             AppError::Validation(msg).into_response()
         })?;
 

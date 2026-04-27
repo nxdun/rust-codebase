@@ -1,6 +1,10 @@
 use crate::{
     config::AppConfig,
-    models::ytdlp_model::{YtdlpDownloadRequest, YtdlpJob, YtdlpJobStatus},
+    error::AppError,
+    models::{
+        ytdlp::{YtdlpJob, YtdlpJobStatus},
+        ytdlp_dto::YtdlpDownloadRequest,
+    },
 };
 use dashmap::DashMap;
 use std::{
@@ -31,6 +35,8 @@ struct ParsedProgress {
     eta: Option<String>,
 }
 
+/// Manager for handling yt-dlp download jobs.
+/// Manages a pool of concurrent downloads using semaphores and tracks job state in a concurrent map.
 #[derive(Clone, Debug)]
 pub struct YtdlpManager {
     cfg: Arc<AppConfig>,
@@ -40,7 +46,7 @@ pub struct YtdlpManager {
 }
 
 impl YtdlpManager {
-    /// Creates a new instance of `YtdlpManager`.
+    /// Creates a new instance of `YtdlpManager` and starts the background cleanup task.
     #[must_use]
     pub fn new(cfg: Arc<AppConfig>) -> Self {
         let manager = Self {
@@ -50,7 +56,6 @@ impl YtdlpManager {
             job_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
         };
 
-        // Use a weak reference to avoid keeping the manager alive indefinitely
         let jobs_weak = Arc::downgrade(&manager.jobs);
 
         tokio::spawn(async move {
@@ -88,7 +93,7 @@ impl YtdlpManager {
     }
 
     /// Enqueues a download job and returns its initial state.
-    #[allow(clippy::expect_used)]
+    /// Spawns an asynchronous task to perform the actual download.
     pub fn enqueue_download(&self, payload: YtdlpDownloadRequest) -> YtdlpJob {
         let id = self.next_id();
         let quality = payload.quality.as_deref().unwrap_or("best").to_string();
@@ -97,8 +102,8 @@ impl YtdlpManager {
 
         let output_dir_res = self.resolve_output_dir(payload.folder.as_deref());
         let output_dir = output_dir_res
-            .clone()
-            .unwrap_or_else(|_| self.cfg.download_dir.clone());
+            .as_ref()
+            .map_or_else(|_| self.cfg.download_dir.clone(), Clone::clone);
 
         let job = YtdlpJob {
             id: id.clone(),
@@ -124,12 +129,16 @@ impl YtdlpManager {
         if let Err(error) = output_dir_res {
             self.update_job(&id, |job| {
                 job.status = YtdlpJobStatus::Failed;
-                job.error = Some(error);
+                job.error = Some(error.to_string());
                 job.finished_at_unix = Some(now_unix());
             });
+
+            #[allow(clippy::expect_used)]
             return self
-                .get_job(&id)
-                .expect("job should exist immediately after insert");
+                .jobs
+                .get(&id)
+                .map(|e| e.value().clone())
+                .expect("job should exist");
         }
 
         let manager = self.clone();
@@ -142,12 +151,12 @@ impl YtdlpManager {
         job
     }
 
-    /// Retrieves a job by ID.
+    /// Retrieves a job by ID from the concurrent state map.
     pub fn get_job(&self, id: &str) -> Option<YtdlpJob> {
         self.jobs.get(id).map(|entry| entry.value().clone())
     }
 
-    /// Lists all jobs.
+    /// Returns a list of all currently tracked download jobs.
     pub fn list_jobs(&self) -> Vec<YtdlpJob> {
         self.jobs
             .iter()
@@ -163,13 +172,15 @@ impl YtdlpManager {
         format!("ytdlp-{ts}-{counter}")
     }
 
-    fn resolve_output_dir(&self, folder: Option<&str>) -> Result<String, String> {
+    fn resolve_output_dir(&self, folder: Option<&str>) -> Result<String, AppError> {
         let mut dir = PathBuf::from(&self.cfg.download_dir);
         if let Some(folder_str) = folder.filter(|f| !f.is_empty()) {
             let folder_path = Path::new(folder_str);
 
             if folder_path.is_absolute() {
-                return Err("folder must be a relative safe path".to_string());
+                return Err(AppError::Validation(
+                    "folder must be a relative safe path".to_string(),
+                ));
             }
 
             for component in folder_path.components() {
@@ -177,7 +188,9 @@ impl YtdlpManager {
                     component,
                     Component::ParentDir | Component::RootDir | Component::Prefix(_)
                 ) {
-                    return Err("folder must be a relative safe path".to_string());
+                    return Err(AppError::Validation(
+                        "folder must be a relative safe path".to_string(),
+                    ));
                 }
             }
             dir.push(folder_path);
@@ -397,7 +410,6 @@ impl YtdlpManager {
 
         let sanitized_line = redact_client_progress_line(trimmed);
 
-        // Keep raw downloader output at debug level to avoid noisy info logs.
         debug!(
             "ytdlp progress id={} line={}",
             id,
@@ -420,7 +432,7 @@ impl YtdlpManager {
                 if parsed.eta.is_some() {
                     job.progress_eta = parsed.eta;
                 }
-                job.progress_message = Some(aria2_message.clone());
+                job.progress_message = Some(aria2_message);
                 job.updated_at_unix = Some(now_unix());
             });
             return;
@@ -435,35 +447,34 @@ impl YtdlpManager {
     }
 }
 
-// Reusable utility for client-safe progress text.
 fn redact_client_progress_line(line: &str) -> String {
     if line.contains("Destination") {
         return "[download] Destination: [REDACTED_PATH]".to_string();
     }
 
-    line.split_whitespace()
-        .map(|token| {
-            if is_sensitive_token(token) {
-                "[REDACTED_PATH]".to_string()
-            } else {
-                token.to_string()
-            }
-        })
-        .collect::<Vec<String>>()
-        .join(" ")
+    let mut result = String::with_capacity(line.len() + 15);
+    for (i, token) in line.split_whitespace().enumerate() {
+        if i > 0 {
+            result.push(' ');
+        }
+        if is_sensitive_token(token) {
+            result.push_str("[REDACTED_PATH]");
+        } else {
+            result.push_str(token);
+        }
+    }
+    result
 }
 
 fn is_sensitive_token(token: &str) -> bool {
     let cleaned = token.trim_matches(|c| c == '"' || c == '\'' || c == ',' || c == ';');
 
-    // Redact common env interpolation patterns.
     if (cleaned.starts_with("${") && cleaned.ends_with('}')) || cleaned.starts_with('$') {
         return true;
     }
 
     let normalized = cleaned.replace('\\', "/").to_ascii_lowercase();
 
-    // Redact known sensitive server-local path roots and absolute local paths.
     normalized.contains("/run/secrets")
         || normalized.contains("/home/app")
         || normalized.starts_with("/home/")

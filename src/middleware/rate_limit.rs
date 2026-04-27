@@ -26,6 +26,8 @@ const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
 type KeyedLimiter =
     RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>;
 
+/// Container for the application's rate limiting logic.
+/// Supports a "Normal" tier for public users and an "Enhanced" tier for authorized API key holders.
 #[derive(Clone, Debug)]
 pub struct RateLimiters {
     normal: Arc<KeyedLimiter>,
@@ -34,6 +36,9 @@ pub struct RateLimiters {
 
 impl RateLimiters {
     /// Creates a new instance of `RateLimiters` with normal and enhanced buckets.
+    ///
+    /// # Panics
+    /// Panics if the hardcoded rate limit constants are invalid (e.g., zero).
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -63,16 +68,11 @@ impl Default for RateLimiters {
     }
 }
 
+/// Internal helper to build a DashMap-backed rate limiter.
+#[allow(clippy::expect_used)]
 fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
-    let Some(per_second) = NonZeroU32::new(per_second) else {
-        tracing::error!("rate limiter per_second must be greater than 0");
-        std::process::exit(1)
-    };
-
-    let Some(burst_size) = NonZeroU32::new(burst_size) else {
-        tracing::error!("rate limiter burst_size must be greater than 0");
-        std::process::exit(1)
-    };
+    let per_second = NonZeroU32::new(per_second).expect("RATE_LIMITER_PER_SECOND must be > 0");
+    let burst_size = NonZeroU32::new(burst_size).expect("RATE_LIMITER_BURST_SIZE must be > 0");
 
     let quota = Quota::per_second(per_second).allow_burst(burst_size);
     RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(
@@ -104,6 +104,8 @@ fn request_client_key(req: &Request, config: &AppConfig) -> String {
 }
 
 /// Middleware that enforces tiered rate limits based on API key presence and client IP.
+///
+/// Rejects requests exceeding the quota with a `403 Forbidden` error.
 pub async fn enforce_tiered_rate_limit(
     State(state): State<AppState>,
     req: Request,
@@ -134,22 +136,19 @@ pub async fn enforce_tiered_rate_limit(
     Ok(next.run(req).await)
 }
 
+/// Logs the current rate limiting configuration to the tracing output.
 pub fn log_rate_limit_mode(config: &AppConfig) {
-    if is_production(config) {
-        info!(
-            "Rate Limiter: production mode (keyed by client IP), normal={}/s burst={}, enhanced={}/s burst={}",
-            RATE_LIMITER_PER_SECOND,
-            RATE_LIMITER_BURST_SIZE,
-            ENHANCED_RATE_LIMITER_PER_SECOND,
-            ENHANCED_RATE_LIMITER_BURST_SIZE
-        );
+    let mode = if is_production(config) {
+        "production"
     } else {
-        info!(
-            "Rate Limiter: development mode (global key), normal={}/s burst={}, enhanced={}/s burst={}",
-            RATE_LIMITER_PER_SECOND,
-            RATE_LIMITER_BURST_SIZE,
-            ENHANCED_RATE_LIMITER_PER_SECOND,
-            ENHANCED_RATE_LIMITER_BURST_SIZE
-        );
-    }
+        "development"
+    };
+    info!(
+        "Rate Limiter: {} mode, normal={}/s burst={}, enhanced={}/s burst={}",
+        mode,
+        RATE_LIMITER_PER_SECOND,
+        RATE_LIMITER_BURST_SIZE,
+        ENHANCED_RATE_LIMITER_PER_SECOND,
+        ENHANCED_RATE_LIMITER_BURST_SIZE
+    );
 }

@@ -4,13 +4,16 @@ use axum::{
 };
 use serde::Deserialize;
 
-use crate::{error::AppError, models::contributions_model::ContributionsResponse, state::AppState};
+use crate::{error::AppError, models::contributions::ContributionsResponse, state::AppState};
 
+/// Request query parameters for the contributions endpoint.
 #[derive(Debug, Deserialize)]
 pub struct ContributionsQuery {
     pub username: Option<String>,
 }
 
+/// Retrieves GitHub contributions for a specific user.
+/// Defaults to the configured system user if none is provided.
 pub async fn get_contributions(
     State(state): State<AppState>,
     Query(query): Query<ContributionsQuery>,

@@ -1,6 +1,6 @@
 use crate::common::{TEST_MASTER_API_KEY, create_test_state_with_options, get, send_json};
 use axum::http::StatusCode;
-use nadzu::models::contributions_model::{
+use nadzu::models::contributions::{
     ContributionMeta, ContributionRange, ContributionSummary, ContributionsResponse,
 };
 use nadzu::routes::create_router;
@@ -54,32 +54,33 @@ async fn get_contributions_returns_seeded_cache() {
 }
 
 #[tokio::test]
+#[allow(clippy::unwrap_used)]
 async fn get_contributions_hits_mock_server_when_cache_empty() {
     let mock_server = MockServer::start().await;
 
     // Create state pointing to mock server
-    let config = nadzu::config::AppConfig {
-        name: "test".into(),
-        env: "test".into(),
-        host: "127.0.0.1".into(),
-        port: 8080,
-        allowed_origins: None,
-        download_dir: "downloads".into(),
-        ytdlp_path: "yt-dlp".into(),
-        ytdlp_external_downloader: None,
-        ytdlp_external_downloader_args: None,
-        max_concurrent_downloads: 3,
-        captcha_secret_key: None,
-        master_api_key: TEST_MASTER_API_KEY.into(),
-        github_pat: Some("fake_pat".into()),
-        github_username: Some("nxdun".into()),
-        github_graphql_url: mock_server.uri(),
-    };
+    let config = nadzu::config::AppConfig::new(
+        "test".into(),
+        "test".into(),
+        "127.0.0.1".into(),
+        8080,
+        None,
+        "downloads".into(),
+        "yt-dlp".into(),
+        None,
+        None,
+        3,
+        None,
+        TEST_MASTER_API_KEY.into(),
+        Some("fake_pat".into()),
+        Some("nxdun".into()),
+        mock_server.uri(),
+    );
 
     let http_client = reqwest::Client::new();
     let contributions_service = Arc::new(ContributionsService::new(
         http_client.clone(),
-        config.github_pat.clone().unwrap(),
+        config.github_pat().unwrap().to_string(),
         config.github_username.clone().unwrap(),
         config.github_graphql_url.clone(),
     ));

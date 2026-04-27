@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
+use std::borrow::Cow;
 use validator::Validate;
+
+use super::ytdlp::{YtdlpJob, YtdlpJobStatus};
 
 #[derive(Debug, Deserialize, Validate, Clone)]
 pub struct YtdlpDownloadRequest {
@@ -12,24 +15,21 @@ pub struct YtdlpDownloadRequest {
 
 #[derive(Debug, Serialize, Clone)]
 pub struct YtdlpEnqueueResponse {
-    pub status: &'static str,
-    pub message: &'static str,
-    pub job: YtdlpJob,
+    pub status: Cow<'static, str>,
+    pub message: Cow<'static, str>,
+    pub job: YtdlpJobResponse,
 }
 
 #[derive(Debug, Serialize, Clone)]
 pub struct YtdlpListResponse {
-    pub jobs: Vec<YtdlpJob>,
+    pub jobs: Vec<YtdlpJobResponse>,
 }
 
 #[derive(Debug, Serialize, Clone)]
-pub struct YtdlpJob {
+pub struct YtdlpJobResponse {
     pub id: String,
     pub url: String,
     pub status: YtdlpJobStatus,
-    pub output_dir: String,
-    pub format_flag: String,
-    pub sort_flag: Option<String>,
     pub started_at_unix: Option<u64>,
     pub finished_at_unix: Option<u64>,
     pub progress_percent: Option<f32>,
@@ -42,11 +42,22 @@ pub struct YtdlpJob {
     pub error: Option<String>,
 }
 
-#[derive(Debug, Serialize, Clone)]
-#[serde(rename_all = "snake_case")]
-pub enum YtdlpJobStatus {
-    Queued,
-    Running,
-    Finished,
-    Failed,
+impl From<YtdlpJob> for YtdlpJobResponse {
+    fn from(job: YtdlpJob) -> Self {
+        Self {
+            id: job.id,
+            url: job.url,
+            status: job.status,
+            started_at_unix: job.started_at_unix,
+            finished_at_unix: job.finished_at_unix,
+            progress_percent: job.progress_percent,
+            progress_total: job.progress_total,
+            progress_speed: job.progress_speed,
+            progress_eta: job.progress_eta,
+            progress_message: job.progress_message,
+            updated_at_unix: job.updated_at_unix,
+            files: job.files,
+            error: job.error,
+        }
+    }
 }

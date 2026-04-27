@@ -47,7 +47,13 @@ pub async fn run() {
         .on_response(DefaultOnResponse::new().level(Level::INFO));
 
     // 4. Load application config and build shared app state
-    let config = Arc::new(AppConfig::from_env());
+    let config = match AppConfig::from_env() {
+        Ok(cfg) => Arc::new(cfg),
+        Err(err) => {
+            error!("Failed to load configuration: {err}");
+            std::process::exit(1);
+        }
+    };
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
     let rate_limiters = Arc::new(RateLimiters::new());
     log_rate_limit_mode(&config);
@@ -56,7 +62,7 @@ pub async fn run() {
     let contributions_service =
         Arc::new(crate::services::contributions::ContributionsService::new(
             http_client.clone(),
-            config.github_pat.clone().unwrap_or_default(),
+            config.github_pat().unwrap_or_default().to_string(),
             config
                 .github_username
                 .clone()
@@ -117,6 +123,5 @@ async fn shutdown_signal() {
     if let Err(err) = tokio::signal::ctrl_c().await {
         error!("failed to listen for CTRL+C: {err}");
     }
-    println!();
     info!("Initiating graceful shutdown");
 }

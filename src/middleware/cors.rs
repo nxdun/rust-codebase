@@ -1,7 +1,10 @@
-use crate::{config::AppConfig, middleware::api_key::API_KEY_HEADER};
+use crate::{
+    config::AppConfig,
+    middleware::{X_API_KEY, X_CAPTCHA_TOKEN},
+};
 use axum::http::{
     Method,
-    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE, HeaderName},
+    header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
 };
 use tower_http::cors::{Any, CorsLayer};
 use tracing::{info, warn};
@@ -47,7 +50,7 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
     info!("CORS allowed origins: {:?}", raw_origins);
 
     // PRE-COMPUTE MATCHERS (Runs only once on startup)
-    let mut matchers = Vec::new();
+    let mut matchers = Vec::with_capacity(raw_origins.len());
     for allowed in raw_origins {
         if allowed.contains('*') {
             let parts: Vec<&str> = allowed.split('*').collect();
@@ -108,8 +111,8 @@ pub fn build_cors(config: &AppConfig) -> CorsLayer {
             AUTHORIZATION,
             CONTENT_TYPE,
             ACCEPT,
-            HeaderName::from_static(API_KEY_HEADER),
-            HeaderName::from_static("x-captcha-token"),
+            X_API_KEY,
+            X_CAPTCHA_TOKEN,
         ])
         .allow_credentials(true)
 }
