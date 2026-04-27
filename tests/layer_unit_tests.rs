@@ -2,7 +2,7 @@
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
-    middleware::{api_key::has_valid_master_api_key, rate_limit::is_production, X_API_KEY},
+    middleware::{X_API_KEY, api_key::has_valid_master_api_key, rate_limit::is_production},
     models::health::Health,
 };
 
