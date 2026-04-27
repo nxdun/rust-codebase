@@ -104,6 +104,7 @@ impl Drop for EnvGuard {
 
 #[test]
 fn app_config_from_env_fails_when_master_api_key_missing() {
+    #[allow(clippy::unwrap_used)]
     let _lock = ENV_LOCK.lock().unwrap();
     let _guard = EnvGuard::new("MASTER_API_KEY", None);
 

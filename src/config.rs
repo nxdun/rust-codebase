@@ -27,7 +27,7 @@ fn env_or<T: std::str::FromStr>(key: &str, default: &str) -> T {
         })
 }
 
-/// Helper: Fetches and parses an environment variable, returning ConfigError::InvalidValue on parse failure.
+/// Helper: Fetches and parses an environment variable, returning `ConfigError::InvalidValue` on parse failure.
 fn env_parse<T: std::str::FromStr>(key: &str, default: &str) -> Result<T, ConfigError> {
     let val = env::var(key).unwrap_or_else(|_| default.to_string());
     val.parse::<T>().map_err(|_| ConfigError::InvalidValue {

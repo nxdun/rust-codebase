@@ -54,6 +54,7 @@ async fn get_contributions_returns_seeded_cache() {
 }
 
 #[tokio::test]
+#[allow(clippy::unwrap_used)]
 async fn get_contributions_hits_mock_server_when_cache_empty() {
     let mock_server = MockServer::start().await;
 
