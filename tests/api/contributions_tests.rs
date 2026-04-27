@@ -79,7 +79,7 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
     let http_client = reqwest::Client::new();
     let contributions_service = Arc::new(ContributionsService::new(
         http_client.clone(),
-        config.github_pat.clone().unwrap(),
+        config.github_pat().unwrap().to_string(),
         config.github_username.clone().unwrap(),
         config.github_graphql_url.clone(),
     ));

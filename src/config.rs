@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, fmt};
 use thiserror::Error;
 
 use crate::middleware::constant_time_eq;
@@ -7,7 +7,6 @@ use crate::middleware::constant_time_eq;
 pub enum ConfigError {
     #[error("Missing required environment variable: {0}")]
     MissingVar(String),
-    // TODO: Use this variant when validating env values in `from_env()`
     #[error("Invalid value for {key}: {details}")]
     InvalidValue { key: String, details: String },
 }
@@ -28,6 +27,15 @@ fn env_or<T: std::str::FromStr>(key: &str, default: &str) -> T {
         })
 }
 
+/// Helper: Fetches and parses an environment variable, returning ConfigError::InvalidValue on parse failure.
+fn env_parse<T: std::str::FromStr>(key: &str, default: &str) -> Result<T, ConfigError> {
+    let val = env::var(key).unwrap_or_else(|_| default.to_string());
+    val.parse::<T>().map_err(|_| ConfigError::InvalidValue {
+        key: key.to_string(),
+        details: format!("'{}' is not a valid {}", val, std::any::type_name::<T>()),
+    })
+}
+
 /// Helper: Fetches an optional env var and trims it, returning None if empty.
 fn env_opt(key: &str) -> Option<String> {
     env::var(key)
@@ -37,7 +45,7 @@ fn env_opt(key: &str) -> Option<String> {
 }
 
 /// Application configuration loaded from environment variables.
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct AppConfig {
     pub name: String,
     pub env: String,
@@ -49,11 +57,36 @@ pub struct AppConfig {
     pub ytdlp_external_downloader: Option<String>,
     pub ytdlp_external_downloader_args: Option<String>,
     pub max_concurrent_downloads: usize,
-    pub captcha_secret_key: Option<String>,
-    master_api_key: String, // Private: use check_api_key
-    pub github_pat: Option<String>,
+    captcha_secret_key: Option<String>,
+    master_api_key: String,
+    github_pat: Option<String>,
     pub github_username: Option<String>,
     pub github_graphql_url: String,
+}
+
+impl fmt::Debug for AppConfig {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_struct("AppConfig")
+            .field("name", &self.name)
+            .field("env", &self.env)
+            .field("host", &self.host)
+            .field("port", &self.port)
+            .field("allowed_origins", &self.allowed_origins)
+            .field("download_dir", &self.download_dir)
+            .field("ytdlp_path", &self.ytdlp_path)
+            .field("ytdlp_external_downloader", &self.ytdlp_external_downloader)
+            .field(
+                "ytdlp_external_downloader_args",
+                &self.ytdlp_external_downloader_args,
+            )
+            .field("max_concurrent_downloads", &self.max_concurrent_downloads)
+            .field("captcha_secret_key", &"***")
+            .field("master_api_key", &"***")
+            .field("github_pat", &"***")
+            .field("github_username", &self.github_username)
+            .field("github_graphql_url", &self.github_graphql_url)
+            .finish()
+    }
 }
 
 impl AppConfig {
@@ -104,13 +137,13 @@ impl AppConfig {
             env_or("APP_NAME", "nadzu-backend"),
             env_or("APP_ENV", "production"),
             env_or("APP_HOST", "127.0.0.1"),
-            env_or("APP_PORT", "8080"),
+            env_parse("APP_PORT", "8080")?,
             env_opt("ALLOWED_ORIGINS"),
             env_or("DOWNLOAD_DIR", "downloads"),
             env_or("YTDLP_PATH", "yt-dlp"),
             env_opt("YTDLP_EXTERNAL_DOWNLOADER"),
             env_opt("YTDLP_EXTERNAL_DOWNLOADER_ARGS"),
-            env_or("MAX_CONCURRENT_DOWNLOADS", "3"),
+            env_parse("MAX_CONCURRENT_DOWNLOADS", "3")?,
             env_opt("CAPTCHA_SECRET_KEY"),
             master_api_key,
             env_opt("GITHUB_PAT"),
@@ -123,6 +156,16 @@ impl AppConfig {
     #[must_use]
     pub fn check_api_key(&self, provided_key: &str) -> bool {
         constant_time_eq(provided_key, &self.master_api_key)
+    }
+
+    /// Returns the GitHub Personal Access Token if configured.
+    pub fn github_pat(&self) -> Option<&str> {
+        self.github_pat.as_deref()
+    }
+
+    /// Returns the CAPTCHA secret key if configured.
+    pub fn captcha_secret_key(&self) -> Option<&str> {
+        self.captcha_secret_key.as_deref()
     }
 
     /// Returns the full address string for the server.

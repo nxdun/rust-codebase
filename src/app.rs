@@ -62,7 +62,7 @@ pub async fn run() {
     let contributions_service =
         Arc::new(crate::services::contributions::ContributionsService::new(
             http_client.clone(),
-            config.github_pat.clone().unwrap_or_default(),
+            config.github_pat().unwrap_or_default().to_string(),
             config
                 .github_username
                 .clone()

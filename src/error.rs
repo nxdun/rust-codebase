@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use axum::{
     Json,
     http::StatusCode,
@@ -10,9 +12,9 @@ use tracing::error;
 #[derive(Debug, Serialize)]
 struct ErrorResponse {
     status: u16,
-    message: String,
+    message: Cow<'static, str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    error_code: Option<String>,
+    error_code: Option<Cow<'static, str>>,
 }
 
 #[derive(Debug, Error)]
@@ -44,52 +46,56 @@ pub enum AppError {
 
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let (status, message, error_code) = match &self {
+        let (status, message, error_code): (
+            StatusCode,
+            Cow<'static, str>,
+            Option<Cow<'static, str>>,
+        ) = match &self {
             Self::Internal(err) => {
                 error!("Internal error occurred: {:?}", err);
                 (
                     StatusCode::INTERNAL_SERVER_ERROR,
-                    "Internal Server Error".to_string(),
-                    Some("INTERNAL_SERVER_ERROR".to_string()),
+                    Cow::Borrowed("Internal Server Error"),
+                    Some(Cow::Borrowed("INTERNAL_SERVER_ERROR")),
                 )
             }
             Self::NotFound(msg) => (
                 StatusCode::NOT_FOUND,
-                msg.clone(),
-                Some("NOT_FOUND".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("NOT_FOUND")),
             ),
             Self::Validation(msg) => (
                 StatusCode::UNPROCESSABLE_ENTITY,
-                msg.clone(),
-                Some("VALIDATION_ERROR".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("VALIDATION_ERROR")),
             ),
             Self::Unauthorized(msg) => (
                 StatusCode::UNAUTHORIZED,
-                msg.clone(),
-                Some("UNAUTHORIZED".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("UNAUTHORIZED")),
             ),
             Self::Forbidden(msg) => (
                 StatusCode::FORBIDDEN,
-                msg.clone(),
-                Some("FORBIDDEN".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("FORBIDDEN")),
             ),
             Self::Conflict(msg) => (
                 StatusCode::CONFLICT,
-                msg.clone(),
-                Some("CONFLICT".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("CONFLICT")),
             ),
             Self::UpstreamError(msg) => {
                 tracing::error!("Upstream service error: {}", msg);
                 (
                     StatusCode::BAD_GATEWAY,
-                    "Upstream service error".to_string(),
-                    Some("UPSTREAM_ERROR".to_string()),
+                    Cow::Borrowed("Upstream service error"),
+                    Some(Cow::Borrowed("UPSTREAM_ERROR")),
                 )
             }
             Self::ServiceUnavailable(msg) => (
                 StatusCode::SERVICE_UNAVAILABLE,
-                msg.clone(),
-                Some("SERVICE_UNAVAILABLE".to_string()),
+                Cow::Owned(msg.clone()),
+                Some(Cow::Borrowed("SERVICE_UNAVAILABLE")),
             ),
         };
 

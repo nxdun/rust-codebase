@@ -42,8 +42,7 @@ pub async fn verify_captcha_token(
 
     let secret_key = state
         .config
-        .captcha_secret_key
-        .as_deref()
+        .captcha_secret_key()
         .filter(|s| !s.trim().is_empty())
         .ok_or_else(|| {
             AppError::ServiceUnavailable("CAPTCHA_SECRET_KEY is not configured".to_string())

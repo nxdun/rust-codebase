@@ -69,22 +69,44 @@ fn health_ok_model_contains_expected_values() {
     assert_eq!(health.version, env!("CARGO_PKG_VERSION"));
 }
 
-#[test]
-fn app_config_from_env_fails_when_master_api_key_missing() {
-    let original_master_key = std::env::var("MASTER_API_KEY").ok();
-    // Clear env to ensure a clean state for the test
-    #[allow(deprecated)]
-    unsafe {
-        std::env::remove_var("MASTER_API_KEY");
-    }
-    let result = AppConfig::from_env();
-    assert!(result.is_err());
+use std::sync::Mutex;
 
-    // Restore the original environment variable if it existed
-    if let Some(key) = original_master_key {
-        #[allow(deprecated)]
-        unsafe {
-            std::env::set_var("MASTER_API_KEY", key);
+static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+struct EnvGuard {
+    key: &'static str,
+    original_value: Option<String>,
+}
+
+impl EnvGuard {
+    fn new(key: &'static str, new_value: Option<&str>) -> Self {
+        let original_value = std::env::var(key).ok();
+        match new_value {
+            Some(v) => unsafe { std::env::set_var(key, v) },
+            None => unsafe { std::env::remove_var(key) },
+        }
+        Self {
+            key,
+            original_value,
         }
     }
+}
+
+impl Drop for EnvGuard {
+    fn drop(&mut self) {
+        if let Some(ref value) = self.original_value {
+            unsafe { std::env::set_var(self.key, value) };
+        } else {
+            unsafe { std::env::remove_var(self.key) };
+        }
+    }
+}
+
+#[test]
+fn app_config_from_env_fails_when_master_api_key_missing() {
+    let _lock = ENV_LOCK.lock().unwrap();
+    let _guard = EnvGuard::new("MASTER_API_KEY", None);
+
+    let result = AppConfig::from_env();
+    assert!(result.is_err());
 }
