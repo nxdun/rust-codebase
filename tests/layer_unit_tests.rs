@@ -2,7 +2,7 @@
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
-    middleware::{api_key::has_valid_master_api_key, rate_limit::is_production},
+    middleware::{api_key::has_valid_master_api_key, rate_limit::is_production, X_API_KEY},
     models::health::Health,
 };
 
@@ -31,7 +31,7 @@ fn test_config(env: &str) -> AppConfig {
 fn has_valid_master_api_key_returns_true_for_matching_header() {
     let config = test_config("test");
     let mut headers = HeaderMap::new();
-    headers.insert("x-api-key", "master_key".parse().unwrap());
+    headers.insert(X_API_KEY, "master_key".parse().unwrap());
 
     assert!(has_valid_master_api_key(&headers, &config));
 }
@@ -45,8 +45,14 @@ fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
     assert!(!has_valid_master_api_key(&empty_headers, &config));
 
     let mut wrong_headers = HeaderMap::new();
-    wrong_headers.insert("x-api-key", "wrong_key".parse().unwrap());
+    wrong_headers.insert(X_API_KEY, "wrong_key".parse().unwrap());
     assert!(!has_valid_master_api_key(&wrong_headers, &config));
+}
+
+#[test]
+#[allow(clippy::unwrap_used)]
+fn has_valid_master_api_key_ignores_unrelated_headers() {
+    let config = test_config("test");
 
     let mut unrelated_headers = HeaderMap::new();
     unrelated_headers.insert("x-not-api-key", "master_key".parse().unwrap());
