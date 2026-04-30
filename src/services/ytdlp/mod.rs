@@ -7,19 +7,25 @@ use crate::{
     },
 };
 use dashmap::DashMap;
+use regex::Regex;
 use std::{
     path::{Component, Path, PathBuf},
     process::Stdio,
-    sync::Arc,
+    sync::{Arc, OnceLock},
     time::SystemTime,
 };
 use tokio::{
     fs,
     io::{AsyncBufReadExt, AsyncRead, BufReader},
     process::Command,
-    sync::Semaphore,
+    sync::{Semaphore, broadcast},
 };
 use tracing::{debug, error, info};
+
+static PROGRESS_RE: OnceLock<Regex> = OnceLock::new();
+static PEAK_RE: OnceLock<Regex> = OnceLock::new();
+static QUEUED_RE: OnceLock<Regex> = OnceLock::new();
+static FIRST_PCT_RE: OnceLock<Regex> = OnceLock::new();
 
 const MAX_CAPTURED_OUTPUT_BYTES: usize = 8_000;
 const YTDLP_TIMEOUT_SECS: u64 = 7_200;
@@ -43,17 +49,20 @@ pub struct YtdlpManager {
     jobs: Arc<DashMap<String, YtdlpJob>>,
     semaphore: Arc<Semaphore>,
     job_counter: Arc<std::sync::atomic::AtomicU64>,
+    progress_tx: broadcast::Sender<String>,
 }
 
 impl YtdlpManager {
     /// Creates a new instance of `YtdlpManager` and starts the background cleanup task.
     #[must_use]
     pub fn new(cfg: Arc<AppConfig>) -> Self {
+        let (progress_tx, _) = broadcast::channel(1024);
         let manager = Self {
             semaphore: Arc::new(Semaphore::new(cfg.max_concurrent_downloads)),
             cfg,
             jobs: Arc::new(DashMap::new()),
             job_counter: Arc::new(std::sync::atomic::AtomicU64::new(1)),
+            progress_tx,
         };
 
         let jobs_weak = Arc::downgrade(&manager.jobs);
@@ -164,6 +173,11 @@ impl YtdlpManager {
             .collect()
     }
 
+    /// Subscribes to the job progress broadcast channel.
+    pub fn subscribe(&self) -> broadcast::Receiver<String> {
+        self.progress_tx.subscribe()
+    }
+
     fn next_id(&self) -> String {
         let ts = now_unix();
         let counter = self
@@ -212,8 +226,9 @@ impl YtdlpManager {
 
         self.mark_job_started(&id);
 
-        if let Err(err) = fs::create_dir_all(&output_dir).await {
-            self.mark_job_failed(&id, format!("failed to create output directory: {err}"));
+        let temp_dir = PathBuf::from(&output_dir).join("tmp").join(&id);
+        if let Err(err) = fs::create_dir_all(&temp_dir).await {
+            self.mark_job_failed(&id, format!("failed to create temp directory: {err}"));
             return;
         }
 
@@ -243,7 +258,7 @@ impl YtdlpManager {
         }
 
         cmd.arg("-P")
-            .arg(&output_dir)
+            .arg(&temp_dir)
             .arg("-o")
             .arg(format!("{id}.%(ext)s"))
             .arg(payload.url.clone());
@@ -290,6 +305,7 @@ impl YtdlpManager {
             Err(err) => {
                 self.mark_job_failed(&id, format!("failed to spawn yt-dlp: {err}"));
                 error!("failed ytdlp job id={id}: {err}");
+                let _ = fs::remove_dir_all(&temp_dir).await;
                 return;
             }
         };
@@ -316,45 +332,48 @@ impl YtdlpManager {
 
         match wait_result {
             Ok(Ok(status)) if status.success() => {
-                let files = collect_downloaded_files(&output_dir, &id).await;
-                self.mark_job_finished(&id, files);
-                info!("finished ytdlp job id={id}");
+                let temp_dir_str = temp_dir.to_string_lossy();
+                let files = collect_downloaded_files(&temp_dir_str, &id).await;
+
+                if let Err(err) = fs::create_dir_all(&output_dir).await {
+                    self.mark_job_failed(
+                        &id,
+                        format!("failed to create final output directory: {err}"),
+                    );
+                } else {
+                    let mut moved_files = Vec::with_capacity(files.len());
+                    for file in files {
+                        let from = temp_dir.join(&file);
+                        let to = PathBuf::from(&output_dir).join(&file);
+                        if fs::rename(&from, &to).await.is_ok() {
+                            moved_files.push(file);
+                        }
+                    }
+                    self.mark_job_finished(&id, moved_files);
+                    info!("finished ytdlp job id={id}");
+                }
+                let _ = fs::remove_dir_all(&temp_dir).await;
             }
             Ok(Ok(status)) => {
                 let error_message = truncate_message(&combined_output, 2_000);
                 self.mark_job_failed(&id, format!("yt-dlp failed ({status}): {error_message}"));
-                let is_base_dir = output_dir == self.cfg.download_dir;
-                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
+                Self::cleanup_failed_files(&temp_dir.to_string_lossy(), &id, false).await;
             }
             Ok(Err(err)) => {
                 self.mark_job_failed(&id, format!("failed to wait for yt-dlp: {err}"));
                 error!("yt-dlp process error for job id={id}: {err}");
-                let is_base_dir = output_dir == self.cfg.download_dir;
-                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
+                Self::cleanup_failed_files(&temp_dir.to_string_lossy(), &id, false).await;
             }
             Err(_) => {
-                self.mark_job_failed(&id, "yt-dlp process timed out".to_string());
+                self.mark_job_failed(&id, format!("yt-dlp timed out after {YTDLP_TIMEOUT_SECS}s"));
                 error!("job timed out id={id}");
-                let is_base_dir = output_dir == self.cfg.download_dir;
-                Self::cleanup_failed_files(&output_dir, &id, is_base_dir).await;
+                Self::cleanup_failed_files(&temp_dir.to_string_lossy(), &id, false).await;
             }
         }
     }
 
-    async fn cleanup_failed_files(output_dir: &str, id: &str, is_base_dir: bool) {
-        let id_prefix = format!("{id}.");
-        if let Ok(mut entries) = fs::read_dir(output_dir).await {
-            while let Ok(Some(entry)) = entries.next_entry().await {
-                if let Ok(file_name) = entry.file_name().into_string()
-                    && file_name.starts_with(&id_prefix)
-                {
-                    let _ = fs::remove_file(entry.path()).await;
-                }
-            }
-        }
-        if !is_base_dir {
-            let _ = fs::remove_dir(output_dir).await;
-        }
+    async fn cleanup_failed_files(temp_dir: &str, _id: &str, _is_base_dir: bool) {
+        let _ = fs::remove_dir_all(temp_dir).await;
     }
 
     fn update_job<F>(&self, id: &str, update_fn: F)
@@ -363,6 +382,7 @@ impl YtdlpManager {
     {
         if let Some(mut job) = self.jobs.get_mut(id) {
             update_fn(job.value_mut());
+            let _ = self.progress_tx.send(id.to_string());
         }
     }
 
@@ -488,20 +508,33 @@ fn is_windows_absolute_path(path: &str) -> bool {
     bytes.len() >= 3 && bytes[0].is_ascii_alphabetic() && bytes[1] == b':' && bytes[2] == b'/'
 }
 
+#[allow(clippy::expect_used)]
 fn parse_aria2_progress(line: &str) -> Option<ParsedProgress> {
-    if !is_aria2_progress_line(line) {
-        return None;
-    }
+    let re = PROGRESS_RE.get_or_init(|| {
+        Regex::new(
+            r"\[DL:(?P<total>[^\]]*)\](?:\s+DL:(?P<speed>[^\s]*))?(?:\s+ETA:(?P<eta>[^\s]*))?",
+        )
+        .expect("invalid progress regex")
+    });
 
-    let total = line
-        .strip_prefix("[DL:")
-        .and_then(|value| value.find(']').map(|idx| value[..idx].trim().to_string()))
-        .filter(|value| !value.is_empty())
-        .or_else(|| extract_aria2_total_from_fragment(line));
+    let caps = re.captures(line)?;
+
+    let total = caps
+        .name("total")
+        .map(|m| m.as_str().trim().to_string())
+        .filter(|s| !s.is_empty());
+
+    let speed = caps
+        .name("speed")
+        .map(|m| m.as_str().to_string())
+        .filter(|s| !s.is_empty());
+
+    let eta = caps
+        .name("eta")
+        .map(|m| m.as_str().to_string())
+        .filter(|s| !s.is_empty());
 
     let percent = extract_peak_percent(line).or_else(|| extract_first_percent(line));
-    let speed = extract_after_marker(line, " DL:");
-    let eta = extract_after_marker(line, " ETA:");
 
     if percent.is_none() && total.is_none() && speed.is_none() && eta.is_none() {
         return None;
@@ -513,27 +546,6 @@ fn parse_aria2_progress(line: &str) -> Option<ParsedProgress> {
         speed,
         eta,
     })
-}
-
-fn is_aria2_progress_line(line: &str) -> bool {
-    line.starts_with("[DL:")
-        || (line.starts_with('[')
-            && (line.contains(" DL:")
-                || line.contains(" ETA:")
-                || line.contains("CN:")
-                || line.contains("%)")))
-}
-
-fn extract_aria2_total_from_fragment(line: &str) -> Option<String> {
-    line.trim_matches(|c| c == '[' || c == ']')
-        .split_whitespace()
-        .find_map(|token| {
-            let progress = token.split_once('(').map_or(token, |(head, _)| head);
-            progress
-                .split_once('/')
-                .map(|(_, total)| total.trim().trim_matches(']').to_string())
-                .filter(|value| !value.is_empty())
-        })
 }
 
 fn format_aria2_progress_message(line: &str, parsed: &ParsedProgress) -> String {
@@ -565,56 +577,34 @@ fn format_aria2_progress_message(line: &str, parsed: &ParsedProgress) -> String 
     parts.join(" | ")
 }
 
+#[allow(clippy::expect_used)]
 fn extract_queued_fragments(line: &str) -> Option<usize> {
-    let start = line.find("(+")? + 2;
-    let tail = &line[start..];
-    let end = tail.find(')')?;
-    tail[..end].parse::<usize>().ok()
+    let re = QUEUED_RE
+        .get_or_init(|| Regex::new(r"\(\+(?P<queued>\d+)\)").expect("invalid queued regex"));
+    re.captures(line)
+        .and_then(|caps| caps.name("queued"))
+        .and_then(|m| m.as_str().parse::<usize>().ok())
 }
 
+#[allow(clippy::expect_used)]
 fn extract_peak_percent(line: &str) -> Option<f32> {
-    let mut max_pct: Option<f32> = None;
-    let mut remaining = line;
-
-    while let Some(end_idx) = remaining.find("%)") {
-        let upto = &remaining[..end_idx];
-        if let Some(start_idx) = upto.rfind('(')
-            && let Ok(value) = upto[(start_idx + 1)..].parse::<f32>()
-        {
-            max_pct = Some(max_pct.map_or(value, |current| current.max(value)));
-        }
-        remaining = &remaining[(end_idx + 3)..];
-    }
-
-    max_pct
+    let re =
+        PEAK_RE.get_or_init(|| Regex::new(r"\((?P<pct>[\d.]+)\%\)").expect("invalid peak regex"));
+    re.captures_iter(line)
+        .filter_map(|caps| {
+            caps.name("pct")
+                .and_then(|m| m.as_str().parse::<f32>().ok())
+        })
+        .fold(None, |max, val| Some(max.map_or(val, |m| m.max(val))))
 }
 
+#[allow(clippy::expect_used)]
 fn extract_first_percent(line: &str) -> Option<f32> {
-    let idx = line.find('%')?;
-    let prefix = &line[..idx];
-    let number = prefix
-        .chars()
-        .rev()
-        .take_while(|c| c.is_ascii_digit() || *c == '.')
-        .collect::<String>()
-        .chars()
-        .rev()
-        .collect::<String>();
-    if number.is_empty() {
-        None
-    } else {
-        number.parse::<f32>().ok()
-    }
-}
-
-fn extract_after_marker(line: &str, marker: &str) -> Option<String> {
-    let idx = line.find(marker)?;
-    let after = &line[(idx + marker.len())..];
-    let value = after
-        .chars()
-        .take_while(|c| c.is_ascii_alphanumeric() || *c == '.' || *c == '/' || *c == ':')
-        .collect::<String>();
-    if value.is_empty() { None } else { Some(value) }
+    let re = FIRST_PCT_RE
+        .get_or_init(|| Regex::new(r"(?P<pct>[\d.]+)%").expect("invalid first percent regex"));
+    re.captures(line)
+        .and_then(|caps| caps.name("pct"))
+        .and_then(|m| m.as_str().parse::<f32>().ok())
 }
 
 fn spawn_line_collector<R>(
