@@ -140,50 +140,56 @@ pub async fn stream_download_progress(
             }
         }
 
-        while let Ok(updated_id) = broadcast_rx.recv().await {
-            if updated_id != stream_job_id {
-                continue;
-            }
+        loop {
+            match broadcast_rx.recv().await {
+                Ok(updated_id) => {
+                    if updated_id == stream_job_id {
+                        if let Some(job) = manager.get_job(&stream_job_id) {
+                            let job_resp = YtdlpJobResponse::from(job);
+                            let snapshot = serde_json::to_string(&job_resp).unwrap_or_default();
 
-            if let Some(job) = manager.get_job(&stream_job_id) {
-                let job_resp = YtdlpJobResponse::from(job);
-                let snapshot = serde_json::to_string(&job_resp).unwrap_or_default();
+                            if snapshot != last_snapshot {
+                                last_snapshot.clone_from(&snapshot);
+                                if tx
+                                    .send(Ok(Event::default().event("progress").data(snapshot)))
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
 
-                if snapshot != last_snapshot {
-                    last_snapshot.clone_from(&snapshot);
-                    if tx
-                        .send(Ok(Event::default().event("progress").data(snapshot)))
-                        .await
-                        .is_err()
-                    {
-                        break;
+                            if matches!(
+                                job_resp.status,
+                                YtdlpJobStatus::Finished | YtdlpJobStatus::Failed
+                            ) {
+                                let _ = tx
+                                    .send(Ok(Event::default().event("done").data("done")))
+                                    .await;
+                                info!(
+                                    "sse stream complete path={} job_id={} client_ip={} status={:?}",
+                                    stream_path, stream_job_id, stream_client_ip, job_resp.status
+                                );
+                                break;
+                            }
+                        } else {
+                            let _ = tx
+                                .send(Ok(Event::default()
+                                    .event("error")
+                                    .data(r#"{"status":404,"message":"job not found"}"#)))
+                                .await;
+                            info!(
+                                "sse stream ended path={} job_id={} client_ip={} reason=job_not_found",
+                                stream_path, stream_job_id, stream_client_ip
+                            );
+                            break;
+                        }
                     }
                 }
-
-                if matches!(
-                    job_resp.status,
-                    YtdlpJobStatus::Finished | YtdlpJobStatus::Failed
-                ) {
-                    let _ = tx
-                        .send(Ok(Event::default().event("done").data("done")))
-                        .await;
-                    info!(
-                        "sse stream complete path={} job_id={} client_ip={} status={:?}",
-                        stream_path, stream_job_id, stream_client_ip, job_resp.status
-                    );
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
                     break;
                 }
-            } else {
-                let _ = tx
-                    .send(Ok(Event::default()
-                        .event("error")
-                        .data(r#"{"status":404,"message":"job not found"}"#)))
-                    .await;
-                info!(
-                    "sse stream ended path={} job_id={} client_ip={} reason=job_not_found",
-                    stream_path, stream_job_id, stream_client_ip
-                );
-                break;
             }
         }
 

@@ -342,15 +342,32 @@ impl YtdlpManager {
                     );
                 } else {
                     let mut moved_files = Vec::with_capacity(files.len());
+                    let mut move_error: Option<String> = None;
                     for file in files {
                         let from = temp_dir.join(&file);
                         let to = PathBuf::from(&output_dir).join(&file);
-                        if fs::rename(&from, &to).await.is_ok() {
-                            moved_files.push(file);
+                        match fs::rename(&from, &to).await {
+                            Ok(()) => moved_files.push(file),
+                            Err(err) => {
+                                move_error.get_or_insert_with(|| {
+                                    format!(
+                                        "failed to move downloaded file into output directory: {err}"
+                                    )
+                                });
+                            }
                         }
                     }
-                    self.mark_job_finished(&id, moved_files);
-                    info!("finished ytdlp job id={id}");
+                    if moved_files.is_empty() {
+                        self.mark_job_failed(
+                            &id,
+                            move_error.unwrap_or_else(|| {
+                                "yt-dlp completed without producing a downloadable file".to_string()
+                            }),
+                        );
+                    } else {
+                        self.mark_job_finished(&id, moved_files);
+                        info!("finished ytdlp job id={id}");
+                    }
                 }
                 let _ = fs::remove_dir_all(&temp_dir).await;
             }

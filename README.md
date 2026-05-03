@@ -2,7 +2,63 @@
 
 Personal backend API built with Rust, focused on concurrency, performance, security, and long-term maintainability.
 
-## Architecture at a Glance
+## Table of Contents
+- [Features](#features)
+- [Architecture Diagrams](#architecture-diagrams)
+- [Engineering Design](#engineering-design)
+- [Infrastructure](#infrastructure)
+- [Project Structure](#project-structure)
+- [Development Workflow](#development-workflow)
+- [Packaging and Deployment](#packaging-and-deployment)
+- [Things I Learned](#things-i-learned)
+- [Acknowledgements](#acknowledgements)
+
+## Features
+
+### Core API
+
+* CORS handling.
+* Rate limiting.
+* API versioning (v1).
+* Health and root endpoints.
+* Structured logging.
+* Postman v3 collection included.
+
+### Media Downloading
+
+* Multi-platform media downloading via yt-dlp.
+* Download acceleration via aria2c integration.
+* Job lifecycle management: enqueue, progress tracking, and result retrieval.
+* Server-Sent Events (SSE) for real-time job progress updates.
+* Endpoint for listing supported sites.
+
+### GitHub Contributions Graph
+
+* Fetches contribution data from the GitHub GraphQL API.
+* Provides an endpoint to retrieve contribution stats for a specified user.
+
+### Proxy Obfuscation
+
+* Bypasses geo-restrictions and anti-bot measures.
+* Dedicated container that uses the Cloudflare WARP client for outbound requests.
+* Uses a custom [**Cloudflare WARP Proxy Docker Image**][docker-hub-image] (1.1k pulls), maintained in [**its dedicated repository**][warp-proxy-repo].
+
+### Security and Anti-Abuse
+
+* CAPTCHA verification middleware powered by reCAPTCHA.
+* API Key have Higher rate limits and access to protected endpoints.
+* Caddy reverse proxy for TLS termination and IP-based access control.
+
+### Operational
+
+* CI pipelines for linting, testing, and building.
+* CD pipeline for Docker image builds and publishing to GitHub Container Registry, including:
+    * zstd compression
+    * zstd builder
+    * custom BuildKit caching for faster builds
+    * multi-platform Docker image support
+
+## Architecture Diagrams
 
 <details>
 <summary>Core system diagram</summary>
@@ -224,66 +280,11 @@ flowchart TB
 
 </details>
 
-## Features
-
-### Core API
-
-* CORS handling.
-* Rate limiting.
-* API versioning (v1).
-* Health and root endpoints.
-* Structured logging.
-* Postman v3 collection included.
-
-### Media Downloading
-
-* Multi-platform media downloading via yt-dlp.
-* Download acceleration via aria2c integration.
-* Job lifecycle management: enqueue, progress tracking, and result retrieval.
-* Server-Sent Events (SSE) for real-time job progress updates.
-* Endpoint for listing supported sites.
-
-### Proxy Obfuscation
-
-* Bypasses geo-restrictions and anti-bot measures.
-* Dedicated container that uses the Cloudflare WARP client for outbound requests.
-* Uses a custom [**Cloudflare WARP Proxy Docker Image**][docker-hub-image] (1.1k pulls), maintained in [**its dedicated repository**][warp-proxy-repo].
-
-### Security and Anti-Abuse
-
-* CAPTCHA verification middleware powered by reCAPTCHA.
-
-### Operational
-
-* CI pipelines for linting, testing, and building.
-* CD pipeline for Docker image builds and publishing to GitHub Container Registry, including:
-    * zstd compression
-    * zstd builder
-    * custom BuildKit caching for faster builds
-    * multi-platform Docker image support
-
 ## Engineering Design
 
 * Clean layered architecture (controllers -> services -> models).
 * Memory management with DashMap sharding and weak references for lifecycle control.
 * Concurrency control using Tokio semaphores.
-
-## Development Workflow
-
-* Iterative development flow designed for fast delivery.
-* Makefile-first approach for task automation and consistency.
-* CI pipeline using GitHub Actions for linting (`cargo clippy`), testing (`cargo test`), and building.
-* Unit and integration test coverage.
-* Production-like local development environment using Docker Compose and Caddy with self-signed TLS.
-* Active [**Public Changelog**][changelog] including release notes.
-
-## Packaging and Deployment
-
-* Dockerized using multi-stage and multi-platform builds (5-stage build with tini).
-* Optimized Rust builds using Cargo-Chef.
-* Custom Docker builder implementing ZSTD compression.
-* Pre-installed dependencies: yt-dlp Python packages, FFmpeg, and FFprobe for media validation.
-* Published automatically to a private GitHub Container Registry.
 
 ## Infrastructure
 
@@ -292,7 +293,7 @@ flowchart TB
 Provisioned with Terraform using Infrastructure as Code principles.
 
 * **DigitalOcean Provider:** Droplet provisioning with cloud-init, block volume management, and firewall configuration.
-* **Cloudflare Provider:** R2 bucket used for Terraform remote state and DNS record management for full HTTPS support.
+* **Cloudflare Provider:** An R2 bucket used for Terraform remote state and DNS record management for full HTTPS support.
 
 ## Project Structure
 
@@ -307,20 +308,49 @@ Provisioned with Terraform using Infrastructure as Code principles.
 |-- Cargo.toml
 |-- Dockerfile
 |-- Dockerfile.dev
+|-- GEMINI.md
 |-- LICENSE
 |-- Makefile
 |-- README.md
 |-- docker-compose.dev.yml
 |-- docker-compose.yml
 |-- docker-entrypoint.sh
-|-- docs
-|   `-- images
-|       |-- Themed-Architecture-Diagram-code.md
-|       `-- Themed-Architecture-Diagram.svg
+|-- downloads
+|-- infra
+|   |-- common
+|   |   |-- browse.html
+|   |   |-- certificates
+|   |   |   |-- api.nadzu.me.key
+|   |   |   `-- api.nadzu.me.pem
+|   |   `-- cloud-init.template
+|   `-- digitalocean
+|       |-- accounts
+|       |   `-- naduns-team
+|       |       |-- backend.tf
+|       |       |-- main.tf
+|       |       |-- outputs.tf
+|       |       |-- terraform.tfvars
+|       |       |-- terraform.tfvars.example
+|       |       `-- variables.tf
+|       `-- components
+|           |-- c-cloudflare-record.tf
+|           |-- c-cloudflare-zone.tf
+|           |-- c-digitalocean-firewall.tf
+|           |-- data.tf
+|           |-- locals.tf
+|           |-- outputs.tf
+|           |-- provider.tf
+|           |-- r-digitalocean_droplet.tf
+|           |-- r-digitalocean_volume.tf
+|           |-- r-digitalocean_volume_attachment.tf
+|           |-- variables.tf
+|           `-- versions.tf
 |-- nadunssh
 |-- postman
 |   |-- collections
 |   |   `-- Nadzu API
+|   |       |-- Contributions (Default User).request.yaml
+|   |       |-- Contributions (Specific User).request.yaml
 |   |       |-- Health.request.yaml
 |   |       |-- Root.request.yaml
 |   |       |-- Validate User.request.yaml
@@ -330,16 +360,21 @@ Provisioned with Terraform using Infrastructure as Code principles.
 |   |       |-- YT-DLP List Jobs.request.yaml
 |   |       |-- YT-DLP Stream Job Progress.request.yaml
 |   |       `-- supported sites.request.yaml
-|   `-- environments
-|       `-- Nadzu Local.yaml
+|   |-- environments
+|   |   |-- Nadzu Local.environment.yaml
+|   |   |-- dev.environment.yaml
+|   |   `-- nadzu prod.environment.yaml
 |-- rustfmt.toml
 |-- src
 |   |-- app.rs
+|   |-- bin
+|   |   `-- config_exit.rs
 |   |-- config.rs
 |   |-- controllers
 |   |   |-- api
 |   |   |   |-- mod.rs
 |   |   |   `-- v1
+|   |   |       |-- contributions_controller.rs
 |   |   |       |-- mod.rs
 |   |   |       `-- ytdlp_controller.rs
 |   |   |-- error_controller.rs
@@ -365,20 +400,25 @@ Provisioned with Terraform using Infrastructure as Code principles.
 |   |   |-- mod.rs
 |   |   `-- rate_limit.rs
 |   |-- models
-|   |   |-- health_model.rs
+|   |   |-- contributions.rs
+|   |   |-- github_dto.rs
+|   |   |-- health.rs
 |   |   |-- mod.rs
-|   |   |-- validation_model.rs
-|   |   `-- ytdlp_model.rs
+|   |   |-- validation.rs
+|   |   |-- ytdlp.rs
+|   |   `-- ytdlp_dto.rs
 |   |-- routes
 |   |   |-- api
 |   |   |   |-- mod.rs
 |   |   |   `-- v1
+|   |   |       |-- contributions_routes.rs
 |   |   |       |-- mod.rs
 |   |   |       `-- ytdlp_routes.rs
 |   |   |-- health_routes.rs
 |   |   |-- mod.rs
 |   |   `-- validation_routes.rs
 |   |-- services
+|   |   |-- contributions.rs
 |   |   |-- mod.rs
 |   |   `-- ytdlp
 |   |       `-- mod.rs
@@ -388,6 +428,7 @@ Provisioned with Terraform using Infrastructure as Code principles.
 |   |   |-- auth_tests.rs
 |   |   |-- captcha_tests.rs
 |   |   |-- common.rs
+|   |   |-- contributions_tests.rs
 |   |   |-- cors_tests.rs
 |   |   |-- health_tests.rs
 |   |   |-- rate_limit_tests.rs
@@ -397,6 +438,7 @@ Provisioned with Terraform using Infrastructure as Code principles.
 |   |   `-- ytdlp_tests.rs
 |   |-- api_tests.rs
 |   `-- layer_unit_tests.rs
+
 ```
 
 </details>
@@ -427,6 +469,29 @@ infra/
 
 </details>
 
+## Development Workflow
+
+* Iterative development flow designed for fast delivery.
+* Makefile-first approach for task automation and consistency.
+* CI pipeline using GitHub Actions for linting (`cargo clippy`), testing (`cargo test`), and building.
+* Unit and integration test coverage.
+* Production-like local development environment using Docker Compose and Caddy with self-signed TLS.
+* Active [**Public Changelog**][changelog] including release notes.
+
+## Packaging and Deployment
+
+* Dockerized using multi-stage and multi-platform builds (5-stage build with tini).
+* Optimized Rust builds using Cargo-Chef.
+* Custom Docker builder implementing ZSTD compression.
+* Pre-installed dependencies: yt-dlp Python packages, FFmpeg, and FFprobe for media validation.
+* Published automatically to a private GitHub Container Registry.
+
+## Things I Learned
+
+- Rust: The initial learning curve is steep, but the long-term benefits in performance, safety, and low-level control are worth it.
+- Terraform: cloud-init is excellent for bootstrapping a server, but it has provider-specific size limits.
+- Terraform: The Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.
+
 ## Acknowledgements
 
 * [**yt-dlp**][yt-dlp-repo]
@@ -437,9 +502,3 @@ infra/
 [do-referral-badge]: https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg
 [do-referral-link]: https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge
 [yt-dlp-repo]: https://github.com/yt-dlp/yt-dlp
-
-## Things I Learned
-
-- Rust: The initial learning curve is steep, but the long-term benefits in performance, safety, and low-level control are worth it.
-- Terraform: cloud-init is excellent for bootstrapping a server, but it has provider-specific size limits.
-- Terraform: The Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.
