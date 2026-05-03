@@ -1,8 +1,11 @@
 use serde::Serialize;
 
+/// Represents the health status of the application.
 #[derive(Serialize, Debug)]
 pub struct Health {
+    /// The current status ("ok").
     pub status: &'static str,
+    /// The version of the application.
     pub version: &'static str,
 }
 

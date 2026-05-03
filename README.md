@@ -46,7 +46,7 @@ Personal backend API built with Rust, focused on concurrency, performance, secur
 ### Security and Anti-Abuse
 
 * CAPTCHA verification middleware powered by reCAPTCHA.
-* API Key have Higher rate limits and access to protected endpoints.
+* API keys have higher rate limits and access to protected endpoints.
 * Caddy reverse proxy for TLS termination and IP-based access control.
 
 ### Operational

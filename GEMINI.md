@@ -61,6 +61,7 @@ This document serves as the foundational mandate for all engineering work on thi
 *   **Clippy**: Must be zero-warning.
 *   **Rustfmt**: Must be applied to every file.
 *   **Makefile**: Use `make c` for a full validation suite before concluding any task.
+*   Use -j (nproc) for parallel builds and tests to speed up the shell commands.
 
 ### Documentation
 *   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.
