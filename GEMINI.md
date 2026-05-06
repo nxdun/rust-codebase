@@ -1,6 +1,6 @@
 # Nadzu Backend - Engineering Standards & Policies
 
-This document serves as the foundational mandate for all engineering work on naduns codebase. It applies to both human developers and AI agents. Strict adherence is required to maintain the security and high-performance nature of the system.
+This document serves as the foundational mandate for all engineering work on Nadzu's codebase. It applies to both human developers and AI agents. Strict adherence is required to maintain the security and high-performance nature of the system.
 
 ## 1. Architectural Integrity
 
@@ -64,7 +64,7 @@ This document serves as the foundational mandate for all engineering work on nad
 *   Use -j (nproc) for parallel builds and tests to speed up the shell commands.
 
 ### Documentation
-*   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.do not over document, make guesses about the unseen code.
+*   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior. Avoid over-documentation; do not make assumptions about unseen code.
 *   Complex logic (like the Midnight Snap caching strategy) must be documented inline.
 
 ---
