@@ -44,23 +44,35 @@ fn env_opt(key: &str) -> Option<String> {
         .filter(|v| !v.is_empty())
 }
 
-/// Application configuration loaded from environment variables.
+/// Application configuration settings loaded from the environment.
 #[derive(Clone)]
 pub struct AppConfig {
+    /// The application name.
     pub name: String,
+    /// The environment (e.g., "development", "production").
     pub env: String,
+    /// The host to bind to.
     pub host: String,
+    /// The port to bind to.
     pub port: u16,
+    /// Allowed origins for CORS.
     pub allowed_origins: Option<String>,
+    /// Directory for downloaded files.
     pub download_dir: String,
+    /// Path to the yt-dlp executable.
     pub ytdlp_path: String,
+    /// Optional external downloader for yt-dlp.
     pub ytdlp_external_downloader: Option<String>,
+    /// Optional arguments for the external downloader.
     pub ytdlp_external_downloader_args: Option<String>,
+    /// Maximum concurrent yt-dlp downloads.
     pub max_concurrent_downloads: usize,
     captcha_secret_key: Option<String>,
     master_api_key: String,
     github_pat: Option<String>,
+    /// GitHub username for contributions.
     pub github_username: Option<String>,
+    /// GitHub GraphQL API URL.
     pub github_graphql_url: String,
 }
 
@@ -152,7 +164,8 @@ impl AppConfig {
         ))
     }
 
-    /// Securely checks if the provided key matches the master API key using constant-time comparison.
+    /// check API KEY match with provided + constant time eq
+    /// uses: api key validation middleware
     #[must_use]
     pub fn check_api_key(&self, provided_key: &str) -> bool {
         constant_time_eq(provided_key, &self.master_api_key)

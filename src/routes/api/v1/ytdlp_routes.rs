@@ -5,7 +5,7 @@ use axum::{
 
 use crate::{
     controllers::api::v1::ytdlp_controller,
-    middleware::{auth::require_api_key, captcha::verify_captcha_token},
+    middleware::{api_key::require_api_key, captcha::verify_captcha_token},
     state::AppState,
 };
 

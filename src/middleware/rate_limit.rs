@@ -23,11 +23,31 @@ const RATE_LIMITER_BURST_SIZE: u32 = 20;
 const ENHANCED_RATE_LIMITER_PER_SECOND: u32 = 50;
 const ENHANCED_RATE_LIMITER_BURST_SIZE: u32 = 100;
 
+// Checkpoint
+const _: () = {
+    assert!(
+        RATE_LIMITER_PER_SECOND > 0
+            && RATE_LIMITER_BURST_SIZE > 0
+            && ENHANCED_RATE_LIMITER_PER_SECOND > 0
+            && ENHANCED_RATE_LIMITER_BURST_SIZE > 0,
+        "Rate limit constants must be positive"
+    );
+    assert!(
+        RATE_LIMITER_PER_SECOND <= ENHANCED_RATE_LIMITER_PER_SECOND,
+        "Normal rate limit cannot exceed enhanced rate limit"
+    );
+    assert!(
+        RATE_LIMITER_BURST_SIZE <= ENHANCED_RATE_LIMITER_BURST_SIZE,
+        "Normal burst size cannot exceed enhanced burst size"
+    );
+};
+
 type KeyedLimiter =
     RateLimiter<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>;
 
-/// Container for the application's rate limiting logic.
-/// Supports a "Normal" tier for public users and an "Enhanced" tier for authorized API key holders.
+/// Implements tiered rate limiting. request ip based.
+/// enhanced: requests only with correct API key.
+/// normal: all other requests.
 #[derive(Clone, Debug)]
 pub struct RateLimiters {
     normal: Arc<KeyedLimiter>,
@@ -35,10 +55,9 @@ pub struct RateLimiters {
 }
 
 impl RateLimiters {
-    /// Creates a new instance of `RateLimiters` with normal and enhanced buckets.
+    /// Creates a new instance of `RateLimiters`
     ///
-    /// # Panics
-    /// Panics if the hardcoded rate limit constants are invalid (e.g., zero).
+    /// Panics if rate limit constants above are invalid.
     #[must_use]
     pub fn new() -> Self {
         Self {
@@ -71,8 +90,9 @@ impl Default for RateLimiters {
 /// Internal helper to build a DashMap-backed rate limiter.
 #[allow(clippy::expect_used)]
 fn build_limiter(per_second: u32, burst_size: u32) -> KeyedLimiter {
-    let per_second = NonZeroU32::new(per_second).expect("RATE_LIMITER_PER_SECOND must be > 0");
-    let burst_size = NonZeroU32::new(burst_size).expect("RATE_LIMITER_BURST_SIZE must be > 0");
+    // Safety: The constants are validated at compile time by the assertions above, so these unwraps will never panic.
+    let per_second = NonZeroU32::new(per_second).expect("RATE_LIMITER_PER_SECOND must be positive");
+    let burst_size = NonZeroU32::new(burst_size).expect("RATE_LIMITER_BURST_SIZE must be positive");
 
     let quota = Quota::per_second(per_second).allow_burst(burst_size);
     RateLimiter::<String, DefaultKeyedStateStore<String>, DefaultClock, NoOpMiddleware>::dashmap(

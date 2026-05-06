@@ -161,39 +161,46 @@ variable "WARP_LICENSE_KEY" {
 }
 
 variable "CLOUDFLARE_API_TOKEN" {
+  //SECRET: Expected to be set via root TF_VAR_CLOUDFLARE_API_TOKEN. never Declare
   description = "Cloudflare API token"
   type        = string
   sensitive   = true
 }
 
 variable "CLOUDFLARE_ZONE_NAME" {
+  //VAR: Declare on terraform.tfvars
   description = "Cloudflare zone name (e.g. nadzu.me)"
   type        = string
 }
 
 variable "CLOUDFLARE_RECORD_NAME" {
+  //VAR: Declare on terraform.tfvars
   description = "Cloudflare DNS record name (e.g. api)"
   type        = string
 }
 
 variable "CLOUDFLARE_RECORD_PROXIED" {
+  //VAR: Declare on terraform.tfvars
   description = "Whether the Cloudflare record should be proxied"
   type        = bool
   default     = true
 }
 
 variable "SSH_ALLOWED_IPS" {
+  //VAR: Declare on terraform.tfvars
   description = "List of IP addresses allowed to SSH into the droplet"
   type        = list(string)
 }
 
 variable "MASTER_API_KEY" {
+  //SECRET: Expected to be set via root TF_VAR_MASTER_API_KEY. never Declare
   description = "Master API key for the application"
   type        = string
   sensitive   = true
 }
 
 variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
+  //VAR: Declare on terraform.tfvars
   description = "Presigned URL to download custom browse.html"
   type        = string
 }

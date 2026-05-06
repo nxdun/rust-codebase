@@ -6,7 +6,7 @@ use serde::Deserialize;
 
 use crate::{error::AppError, models::contributions::ContributionsResponse, state::AppState};
 
-/// Request query parameters for the contributions endpoint.
+/// Request struct
 #[derive(Debug, Deserialize)]
 pub struct ContributionsQuery {
     pub username: Option<String>,

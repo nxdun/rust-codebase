@@ -3,7 +3,7 @@ use nadzu::routes::create_router;
 use serde_json::json;
 
 use crate::common::{
-    API_KEY_HEADER, CAPTCHA_TOKEN_HEADER, SAMPLE_YTDLP_URL, TEST_MASTER_API_KEY, create_test_app,
+    CAPTCHA_TOKEN_HEADER, HEADER_API_KEY, SAMPLE_YTDLP_URL, TEST_MASTER_API_KEY, create_test_app,
     create_test_state, get, get_with_headers, post_json, post_json_with_headers, seed_ytdlp_job,
     send_json, ytdlp_enqueue_request,
 };
@@ -67,7 +67,7 @@ async fn ytdlp_list_jobs_returns_array() {
         &app,
         get_with_headers(
             "/api/v1/ytdlp/jobs",
-            &[(API_KEY_HEADER, TEST_MASTER_API_KEY)],
+            &[(HEADER_API_KEY, TEST_MASTER_API_KEY)],
         ),
     )
     .await;
@@ -150,7 +150,7 @@ async fn ytdlp_enqueue_rejects_invalid_url_payload() {
                 "quality": "best",
                 "format": "mp4"
             }),
-            &[(API_KEY_HEADER, TEST_MASTER_API_KEY)],
+            &[(HEADER_API_KEY, TEST_MASTER_API_KEY)],
         ),
     )
     .await;
