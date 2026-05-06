@@ -8,7 +8,7 @@ pub struct ValidateUserRequest {
     #[validate(length(
         min = 3,
         max = 20,
-        message = "Name must be between 3 and 50 characters"
+        message = "Name must be between 3 and 20 characters"
     ))]
     pub name: String,
 
