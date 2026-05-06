@@ -2,7 +2,7 @@ use axum::http::StatusCode;
 use serde_json::Value;
 
 use crate::common::{
-    API_KEY_HEADER, EXPECTED_ROOT_MESSAGE, TEST_MASTER_API_KEY, create_test_app_with_rate_limit,
+    EXPECTED_ROOT_MESSAGE, HEADER_API_KEY, TEST_MASTER_API_KEY, create_test_app_with_rate_limit,
     get_with_headers, send_json,
 };
 
@@ -39,7 +39,7 @@ async fn enhanced_tier_allows_higher_burst_with_valid_api_key() {
     for _ in 0..40 {
         let (status, body) = send_json(
             &app,
-            get_with_headers("/", &[(API_KEY_HEADER, TEST_MASTER_API_KEY)]),
+            get_with_headers("/", &[(HEADER_API_KEY, TEST_MASTER_API_KEY)]),
         )
         .await;
 

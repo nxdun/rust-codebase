@@ -8,8 +8,22 @@ use serde::Deserialize;
 
 use crate::{
     error::AppError,
-    middleware::{X_CAPTCHA_TOKEN, api_key::has_valid_master_api_key},
+    middleware::{HEADER_CAPTCHA_NAME, api_key::has_valid_master_api_key},
     state::AppState,
+};
+
+const CAPTCHA_VERIFY_TIMEOUT_SECS: u64 = 10;
+
+// Checkpoint
+const _: () = {
+    assert!(
+        CAPTCHA_VERIFY_TIMEOUT_SECS > 0,
+        "CAPTCHA_VERIFY_TIMEOUT_SECS must be positive"
+    );
+    assert!(
+        CAPTCHA_VERIFY_TIMEOUT_SECS <= 60,
+        "CAPTCHA_VERIFY_TIMEOUT_SECS is unusually high (> 1min)"
+    );
 };
 
 #[derive(Debug, Deserialize)]
@@ -34,7 +48,7 @@ pub async fn verify_captcha_token(
 
     let captcha_token = req
         .headers()
-        .get(X_CAPTCHA_TOKEN)
+        .get(HEADER_CAPTCHA_NAME)
         .and_then(|value| value.to_str().ok())
         .map(str::trim)
         .filter(|value| !value.is_empty())
@@ -51,7 +65,7 @@ pub async fn verify_captcha_token(
     let response = state
         .http_client
         .post("https://www.google.com/recaptcha/api/siteverify")
-        .timeout(std::time::Duration::from_secs(10))
+        .timeout(std::time::Duration::from_secs(CAPTCHA_VERIFY_TIMEOUT_SECS))
         .form(&[("secret", secret_key), ("response", captcha_token)])
         .send()
         .await

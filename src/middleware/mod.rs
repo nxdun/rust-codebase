@@ -1,13 +1,14 @@
 use axum::http::header::HeaderName;
 
 pub mod api_key;
-pub mod auth;
 pub mod captcha;
 pub mod cors;
 pub mod rate_limit;
 
-pub const X_API_KEY: HeaderName = HeaderName::from_static("x-api-key");
-pub const X_CAPTCHA_TOKEN: HeaderName = HeaderName::from_static("x-captcha-token");
+pub const HEADER_API_KEY: HeaderName = HeaderName::from_static("x-api-key");
+pub const HEADER_CAPTCHA_NAME: HeaderName = HeaderName::from_static("x-captcha-token");
+
+// Checkpoint
 
 /// Performs a constant-time comparison of two strings to prevent timing attacks.
 #[must_use]

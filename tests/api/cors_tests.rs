@@ -54,6 +54,11 @@ async fn cors_preflight_allows_required_custom_headers() {
         .to_ascii_uppercase();
     assert!(allow_methods.contains("GET"));
     assert!(allow_methods.contains("POST"));
+    assert!(!allow_methods.contains("PUT"), "PUT should be restricted");
+    assert!(
+        !allow_methods.contains("DELETE"),
+        "DELETE should be restricted"
+    );
 
     let allow_credentials = response
         .headers()

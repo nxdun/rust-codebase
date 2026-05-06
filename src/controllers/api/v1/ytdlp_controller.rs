@@ -17,7 +17,7 @@ use tracing::info;
 
 use crate::{
     error::AppError,
-    extractors::validated_json::ValidatedJson,
+    extractors::json_validator::ValidatedJson,
     models::{
         ytdlp::YtdlpJobStatus,
         ytdlp_dto::{

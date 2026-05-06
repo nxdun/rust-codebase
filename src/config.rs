@@ -164,7 +164,8 @@ impl AppConfig {
         ))
     }
 
-    /// Securely checks if the provided key matches the master API key using constant-time comparison.
+    /// check API KEY match with provided + constant time eq
+    /// uses: api key validation middleware
     #[must_use]
     pub fn check_api_key(&self, provided_key: &str) -> bool {
         constant_time_eq(provided_key, &self.master_api_key)
