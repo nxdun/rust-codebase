@@ -9,6 +9,7 @@ use validator::Validate;
 
 use crate::error::AppError;
 
+///wrapped,automatic: JSON validator ;]
 #[derive(Debug)]
 pub struct ValidatedJson<T>(pub T);
 

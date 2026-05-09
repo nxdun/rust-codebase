@@ -20,7 +20,7 @@ use serde_json::{Value, json};
 use std::sync::Arc;
 use tower::ServiceExt;
 
-pub const API_KEY_HEADER: &str = "x-api-key";
+pub const HEADER_API_KEY: &str = "x-api-key";
 pub const CAPTCHA_TOKEN_HEADER: &str = "x-captcha-token";
 pub const CONTENT_TYPE_JSON: &str = "application/json";
 pub const TEST_MASTER_API_KEY: &str = "test_master_key";

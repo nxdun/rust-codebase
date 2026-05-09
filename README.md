@@ -1,17 +1,28 @@
 # Nadzu-API
 
-Personal backend API built with Rust. Focused on concurrency, performance, security, and future-proof design.
+Personal backend API built with Rust, focused on concurrency, performance, security, and long-term maintainability.
+
+## Table of Contents
+- [Features](#features)
+- [Architecture Diagrams](#architecture-diagrams)
+- [Engineering Design](#engineering-design)
+- [Infrastructure](#infrastructure)
+- [Project Structure](#project-structure)
+- [Development Workflow](#development-workflow)
+- [Packaging and Deployment](#packaging-and-deployment)
+- [Things I Learned](#things-i-learned)
+- [Acknowledgements](#acknowledgements)
 
 ## Features
 
-### Core API Functionality
+### Core API
 
-* CORS support.
+* CORS handling.
 * Rate limiting.
 * API versioning (v1).
-* Health checks.
-* Logging.
-* Postman v3 Collection included.
+* Health and root endpoints.
+* Structured logging.
+* Postman v3 collection included.
 
 ### Media Downloading
 
@@ -19,65 +30,270 @@ Personal backend API built with Rust. Focused on concurrency, performance, secur
 * Download acceleration via aria2c integration.
 * Job lifecycle management: enqueue, progress tracking, and result retrieval.
 * Server-Sent Events (SSE) for real-time job progress updates.
-* Endpoint to list supported sites.
+* Endpoint for listing supported sites.
+
+### GitHub Contributions Graph
+
+* Fetches contribution data from the GitHub GraphQL API.
+* Provides an endpoint to retrieve contribution stats for a specified user.
 
 ### Proxy Obfuscation
 
 * Bypasses geo-restrictions and anti-bot measures.
-* Separate container utilizing the Cloudflare WARP client for outbound requests.
-* Uses a custom [**Cloudflare WARP Proxy Docker Image**][docker-hub-image] (1.1k pulls) maintained in [**its dedicated repository**][warp-proxy-repo].
+* Dedicated container that uses the Cloudflare WARP client for outbound requests.
+* Uses a custom [**Cloudflare WARP Proxy Docker Image**][docker-hub-image] (1.1k pulls), maintained in [**its dedicated repository**][warp-proxy-repo].
 
 ### Security and Anti-Abuse
 
 * CAPTCHA verification middleware powered by reCAPTCHA.
+* API keys have higher rate limits and access to protected endpoints.
+* Caddy reverse proxy for TLS termination and IP-based access control.
 
 ### Operational
 
-* CI Pipelines for linting, testing, and building.
-* CD pipeline for Docker image building and publishing to GitHub Container Registry, including:
+* CI pipelines for linting, testing, and building.
+* CD pipeline for Docker image builds and publishing to GitHub Container Registry, including:
     * zstd compression
     * zstd builder
     * custom BuildKit caching for faster builds
     * multi-platform Docker image support
 
-## Architecture and Design
+## Architecture Diagrams
+
+<details>
+<summary>Core system diagram</summary>
+
+```mermaid
+flowchart TB
+    %% ==========================================
+    %% BRAND COLORS & STYLING CLASSES
+    %% ==========================================
+    classDef extClient fill:#2EA043,color:#ffffff,stroke:#1e6a2c,stroke-width:2px;
+    classDef proxy fill:#00ADD8,color:#ffffff,stroke:#007a99,stroke-width:2px;
+    classDef rustApp fill:#111111,color:#DEA584,stroke:#DEA584,stroke-width:2px;
+    classDef module fill:#1a1a1a,color:#DDDDDD,stroke:#444444,stroke-width:1px,rx:4px;
+    classDef pg fill:#336791,color:#ffffff,stroke:#234a6a,stroke-width:2px;
+    classDef redis fill:#DC382D,color:#ffffff,stroke:#9e2820,stroke-width:2px;
+    classDef extAPI fill:#444444,color:#ffffff,stroke:#222222,stroke-width:2px;
+    classDef warp fill:#F38020,color:#ffffff,stroke:#b35c00,stroke-width:2px;
+
+    %% ==========================================
+    %% INGRESS
+    %% ==========================================
+    Client["Web Client / API Consumer"]:::extClient
+    Caddy{"Caddy Reverse Proxy"}:::proxy
+
+    Client ==>|"HTTPS Requests"| Caddy
+
+    %% ==========================================
+    %% CORE RUST BACKEND
+    %% ==========================================
+    subgraph CoreBackend ["Rust Backend Application Core"]
+        direction TB
+
+        MW["Middleware Layer\n(Auth, CORS, RateLimit, Captcha)"]:::module
+        Router["Routing Layer\n(/api/v1/*)"]:::module
+
+        subgraph Controllers ["Controllers"]
+            direction LR
+            RootCtrl["Root / Health"]:::module
+            YtCtrl["YTDLP Controller"]:::module
+            ContribCtrl["Contributions"]:::module
+            ValidCtrl["Validation"]:::module
+        end
+
+        subgraph Services ["Business Logic Services"]
+            direction LR
+            YtSvc["YT-DLP Service"]:::module
+            ContribSvc["Contributions Service"]:::module
+        end
+
+        subgraph DataState ["Data & State Management"]
+            direction LR
+            PgConn["Postgres Pool (sqlx)"]:::module
+            RdConn["Redis Multiplex (bb8)"]:::module
+            AppState["Shared App State (DashMap)"]:::module
+        end
+
+        %% Internal Flow
+        MW --> Router
+        Router --> RootCtrl & YtCtrl & ContribCtrl & ValidCtrl
+
+        YtCtrl -->|"Calls"| YtSvc
+        ContribCtrl -->|"Calls"| ContribSvc
+
+        YtSvc --> AppState
+        ContribSvc --> AppState
+        AppState --> PgConn & RdConn
+    end
+
+    %% ==========================================
+    %% DATA & EXTERNAL WORKERS
+    %% ==========================================
+    subgraph DataLayer ["Data Layer"]
+        PG[(PostgreSQL 15)]:::pg
+        Redis[(Redis Alpine)]:::redis
+    end
+
+    subgraph WorkerLayer ["Media Processing Layer"]
+        Worker["yt-dlp / aria2c Process"]:::rustApp
+        WARP["WARP SOCKS5 Proxy"]:::warp
+    end
+
+    subgraph ExternalLayer ["External Services"]
+        GH["GitHub GraphQL API"]:::extAPI
+        YT["External Media Hosts"]:::extAPI
+    end
+
+    %% ==========================================
+    %% CROSS-BOUNDARY CONNECTIONS
+    %% ==========================================
+    Caddy ==>|"Proxies API Traffic"| MW
+
+    PgConn <==>|"sqlx queries"| PG
+    RdConn <==>|"bb8 multiplexing"| Redis
+
+    YtSvc -.->|"tokio::process::Command"| Worker
+    Worker ==>|"SOCKS5"| WARP
+    WARP ==>|"Obfuscated Download"| YT
+
+    ContribSvc ==>|"Anti-Corruption Layer"| GH
+
+    %% ==========================================
+    %% STYLING FIXES (GitHub Compatible)
+    %% ==========================================
+    style CoreBackend fill:none,stroke:#FF5252,stroke-width:2px
+    style Controllers fill:none,stroke:none
+    style Services fill:none,stroke:none
+    style DataState fill:none,stroke:none
+    style DataLayer fill:none,stroke:none
+    style WorkerLayer fill:none,stroke:none
+    style ExternalLayer fill:none,stroke:none
+
+```
+
+</details>
+
+<details>
+<summary>Infrastructure diagram</summary>
+
+```mermaid
+flowchart TB
+    %% BRAND COLORS & STYLING CLASSES
+    classDef extAdmin fill:#2EA043,color:#ffffff,stroke:#1e6a2c,stroke-width:2px;
+    classDef extPublic fill:#444444,color:#ffffff,stroke:#222222,stroke-width:2px;
+    classDef cloudflare fill:#F38020,color:#ffffff,stroke:#b35c00,stroke-width:2px;
+    classDef digitalocean fill:#0069FF,color:#ffffff,stroke:#004bbf,stroke-width:2px;
+    classDef firewall fill:#D93F0B,color:#ffffff,stroke:#8c2907,stroke-width:2px;
+    classDef github fill:#24292E,color:#ffffff,stroke:#111417,stroke-width:2px;
+    classDef docker fill:#2496ED,color:#ffffff,stroke:#1868a6,stroke-width:2px;
+    classDef rust fill:#000000,color:#DEA584,stroke:#DEA584,stroke-width:2px;
+    classDef caddy fill:#00ADD8,color:#ffffff,stroke:#007a99,stroke-width:2px;
+    classDef pg fill:#336791,color:#ffffff,stroke:#234a6a,stroke-width:2px;
+    classDef redis fill:#DC382D,color:#ffffff,stroke:#9e2820,stroke-width:2px;
+
+    %% EXTERNAL TRAFFIC
+    Admin["Admin (Trusted VPN IP)"]:::extAdmin
+    Public["Public Internet"]:::extPublic
+
+    %% CLOUDFLARE
+    DNS["Cloudflare DNS & Proxy\n(api.nadzu.me)"]:::cloudflare
+
+    %% DIGITALOCEAN
+    subgraph DigitalOcean ["DigitalOcean Infrastructure"]
+
+        subgraph DO_Firewall ["DO Cloud Firewall"]
+            direction LR
+            FW_SSH{"Port 22 (SSH)\nALLOW: Admin"}:::firewall
+            FW_Web{"Ports 80/443 (HTTP/S)\nALLOW: Cloudflare"}:::firewall
+        end
+
+        subgraph Droplet ["Ubuntu Droplet Runtime"]
+            Caddy{"Caddy Reverse Proxy"}:::caddy
+            Volume[("DO Block Storage\nMounted at /downloads")]:::digitalocean
+
+            subgraph Docker_Compose ["Docker Compose Environment"]
+                App["Rust Backend API"]:::rust
+                Worker["YT-DLP / Aria2c Process"]:::rust
+                WARP["WARP SOCKS5 Proxy"]:::cloudflare
+
+                subgraph DBs ["Data Layer"]
+                    direction LR
+                    PG[(PostgreSQL)]:::pg
+                    Redis[(Redis)]:::redis
+                end
+            end
+        end
+    end
+
+    ExternalInternet(("External Internet\n(YouTube, GitHub)")):::extPublic
+
+    %% INDEPENDENT REGISTRIES (Placed outside subgraphs to fix layout bugs)
+    GHCR[("GitHub Container Registry\n(Private)")]:::github
+    DockerHub[("Docker Hub\n(Public)")]:::docker
+
+    %% ----------------------------------------------------
+    %% TRAFFIC FLOW (Rank 1 to 4)
+    %% ----------------------------------------------------
+    Admin -->|"SSH / Deploy"| FW_SSH
+    Admin -->|"API & Files"| DNS
+    Public -->|"API Only"| DNS
+
+    DNS ==>|"Proxied Web Traffic"| FW_Web
+
+    FW_SSH -.->|"Access Granted"| Droplet
+    FW_Web ==>|"Forwards to Web Server"| Caddy
+
+    %% ----------------------------------------------------
+    %% CADDY ROUTING & VOLUME TRICK (Rank 5)
+    %% ----------------------------------------------------
+    Caddy ==>|"Public API (/api/v1/*)"| App
+    Caddy -.->|"SECURE: Admin IP Only\n(/nadun/fs/*)"| Volume
+
+    %% ----------------------------------------------------
+    %% APP LOGIC & VOLUME (Rank 6)
+    %% ----------------------------------------------------
+    Volume -.->|"Mounted into"| Worker
+    App ==>|"Spawns DL Tasks"| Worker
+    App -->|"Persists Data"| PG
+    App -->|"Caches State"| Redis
+
+    %% ----------------------------------------------------
+    %% OBFUSCATION (Rank 7 & 8)
+    %% ----------------------------------------------------
+    Worker ==>|"Routes via SOCKS5"| WARP
+    WARP ==>|"Obfuscated Outbound"| ExternalInternet
+
+    %% ----------------------------------------------------
+    %% REGISTRY PULLS (Auto-aligns cleanly)
+    %% ----------------------------------------------------
+    GHCR -.->|"Pulls App Image"| App
+    DockerHub -.->|"Pulls WARP Image"| WARP
+
+    %% STYLES
+    style DigitalOcean fill:none,stroke:#0069FF,stroke-width:2px,stroke-dasharray: 5 5
+    style DO_Firewall fill:none,stroke:#D93F0B,stroke-width:2px
+    style Droplet fill:none,stroke:#0069FF,stroke-width:1px
+    style Docker_Compose fill:none,stroke:#2496ED,stroke-width:2px
+    style DBs fill:none,stroke:none
+```
+
+</details>
+
+## Engineering Design
 
 * Clean layered architecture (controllers -> services -> models).
-* Memory management utilizing DashMap for sharding and weak references for lifecycle control.
-* Concurrency control managed via Tokio semaphores.
-
-## Development Lifecycle
-
-* Complete agile lifecycle for fast development and deployment.
-* Makefile-first approach for task automation and consistency.
-* CI pipeline using GitHub Actions for linting (`cargo clippy`), testing (`cargo test`), and building.
-* Complete unit and integration test coverage.
-* Production-like local development environment using Docker Compose and Caddy with self-signed TLS.
-* Active [**Public Changelog**][changelog] including release notes.
-
-## Packaging and Deployment
-
-* Dockerized using multi-stage and multi-platform builds (5-stage build with tini).
-* Optimized Rust builds using Cargo-Chef.
-* Custom Docker builder implementing ZSTD compression.
-* Pre-installed dependencies: yt-dlp Python packages, FFmpeg, and FFprobe for media validation.
-* Published automatically to a private GitHub Container Registry.
+* Memory management with DashMap sharding and weak references for lifecycle control.
+* Concurrency control using Tokio semaphores.
 
 ## Infrastructure
 
 [![DigitalOcean Referral Badge][do-referral-badge]][do-referral-link]
 
-Provisioned via Terraform using Infrastructure as Code principles.
+Provisioned with Terraform using Infrastructure as Code principles.
 
 * **DigitalOcean Provider:** Droplet provisioning with cloud-init, block volume management, and firewall configuration.
-* **Cloudflare Provider:** R2 bucket utilized for Terraform remote state backend and DNS entry management for full HTTPS support.
-
-<details>
-<summary>Infrastructure Diagram</summary>
-
-![Themed Architecture Diagram][arch-diagram]
-
-</details>
+* **Cloudflare Provider:** An R2 bucket used for Terraform remote state and DNS record management for full HTTPS support.
 
 ## Project Structure
 
@@ -92,20 +308,49 @@ Provisioned via Terraform using Infrastructure as Code principles.
 |-- Cargo.toml
 |-- Dockerfile
 |-- Dockerfile.dev
+|-- GEMINI.md
 |-- LICENSE
 |-- Makefile
 |-- README.md
 |-- docker-compose.dev.yml
 |-- docker-compose.yml
 |-- docker-entrypoint.sh
-|-- docs
-|   `-- images
-|       |-- Themed-Architecture-Diagram-code.md
-|       `-- Themed-Architecture-Diagram.svg
+|-- downloads
+|-- infra
+|   |-- common
+|   |   |-- browse.html
+|   |   |-- certificates
+|   |   |   |-- api.nadzu.me.key
+|   |   |   `-- api.nadzu.me.pem
+|   |   `-- cloud-init.template
+|   `-- digitalocean
+|       |-- accounts
+|       |   `-- naduns-team
+|       |       |-- backend.tf
+|       |       |-- main.tf
+|       |       |-- outputs.tf
+|       |       |-- terraform.tfvars
+|       |       |-- terraform.tfvars.example
+|       |       `-- variables.tf
+|       `-- components
+|           |-- c-cloudflare-record.tf
+|           |-- c-cloudflare-zone.tf
+|           |-- c-digitalocean-firewall.tf
+|           |-- data.tf
+|           |-- locals.tf
+|           |-- outputs.tf
+|           |-- provider.tf
+|           |-- r-digitalocean_droplet.tf
+|           |-- r-digitalocean_volume.tf
+|           |-- r-digitalocean_volume_attachment.tf
+|           |-- variables.tf
+|           `-- versions.tf
 |-- nadunssh
 |-- postman
 |   |-- collections
 |   |   `-- Nadzu API
+|   |       |-- Contributions (Default User).request.yaml
+|   |       |-- Contributions (Specific User).request.yaml
 |   |       |-- Health.request.yaml
 |   |       |-- Root.request.yaml
 |   |       |-- Validate User.request.yaml
@@ -115,16 +360,21 @@ Provisioned via Terraform using Infrastructure as Code principles.
 |   |       |-- YT-DLP List Jobs.request.yaml
 |   |       |-- YT-DLP Stream Job Progress.request.yaml
 |   |       `-- supported sites.request.yaml
-|   `-- environments
-|       `-- Nadzu Local.yaml
+|   |-- environments
+|   |   |-- Nadzu Local.environment.yaml
+|   |   |-- dev.environment.yaml
+|   |   `-- nadzu prod.environment.yaml
 |-- rustfmt.toml
 |-- src
 |   |-- app.rs
+|   |-- bin
+|   |   `-- config_exit.rs
 |   |-- config.rs
 |   |-- controllers
 |   |   |-- api
 |   |   |   |-- mod.rs
 |   |   |   `-- v1
+|   |   |       |-- contributions_controller.rs
 |   |   |       |-- mod.rs
 |   |   |       `-- ytdlp_controller.rs
 |   |   |-- error_controller.rs
@@ -150,20 +400,25 @@ Provisioned via Terraform using Infrastructure as Code principles.
 |   |   |-- mod.rs
 |   |   `-- rate_limit.rs
 |   |-- models
-|   |   |-- health_model.rs
+|   |   |-- contributions.rs
+|   |   |-- github_dto.rs
+|   |   |-- health.rs
 |   |   |-- mod.rs
-|   |   |-- validation_model.rs
-|   |   `-- ytdlp_model.rs
+|   |   |-- validation.rs
+|   |   |-- ytdlp.rs
+|   |   `-- ytdlp_dto.rs
 |   |-- routes
 |   |   |-- api
 |   |   |   |-- mod.rs
 |   |   |   `-- v1
+|   |   |       |-- contributions_routes.rs
 |   |   |       |-- mod.rs
 |   |   |       `-- ytdlp_routes.rs
 |   |   |-- health_routes.rs
 |   |   |-- mod.rs
 |   |   `-- validation_routes.rs
 |   |-- services
+|   |   |-- contributions.rs
 |   |   |-- mod.rs
 |   |   `-- ytdlp
 |   |       `-- mod.rs
@@ -173,6 +428,7 @@ Provisioned via Terraform using Infrastructure as Code principles.
 |   |   |-- auth_tests.rs
 |   |   |-- captcha_tests.rs
 |   |   |-- common.rs
+|   |   |-- contributions_tests.rs
 |   |   |-- cors_tests.rs
 |   |   |-- health_tests.rs
 |   |   |-- rate_limit_tests.rs
@@ -182,6 +438,7 @@ Provisioned via Terraform using Infrastructure as Code principles.
 |   |   `-- ytdlp_tests.rs
 |   |-- api_tests.rs
 |   `-- layer_unit_tests.rs
+
 ```
 
 </details>
@@ -212,6 +469,29 @@ infra/
 
 </details>
 
+## Development Workflow
+
+* Iterative development flow designed for fast delivery.
+* Makefile-first approach for task automation and consistency.
+* CI pipeline using GitHub Actions for linting (`cargo clippy`), testing (`cargo test`), and building.
+* Unit and integration test coverage.
+* Production-like local development environment using Docker Compose and Caddy with self-signed TLS.
+* Active [**Public Changelog**][changelog] including release notes.
+
+## Packaging and Deployment
+
+* Dockerized using multi-stage and multi-platform builds (5-stage build with tini).
+* Optimized Rust builds using Cargo-Chef.
+* Custom Docker builder implementing ZSTD compression.
+* Pre-installed dependencies: yt-dlp Python packages, FFmpeg, and FFprobe for media validation.
+* Published automatically to a private GitHub Container Registry.
+
+## Things I Learned
+
+- Rust: The initial learning curve is steep, but the long-term benefits in performance, safety, and low-level control are worth it.
+- Terraform: cloud-init is excellent for bootstrapping a server, but it has provider-specific size limits.
+- Terraform: The Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.
+
 ## Acknowledgements
 
 * [**yt-dlp**][yt-dlp-repo]
@@ -221,11 +501,4 @@ infra/
 [changelog]: https://nadzu.me/posts/rust-backend-changelog/
 [do-referral-badge]: https://web-platforms.sfo2.cdn.digitaloceanspaces.com/WWW/Badge%202.svg
 [do-referral-link]: https://www.digitalocean.com/?refcode=17bb57d3d632&utm_campaign=Referral_Invite&utm_medium=Referral_Program&utm_source=badge
-[arch-diagram]: docs/images/Themed-Architecture-Diagram.svg
 [yt-dlp-repo]: https://github.com/yt-dlp/yt-dlp
-
-## Things i learned
-
-- rust: Iniital leraning curve is steep but the long term benefits in performance and safety and low level control are worth it ```❤️```
-- tf: cloud init is perfect to bootstrap the server, it have max size limitation depending on the provider.
-- tf: Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.

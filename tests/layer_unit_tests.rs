@@ -2,7 +2,7 @@
 use axum::http::HeaderMap;
 use nadzu::{
     config::AppConfig,
-    middleware::{X_API_KEY, api_key::has_valid_master_api_key, rate_limit::is_production},
+    middleware::{HEADER_API_KEY, api_key::has_valid_master_api_key, rate_limit::is_production},
     models::health::Health,
 };
 
@@ -31,7 +31,7 @@ fn test_config(env: &str) -> AppConfig {
 fn has_valid_master_api_key_returns_true_for_matching_header() {
     let config = test_config("test");
     let mut headers = HeaderMap::new();
-    headers.insert(X_API_KEY, "master_key".parse().unwrap());
+    headers.insert(HEADER_API_KEY, "master_key".parse().unwrap());
 
     assert!(has_valid_master_api_key(&headers, &config));
 }
@@ -45,7 +45,7 @@ fn has_valid_master_api_key_returns_false_for_missing_or_wrong_header() {
     assert!(!has_valid_master_api_key(&empty_headers, &config));
 
     let mut wrong_headers = HeaderMap::new();
-    wrong_headers.insert(X_API_KEY, "wrong_key".parse().unwrap());
+    wrong_headers.insert(HEADER_API_KEY, "wrong_key".parse().unwrap());
     assert!(!has_valid_master_api_key(&wrong_headers, &config));
 }
 

@@ -17,29 +17,38 @@ struct ErrorResponse {
     error_code: Option<Cow<'static, str>>,
 }
 
+/// Represents the various errors that can occur within the application.
 #[derive(Debug, Error)]
 pub enum AppError {
+    /// An internal server error, typically wrapping an `anyhow::Error`.
     #[error("Internal Server Error")]
     Internal(#[from] anyhow::Error),
 
+    /// A requested resource was not found.
     #[error("Not Found: {0}")]
     NotFound(String),
 
+    /// A validation error occurred on the incoming request.
     #[error("Validation failed: {0}")]
     Validation(String),
 
+    /// The client is not authorized to access the resource.
     #[error("Unauthorized: {0}")]
     Unauthorized(String),
 
+    /// The client is forbidden from accessing the resource.
     #[error("Forbidden: {0}")]
     Forbidden(String),
 
+    /// A conflict occurred (e.g., duplicate resource).
     #[error("Conflict: {0}")]
     Conflict(String),
 
+    /// An error occurred communicating with an upstream service.
     #[error("Upstream Service Error: {0}")]
     UpstreamError(String),
 
+    /// The service is currently unavailable.
     #[error("Service Unavailable: {0}")]
     ServiceUnavailable(String),
 }

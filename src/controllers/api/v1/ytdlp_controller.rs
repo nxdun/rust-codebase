@@ -9,7 +9,7 @@ use axum::{
     },
 };
 use std::{borrow::Cow, convert::Infallible, path::PathBuf, time::Duration};
-use tokio::{sync::mpsc, time::sleep};
+use tokio::sync::mpsc;
 use tokio_stream::wrappers::ReceiverStream;
 use tower::ServiceExt;
 use tower_http::services::ServeFile;
@@ -17,7 +17,7 @@ use tracing::info;
 
 use crate::{
     error::AppError,
-    extractors::validated_json::ValidatedJson,
+    extractors::json_validator::ValidatedJson,
     models::{
         ytdlp::YtdlpJobStatus,
         ytdlp_dto::{
@@ -75,6 +75,7 @@ pub async fn list_download_jobs(
 }
 
 /// Streams progress of a download job via SSE.
+#[allow(clippy::too_many_lines)]
 pub async fn stream_download_progress(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -107,6 +108,7 @@ pub async fn stream_download_progress(
 
     let manager = state.ytdlp_manager;
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(16);
+    let mut broadcast_rx = manager.subscribe();
     let stream_job_id = id;
     let stream_path = request_path;
     let stream_client_ip = client_ip;
@@ -114,49 +116,81 @@ pub async fn stream_download_progress(
     tokio::spawn(async move {
         let mut last_snapshot = String::new();
 
-        loop {
-            if let Some(job) = manager.get_job(&stream_job_id) {
-                let job_resp = YtdlpJobResponse::from(job);
-                let snapshot = serde_json::to_string(&job_resp).unwrap_or_default();
-
-                if snapshot != last_snapshot {
-                    last_snapshot.clone_from(&snapshot);
-                    if tx
-                        .send(Ok(Event::default().event("progress").data(snapshot)))
-                        .await
-                        .is_err()
-                    {
-                        break;
-                    }
-                }
-
-                if matches!(
-                    job_resp.status,
-                    YtdlpJobStatus::Finished | YtdlpJobStatus::Failed
-                ) {
-                    let _ = tx
-                        .send(Ok(Event::default().event("done").data("done")))
-                        .await;
-                    info!(
-                        "sse stream complete path={} job_id={} client_ip={} status={:?}",
-                        stream_path, stream_job_id, stream_client_ip, job_resp.status
-                    );
-                    break;
-                }
-            } else {
-                let _ = tx
-                    .send(Ok(Event::default()
-                        .event("error")
-                        .data(r#"{"status":404,"message":"job not found"}"#)))
-                    .await;
-                info!(
-                    "sse stream ended path={} job_id={} client_ip={} reason=job_not_found",
-                    stream_path, stream_job_id, stream_client_ip
-                );
-                break;
+        // Send initial snapshot
+        if let Some(job) = manager.get_job(&stream_job_id) {
+            let job_resp = YtdlpJobResponse::from(job);
+            let snapshot = serde_json::to_string(&job_resp).unwrap_or_default();
+            last_snapshot.clone_from(&snapshot);
+            if tx
+                .send(Ok(Event::default().event("progress").data(snapshot)))
+                .await
+                .is_err()
+            {
+                return;
             }
 
-            sleep(Duration::from_millis(1500)).await;
+            if matches!(
+                job_resp.status,
+                YtdlpJobStatus::Finished | YtdlpJobStatus::Failed
+            ) {
+                let _ = tx
+                    .send(Ok(Event::default().event("done").data("done")))
+                    .await;
+                return;
+            }
+        }
+
+        loop {
+            match broadcast_rx.recv().await {
+                Ok(updated_id) => {
+                    if updated_id == stream_job_id {
+                        if let Some(job) = manager.get_job(&stream_job_id) {
+                            let job_resp = YtdlpJobResponse::from(job);
+                            let snapshot = serde_json::to_string(&job_resp).unwrap_or_default();
+
+                            if snapshot != last_snapshot {
+                                last_snapshot.clone_from(&snapshot);
+                                if tx
+                                    .send(Ok(Event::default().event("progress").data(snapshot)))
+                                    .await
+                                    .is_err()
+                                {
+                                    break;
+                                }
+                            }
+
+                            if matches!(
+                                job_resp.status,
+                                YtdlpJobStatus::Finished | YtdlpJobStatus::Failed
+                            ) {
+                                let _ = tx
+                                    .send(Ok(Event::default().event("done").data("done")))
+                                    .await;
+                                info!(
+                                    "sse stream complete path={} job_id={} client_ip={} status={:?}",
+                                    stream_path, stream_job_id, stream_client_ip, job_resp.status
+                                );
+                                break;
+                            }
+                        } else {
+                            let _ = tx
+                                .send(Ok(Event::default()
+                                    .event("error")
+                                    .data(r#"{"status":404,"message":"job not found"}"#)))
+                                .await;
+                            info!(
+                                "sse stream ended path={} job_id={} client_ip={} reason=job_not_found",
+                                stream_path, stream_job_id, stream_client_ip
+                            );
+                            break;
+                        }
+                    }
+                }
+                Err(tokio::sync::broadcast::error::RecvError::Lagged(_)) => {}
+                Err(tokio::sync::broadcast::error::RecvError::Closed) => {
+                    break;
+                }
+            }
         }
 
         info!(

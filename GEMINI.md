@@ -1,6 +1,6 @@
 # Nadzu Backend - Engineering Standards & Policies
 
-This document serves as the foundational mandate for all engineering work on this codebase. It applies to both human developers and AI agents. Strict adherence is required to maintain the "Anti-Corruption Layer" and high-performance nature of the system.
+This document serves as the foundational mandate for all engineering work on naduns codebase. It applies to both human developers and AI agents. Strict adherence is required to maintain the security and high-performance nature of the system.
 
 ## 1. Architectural Integrity
 
@@ -61,9 +61,10 @@ This document serves as the foundational mandate for all engineering work on thi
 *   **Clippy**: Must be zero-warning.
 *   **Rustfmt**: Must be applied to every file.
 *   **Makefile**: Use `make c` for a full validation suite before concluding any task.
+*   Use -j (nproc) for parallel builds and tests to speed up the shell commands.
 
 ### Documentation
-*   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.
+*   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.do not over document, make guesses about the unseen code.
 *   Complex logic (like the Midnight Snap caching strategy) must be documented inline.
 
 ---

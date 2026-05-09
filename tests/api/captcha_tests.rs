@@ -1,7 +1,7 @@
 use axum::http::StatusCode;
 
 use crate::common::{
-    API_KEY_HEADER, SAMPLE_YTDLP_URL, TEST_MASTER_API_KEY, create_test_app, post_json_with_headers,
+    HEADER_API_KEY, SAMPLE_YTDLP_URL, TEST_MASTER_API_KEY, create_test_app, post_json_with_headers,
     send_json, ytdlp_enqueue_request,
 };
 
@@ -14,7 +14,7 @@ async fn valid_api_key_bypasses_captcha_and_secret_requirement() {
         post_json_with_headers(
             "/api/v1/ytdlp",
             &ytdlp_enqueue_request(SAMPLE_YTDLP_URL),
-            &[(API_KEY_HEADER, TEST_MASTER_API_KEY)],
+            &[(HEADER_API_KEY, TEST_MASTER_API_KEY)],
         ),
     )
     .await;
@@ -32,7 +32,7 @@ async fn invalid_api_key_does_not_bypass_captcha() {
         post_json_with_headers(
             "/api/v1/ytdlp",
             &ytdlp_enqueue_request(SAMPLE_YTDLP_URL),
-            &[(API_KEY_HEADER, "bad_key")],
+            &[(HEADER_API_KEY, "bad_key")],
         ),
     )
     .await;

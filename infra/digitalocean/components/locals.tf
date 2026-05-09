@@ -4,6 +4,8 @@ locals {
     var.ENVIRONMENT
   ]
 
+  # Deterministic path guaranteed by DigitalOcean via SCSI hardware ID.
+  # Prevents accidentally formatting the wrong drive since paths like /dev/sdb can change.
   volume_device_by_id = "/dev/disk/by-id/scsi-0DO_Volume_${var.VOLUME_NAME}"
 
   cloud_init = templatefile("${path.module}/../../common/cloud-init.template", {

@@ -46,3 +46,4 @@ nadunssh
 id_rsa
 id_ed25519
 /postman/collections/*/.resources/definition.yaml
+.agents
