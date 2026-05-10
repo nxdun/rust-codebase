@@ -6,7 +6,7 @@ use crate::{
 use axum::Json;
 use std::borrow::Cow;
 
-/// Validates user data/
+/// Validates user data
 pub async fn validate_user(
     ValidatedJson(payload): ValidatedJson<ValidateUserRequest>,
 ) -> Result<Json<ValidatedUserResponse>, AppError> {
