@@ -40,8 +40,7 @@ write_files:
             - HTTP_PROXY=socks5h://warp:40000
             - HTTPS_PROXY=socks5h://warp:40000
             - ALL_PROXY=socks5h://warp:40000
-            - NO_PROXY=google.com,www.google.com,recaptcha.net,localhost,127.0.0.1,app,caddy,warp
-
+            - NO_PROXY=localhost,127.0.0.1,app,warp,caddy,prometheus,grafana
         caddy:
           image: caddy:2-alpine
           restart: ${DOCKER_RESTART_POLICY}
@@ -55,6 +54,25 @@ write_files:
             - "${MOUNT_PATH}:/home/app/downloads:ro"
           depends_on:
             - app
+
+        prometheus:
+          image: prom/prometheus:latest
+          restart: ${DOCKER_RESTART_POLICY}
+          volumes:
+            - /opt/app/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+        grafana:
+          image: grafana/grafana:latest
+          restart: ${DOCKER_RESTART_POLICY}
+          environment:
+            - GF_AUTH_ANONYMOUS_ENABLED=true
+            - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+            - GF_SERVER_SERVE_FROM_SUB_PATH=true
+            - GF_SERVER_ROOT_URL=https://${PRODUCTION_DOMAIN}/nadun/grafana/
+          volumes:
+            - /opt/app/grafana/provisioning:/etc/grafana/provisioning
+          depends_on:
+            - prometheus
 
   - path: /opt/app/Caddyfile
     permissions: '0644'
@@ -76,15 +94,16 @@ write_files:
       ${PRODUCTION_DOMAIN}:443 {
         tls /etc/caddy/certs/${PRODUCTION_DOMAIN}.pem /etc/caddy/certs/${PRODUCTION_DOMAIN}.key
 
-        route /nadun/fs/* {
-          @blocked {
-            path /nadun/fs/*
-            not client_ip ${SSH_ALLOWED_IPS}
-          }
-          respond @blocked "Forbidden" 403
+        # Global Matcher for Internal Access
+        @internal_only {
+          not client_ip ${SSH_ALLOWED_IPS}
+        }
 
+        # 1. Protected File System
+        handle /nadun/fs/* {
+          respond @internal_only "Forbidden" 403
+          
           uri strip_prefix /nadun/fs
-
           @mp4 path *.mp4
           header @mp4 {
             Content-Type "video/mp4"
@@ -99,10 +118,25 @@ write_files:
           }
         }
 
-        reverse_proxy app:${APP_PORT} {
-          header_up Host {host}
-          transport http {
-            versions 1.1
+        # 2. Protected Grafana Dashboard
+        handle /nadun/grafana/* {
+          respond @internal_only "Forbidden" 403
+          reverse_proxy grafana:3000
+        }
+
+        # 3. Protected Metrics Endpoint (App)
+        handle /metrics {
+          respond @internal_only "Forbidden" 403
+          reverse_proxy app:8080
+        }
+
+        # 4. Public API Endpoints
+        handle {
+          reverse_proxy app:${APP_PORT} {
+            header_up Host {host}
+            transport http {
+              versions 1.1
+            }
           }
         }
       }
@@ -194,12 +228,25 @@ write_files:
       chown 65532:65532 "${MOUNT_PATH}"
       chmod 775 "${MOUNT_PATH}"
       
-      # Download browse.html via presigned URL securely
       if [ -n "${CADDY_CUSTOM_BROWSE_FILE_URL}" ]; then
         curl -sSfL "${CADDY_CUSTOM_BROWSE_FILE_URL}" -o /opt/app/browse.html
         chmod 644 /opt/app/browse.html
         chown root:root /opt/app/browse.html
       fi
+
+      # Create Observability Directories
+      mkdir -p /opt/app/prometheus
+      mkdir -p /opt/app/grafana/provisioning/datasources
+      mkdir -p /opt/app/grafana/provisioning/dashboards
+
+      # Fetch Artifacts from S3 Presigned URLs
+      curl -sSfL "${PROMETHEUS_CONFIG_URL}" -o /opt/app/prometheus/prometheus.yml
+      curl -sSfL "${GRAFANA_DATASOURCE_URL}" -o /opt/app/grafana/provisioning/datasources/prometheus.yml
+      curl -sSfL "${GRAFANA_PROVIDER_URL}" -o /opt/app/grafana/provisioning/dashboards/default.yml
+      curl -sSfL "${YTDLP_DASHBOARD_URL}" -o /opt/app/grafana/provisioning/dashboards/ytdlp-health.json
+
+      # Set Permissions
+      chmod -R 644 /opt/app/prometheus /opt/app/grafana/provisioning
 
       cat /root/.ghcr_token | docker login ghcr.io -u "${GITHUB_USERNAME}" --password-stdin
       cd /opt/app
