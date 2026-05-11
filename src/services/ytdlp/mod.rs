@@ -7,12 +7,13 @@ use crate::{
     },
 };
 use dashmap::DashMap;
+use metrics::{counter, gauge, histogram};
 use regex::Regex;
 use std::{
     path::{Component, Path, PathBuf},
     process::Stdio,
     sync::{Arc, OnceLock},
-    time::SystemTime,
+    time::{Instant, SystemTime},
 };
 use tokio::{
     fs,
@@ -150,6 +151,9 @@ impl YtdlpManager {
                 .expect("job should exist");
         }
 
+        counter!("ytdlp_jobs_enqueued_total").increment(1);
+        gauge!("ytdlp_active_jobs").increment(1.0);
+
         let manager = self.clone();
         tokio::spawn(async move {
             manager
@@ -221,6 +225,8 @@ impl YtdlpManager {
         format_flag: String,
         sort_flag: Option<String>,
     ) {
+        let start_time = Instant::now();
+
         #[allow(clippy::expect_used)]
         let _permit = self.semaphore.acquire().await.expect("semaphore closed");
 
@@ -330,6 +336,8 @@ impl YtdlpManager {
         let stderr_output = stderr_task.await.unwrap_or_else(|_| String::new());
         let combined_output = combine_outputs(stdout_output, stderr_output);
 
+        let mut job_success = false;
+
         match wait_result {
             Ok(Ok(status)) if status.success() => {
                 let temp_dir_str = temp_dir.to_string_lossy();
@@ -365,6 +373,7 @@ impl YtdlpManager {
                             }),
                         );
                     } else {
+                        job_success = true;
                         self.mark_job_finished(&id, moved_files);
                         info!("finished ytdlp job id={id}");
                     }
@@ -387,6 +396,14 @@ impl YtdlpManager {
                 Self::cleanup_failed_files(&temp_dir.to_string_lossy(), &id, false).await;
             }
         }
+
+        histogram!("ytdlp_job_duration_seconds").record(start_time.elapsed().as_secs_f64());
+        if job_success {
+            counter!("ytdlp_jobs_completed_total", "status" => "success").increment(1);
+        } else {
+            counter!("ytdlp_jobs_completed_total", "status" => "error").increment(1);
+        }
+        gauge!("ytdlp_active_jobs").decrement(1.0);
     }
 
     async fn cleanup_failed_files(temp_dir: &str, _id: &str, _is_base_dir: bool) {

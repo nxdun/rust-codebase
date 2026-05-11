@@ -7,18 +7,15 @@ use crate::{
     routes,
     services::ytdlp::YtdlpManager,
     state::AppState,
+    telemetry,
 };
 use axum::{middleware, serve};
 use dotenvy::dotenv;
 use std::net::SocketAddr;
 use std::sync::Arc;
 use tokio::net::TcpListener;
-use tower_http::{
-    compression::CompressionLayer,
-    trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
-};
-use tracing::{Level, error, info};
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tower_http::compression::CompressionLayer;
+use tracing::{error, info};
 
 /// Application entry point.
 pub async fn run() {
@@ -26,25 +23,10 @@ pub async fn run() {
     dotenv().ok();
 
     // 2. Initialize structured logging and environment-based log filtering
-    #[allow(clippy::expect_used)]
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| "info".into())
-        .add_directive(
-            "tower_http=info"
-                .parse()
-                .expect("static directive should parse"),
-        );
-
-    tracing_subscriber::registry()
-        .with(env_filter)
-        .with(tracing_subscriber::fmt::layer())
-        .init();
+    telemetry::init_tracing();
 
     // 3. Configure request/response tracing middleware
-    let trace_layer = TraceLayer::new_for_http()
-        .make_span_with(DefaultMakeSpan::new().level(Level::INFO))
-        .on_request(DefaultOnRequest::new().level(Level::INFO))
-        .on_response(DefaultOnResponse::new().level(Level::INFO));
+    let trace_layer = telemetry::build_trace_layer();
 
     // 4. Load application config and build shared app state
     let config = match AppConfig::from_env() {
@@ -84,6 +66,7 @@ pub async fn run() {
 
     // 6. Compose router, state, and middleware stack (including rate limiter)
     let app = routes::create_router(state.clone())
+        .merge(telemetry::setup_metrics_router())
         .with_state(state.clone())
         .layer(middleware::from_fn_with_state(
             state.clone(),

@@ -21,3 +21,5 @@ pub mod routes;
 pub mod services;
 /// Global application state.
 pub mod state;
+/// Observability and tracing configuration.
+pub mod telemetry;
