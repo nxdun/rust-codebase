@@ -166,3 +166,23 @@ variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
   description = "Presigned URL to download custom browse.html"
   type        = string
 }
+
+variable "PROMETHEUS_CONFIG_URL" {
+  description = "Presigned URL to download prometheus.yml"
+  type        = string
+}
+
+variable "GRAFANA_DATASOURCE_URL" {
+  description = "Presigned URL to download prometheus data source config"
+  type        = string
+}
+
+variable "GRAFANA_PROVIDER_URL" {
+  description = "Presigned URL to download grafana provider config for dashboard"
+  type        = string
+}
+
+variable "YTDLP_DASHBOARD_URL" {
+  description = "Presigned URL to download ytdlp dashboard json"
+  type        = string
+}
