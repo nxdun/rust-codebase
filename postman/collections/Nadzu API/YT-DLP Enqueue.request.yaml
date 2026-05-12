@@ -3,9 +3,13 @@ name: YT-DLP Enqueue
 url: "{{base_url}}/api/v1/ytdlp"
 method: POST
 headers:
-  Content-Type: application/json
-  x-captcha-token: "{{captcha_token}}"
-  x-api-key: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+  - key: x-captcha-token
+    value: "{{captcha_token}}"
+    disabled: true
+  - key: x-api-key
+    value: "{{api_key}}"
 body:
   type: json
   content: |-
@@ -17,17 +21,13 @@ body:
 
 scripts:
   - type: afterResponse
-    code: >-
-      pm.test('Status is 202', function () { pm.response.to.have.status(202);
-      });
-
+    code: |-
+      pm.test('Status is 202', function () { pm.response.to.have.status(202); });
       var jsonData = pm.response.json();
-
       pm.test('Response has job id', function () {
         pm.expect(jsonData).to.have.property('job');
         pm.expect(jsonData.job).to.have.property('id');
       });
-
       pm.collectionVariables.set('latest_job_id', jsonData.job.id);
     language: text/javascript
 order: 4000
