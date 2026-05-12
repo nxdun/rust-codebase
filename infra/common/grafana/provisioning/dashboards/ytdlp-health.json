@@ -11,7 +11,7 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "(sum(rate(ytdlp_jobs_completed_total{status=\"success\"}[5m])) / sum(rate(ytdlp_jobs_completed_total[5m]))) * 100",
+          "expr": "(((sum(ytdlp_jobs_completed_total{status=\"success\"}) or vector(0)) / (sum(ytdlp_jobs_completed_total) > 0)) * 100) or vector(100)",
           "legendFormat": "Success Rate"
         }
       ],

@@ -91,7 +91,7 @@ write_files:
       }
 
       :80 {
-        redir https://${PRODUCTION_DOMAIN}{uri}
+        redir https://${PRODUCTION_DOMAIN}{uri} 308
       }
 
       ${PRODUCTION_DOMAIN}:443 {
