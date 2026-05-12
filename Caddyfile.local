@@ -9,6 +9,11 @@ http://:8080 {
     reverse_proxy app:8080
 }
 
+# dev only: Redirect plain HTTP for nadzu.localhost to HTTPS permanently
+http://nadzu.localhost {
+    redir https://{host}{uri} 301
+}
+
 # HTTPS Protocol - Full Stack Access
 nadzu.localhost {
     tls internal

@@ -17,9 +17,6 @@ services:
       MASTER_API_KEY: "${MASTER_API_KEY}"
 
     volumes:
-      - ./:/app
-      - app-target:/app/target_docker
-      - app-cargo:/usr/local/cargo/registry
       - ./downloads:/app/downloads
 
   caddy:
@@ -49,8 +46,7 @@ services:
     image: grafana/grafana:latest
     container_name: nadzu-grafana
     environment:
-      - GF_AUTH_ANONYMOUS_ENABLED=true
-      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_AUTH_ANONYMOUS_ENABLED=false
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
       - GF_USERS_ALLOW_SIGN_UP=false
