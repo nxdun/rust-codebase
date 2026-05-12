@@ -117,12 +117,12 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "histogram_quantile(0.5, sum by (le) (rate(ytdlp_job_duration_seconds_bucket[5m])))",
+          "expr": "ytdlp_job_duration_seconds{quantile=\"0.5\"}",
           "legendFormat": "P50 (Median)"
         },
         {
           "datasource": "Prometheus",
-          "expr": "histogram_quantile(0.99, sum by (le) (rate(ytdlp_job_duration_seconds_bucket[5m])))",
+          "expr": "ytdlp_job_duration_seconds{quantile=\"0.99\"}",
           "legendFormat": "P99 (Worst Case)"
         }
       ],

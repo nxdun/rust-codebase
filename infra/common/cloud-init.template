@@ -251,6 +251,9 @@ write_files:
       fetch_url "${GRAFANA_PROVIDER_URL}" /opt/app/grafana/provisioning/dashboards/default.yml
       fetch_url "${YTDLP_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/ytdlp-health.json
 
+      # APP_PORT: Dynamic
+      sed -i "s/app:[0-9]*/app:${APP_PORT}/g" /opt/app/prometheus/prometheus.yml
+
       # Set Permissions
       chmod 644 /opt/app/browse.html
       chown root:root /opt/app/browse.html

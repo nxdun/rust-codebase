@@ -13,7 +13,7 @@ services:
       DOWNLOAD_DIR: "/app/downloads"
       RUST_LOG: "debug"
       ALLOWED_ORIGINS: "https://nadzu.localhost, http://localhost:8080"
-      CAPTCHA_SECRET_KEY: "nl-ultra-secret-key-dev"
+      CAPTCHA_SECRET_KEY: ${CAPTCHA_SECRET_KEY}
       MASTER_API_KEY: "${MASTER_API_KEY}"
 
     volumes:
