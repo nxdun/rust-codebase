@@ -1,4 +1,4 @@
-# Intergrated WARP Proxy.
+# Integrated WARP Proxy.
 name: nadzu
 services:
   warp:
