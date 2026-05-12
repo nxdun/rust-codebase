@@ -18,7 +18,7 @@
       "fieldConfig": {
         "defaults": {
           "unit": "percent",
-          "noValue": "100",
+          "noValue": 100,
           "thresholds": {
             "mode": "absolute",
             "steps": [
@@ -117,12 +117,12 @@
       "targets": [
         {
           "datasource": "Prometheus",
-          "expr": "ytdlp_job_duration_seconds{quantile=\"0.5\"}",
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(ytdlp_job_duration_seconds_bucket[5m])))",
           "legendFormat": "P50 (Median)"
         },
         {
           "datasource": "Prometheus",
-          "expr": "ytdlp_job_duration_seconds{quantile=\"0.99\"}",
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(ytdlp_job_duration_seconds_bucket[5m])))",
           "legendFormat": "P99 (Worst Case)"
         }
       ],

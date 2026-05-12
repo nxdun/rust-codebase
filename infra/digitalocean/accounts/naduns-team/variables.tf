@@ -214,7 +214,16 @@ variable "GRAFANA_PROVIDER_URL" {
   description = "Presigned URL to download grafana provider config for dashboard"
   type        = string
 }
+variable "GRAFANA_ADMIN_USER" {
+  description = "Admin username for Grafana"
+  type        = string
+}
 
+variable "GRAFANA_ADMIN_PASSWORD" {
+  description = "Admin password for Grafana"
+  type        = string
+  sensitive   = true
+}
 variable "YTDLP_DASHBOARD_URL" {
   description = "Presigned URL to download ytdlp dashboard json"
   type        = string
