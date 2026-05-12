@@ -229,6 +229,11 @@ variable "YTDLP_DASHBOARD_URL" {
   type        = string
 }
 
+variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
+  description = "Presigned URL to download captcha security dashboard json"
+  type        = string
+}
+
 variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
   //VAR: Declare on terraform.tfvars
   description = "Presigned URL to download custom browse.html"

@@ -197,3 +197,8 @@ variable "YTDLP_DASHBOARD_URL" {
   description = "Presigned URL to download ytdlp dashboard json"
   type        = string
 }
+
+variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
+  description = "Presigned URL to download captcha security dashboard json"
+  type        = string
+}
