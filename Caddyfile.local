@@ -1,31 +1,43 @@
 {
     debug
     admin :2026
-    email admin@nadzu.me
     auto_https disable_redirects
 }
 
-# HTTP Protocol
+# HTTP Protocol - Direct API Access
 http://:8080 {
-    handle {
-        reverse_proxy app:8080
-    }
+    reverse_proxy app:8080
 }
 
-# HTTPS Protocol
+# dev only: Redirect plain HTTP for nadzu.localhost to HTTPS permanently
+http://nadzu.localhost {
+    redir https://{host}{uri} 301
+}
+
+# HTTPS Protocol - Full Stack Access
 nadzu.localhost {
     tls internal
 
-    handle_path /downloads/* {
+    # 1. File System Access
+    handle_path /nadun/fs/* {
         root * /var/www/downloads
-
         file_server {
             browse /etc/caddy/browse.html
             hide lost+found
         }
     }
 
-    # Proxy everything else to the Rust backend
+    # 2. Local Grafana Access
+    handle /nadun/grafana/* {
+        reverse_proxy nadzu-grafana:3000
+    }
+
+    # 3. Local Metrics Access
+    handle /metrics {
+        reverse_proxy app:8080
+    }
+
+    # 4. Default API Proxy
     handle {
         reverse_proxy app:8080
     }

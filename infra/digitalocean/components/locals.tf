@@ -29,7 +29,14 @@ locals {
     MASTER_API_KEY            = coalesce(var.MASTER_API_KEY, "NOT-SET")
     CERT_PEM                  = file("${path.module}/../../common/certificates/api.nadzu.me.pem")
     CERT_KEY                  = file("${path.module}/../../common/certificates/api.nadzu.me.key")
-    CADDY_CUSTOM_BROWSE_FILE_URL = var.CADDY_CUSTOM_BROWSE_FILE_URL 
+    CADDY_CUSTOM_BROWSE_FILE_URL = var.CADDY_CUSTOM_BROWSE_FILE_URL
+    PROMETHEUS_CONFIG_URL     = var.PROMETHEUS_CONFIG_URL
+    GRAFANA_DATASOURCE_URL    = var.GRAFANA_DATASOURCE_URL
+    GRAFANA_PROVIDER_URL      = var.GRAFANA_PROVIDER_URL
+    GRAFANA_ADMIN_USER        = var.GRAFANA_ADMIN_USER
+    GRAFANA_ADMIN_PASSWORD    = var.GRAFANA_ADMIN_PASSWORD
+    YTDLP_DASHBOARD_URL       = var.YTDLP_DASHBOARD_URL
+    CAPTCHA_SECURITY_DASHBOARD_URL = var.CAPTCHA_SECURITY_DASHBOARD_URL
     SSH_ALLOWED_IPS           = join(" ", var.SSH_ALLOWED_IPS)
     PRODUCTION_DOMAIN         = join(".", [var.CLOUDFLARE_RECORD_NAME, var.CLOUDFLARE_ZONE_NAME])
     CADDY_CLOUDFLARE_TRUSTED_PROXIES = join(" ", concat(

@@ -5,7 +5,7 @@ ARG BIN=nadzu
 
 # --- STAGE 1: Rust Chef ---
 FROM --platform=$BUILDPLATFORM ${RUST_IMAGE} AS chef
-RUN apk add --no-cache build-base musl-dev zstd-dev pkgconfig ca-certificates
+RUN apk add --no-cache build-base musl-dev zstd-dev pkgconfig ca-certificates openssl-dev openssl-libs-static
 WORKDIR /app
 
 # --- STAGE 2: Rust Planner ---

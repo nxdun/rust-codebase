@@ -199,6 +199,41 @@ variable "MASTER_API_KEY" {
   sensitive   = true
 }
 
+
+variable "PROMETHEUS_CONFIG_URL" {
+  description = "Presigned URL to download prometheus.yml"
+  type        = string
+}
+
+variable "GRAFANA_DATASOURCE_URL" {
+  description = "Presigned URL to download prometheus data source config"
+  type        = string
+}
+
+variable "GRAFANA_PROVIDER_URL" {
+  description = "Presigned URL to download grafana provider config for dashboard"
+  type        = string
+}
+variable "GRAFANA_ADMIN_USER" {
+  description = "Admin username for Grafana"
+  type        = string
+}
+
+variable "GRAFANA_ADMIN_PASSWORD" {
+  description = "Admin password for Grafana"
+  type        = string
+  sensitive   = true
+}
+variable "YTDLP_DASHBOARD_URL" {
+  description = "Presigned URL to download ytdlp dashboard json"
+  type        = string
+}
+
+variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
+  description = "Presigned URL to download captcha security dashboard json"
+  type        = string
+}
+
 variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
   //VAR: Declare on terraform.tfvars
   description = "Presigned URL to download custom browse.html"

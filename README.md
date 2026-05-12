@@ -488,11 +488,12 @@ infra/
 
 ## Things I Learned
 
-- Rust: The initial learning curve is steep, but the long-term benefits in performance, safety, and low-level control are worth it.
-- Terraform: cloud-init is excellent for bootstrapping a server, but it has provider-specific size limits.
-- Terraform: The Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.
+- Rust: The initial learning curve is steep, but the long-term benefits in performance, safety, and low-level control are worth it. Very low RAM usage.  
+- Terraform: cloud-init is excellent for bootstrapping a server, but it has provider-specific size limits.  
+- Terraform: The Cloudflare provider only supports R2 buckets; use the AWS Terraform provider for object uploads to R2.  
+- Terraform: It's challenging to maintain local > S3 > cloud-init userdata passing when the project becomes complex over time.
 
-## Acknowledgements
+## Acknowledgements 
 
 * [**yt-dlp**][yt-dlp-repo]
 

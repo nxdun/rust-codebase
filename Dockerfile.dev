@@ -7,6 +7,7 @@ RUN apk add --no-cache \
     build-base \
     musl-dev \
     zstd-dev \
+    openssl-dev \
     pkgconfig \
     ca-certificates \
     curl \
