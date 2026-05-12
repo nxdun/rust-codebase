@@ -24,6 +24,7 @@ pub async fn run() {
 
     // 2. Initialize structured logging and environment-based log filtering
     telemetry::init_tracing();
+    tracing::info!("nadzu app::run() starting");
 
     // 3. Configure request/response tracing middleware
     let trace_layer = telemetry::build_trace_layer();

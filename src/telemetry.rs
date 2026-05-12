@@ -43,6 +43,7 @@ pub fn build_trace_layer() -> AppTraceLayer {
 
 /// Initializes the Prometheus metrics registry and returns the router.
 pub fn setup_metrics_router() -> Router<AppState> {
+    tracing::info!("Initializing Prometheus metrics recorder");
     let builder = PrometheusBuilder::new();
 
     // Install the global recorder
