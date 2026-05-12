@@ -2,7 +2,8 @@ name: nadzu-dev
 
 services:
   app:
-    # Build Docker image from local Dockerfile (make bd)
+    # run `make bd' to build the local image for development.image name 'nadzu:local`.
+    # For production deployments, use the published image `ghcr.io/nxdun/nadzu:latest` or an appropriate tagged release.
     image: nadzu:local
     environment:
       APP_HOST: "0.0.0.0"
@@ -12,7 +13,7 @@ services:
       DOWNLOAD_DIR: "/app/downloads"
       RUST_LOG: "debug"
       ALLOWED_ORIGINS: "https://nadzu.localhost, http://localhost:8080"
-      CAPTCHA_SECRET_KEY: "bypass"
+      CAPTCHA_SECRET_KEY: "nl-ultra-secret-key-dev"
       MASTER_API_KEY: "${MASTER_API_KEY}"
 
     volumes:

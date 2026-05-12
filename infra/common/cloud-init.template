@@ -12,7 +12,7 @@ packages:
 
 write_files:
   - path: /opt/app/docker-compose.yml
-    permissions: '0644'
+    permissions: '0600'
     owner: root:root
     content: |
       name: nadzu
@@ -237,11 +237,19 @@ write_files:
       mkdir -p /opt/app/grafana/provisioning/dashboards
 
       # Fetch Artifacts from S3 Presigned URLs
-      curl -sSfL "${CADDY_CUSTOM_BROWSE_FILE_URL}" -o /opt/app/browse.html
-      curl -sSfL "${PROMETHEUS_CONFIG_URL}" -o /opt/app/prometheus/prometheus.yml
-      curl -sSfL "${GRAFANA_DATASOURCE_URL}" -o /opt/app/grafana/provisioning/datasources/prometheus.yml
-      curl -sSfL "${GRAFANA_PROVIDER_URL}" -o /opt/app/grafana/provisioning/dashboards/default.yml
-      curl -sSfL "${YTDLP_DASHBOARD_URL}" -o /opt/app/grafana/provisioning/dashboards/ytdlp-health.json
+      fetch_url() {
+        for i in {1..5}; do
+          echo "Attempt $i: fetching $2"
+          if curl -sSfL "$1" -o "$2"; then return 0; fi
+          sleep $((2**i))
+        done
+        return 1
+      }
+      fetch_url "${CADDY_CUSTOM_BROWSE_FILE_URL}" /opt/app/browse.html
+      fetch_url "${PROMETHEUS_CONFIG_URL}" /opt/app/prometheus/prometheus.yml
+      fetch_url "${GRAFANA_DATASOURCE_URL}" /opt/app/grafana/provisioning/datasources/prometheus.yml
+      fetch_url "${GRAFANA_PROVIDER_URL}" /opt/app/grafana/provisioning/dashboards/default.yml
+      fetch_url "${YTDLP_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/ytdlp-health.json
 
       # Set Permissions
       chmod 644 /opt/app/browse.html
