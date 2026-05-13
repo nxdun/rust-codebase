@@ -193,12 +193,17 @@ variable "GRAFANA_ADMIN_PASSWORD" {
   sensitive   = true
 }
 
-variable "YTDLP_DASHBOARD_URL" {
-  description = "Presigned URL to download ytdlp dashboard json"
+variable "API_HEALTH_DASHBOARD_URL" {
+  description = "Presigned URL to download api health dashboard json"
   type        = string
 }
 
-variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
-  description = "Presigned URL to download captcha security dashboard json"
+variable "SECURITY_OVERVIEW_DASHBOARD_URL" {
+  description = "Presigned URL to download security overview dashboard json"
+  type        = string
+}
+
+variable "DOMAIN_SERVICES_DASHBOARD_URL" {
+  description = "Presigned URL to download domain services dashboard json"
   type        = string
 }
