@@ -4,6 +4,7 @@ use axum::{
     middleware::Next,
     response::Response,
 };
+use metrics::counter;
 
 use crate::{config::AppConfig, error::AppError, middleware::HEADER_API_KEY, state::AppState};
 
@@ -23,8 +24,10 @@ pub async fn require_api_key(
     next: Next,
 ) -> Result<Response, AppError> {
     if has_valid_master_api_key(req.headers(), state.config.as_ref()) {
+        counter!("auth_api_key_check_total", "status" => "valid").increment(1);
         Ok(next.run(req).await)
     } else {
+        counter!("auth_api_key_check_total", "status" => "invalid").increment(1);
         Err(AppError::Unauthorized(
             "Invalid or missing API key".to_string(),
         ))
