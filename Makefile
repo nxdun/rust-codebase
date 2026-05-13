@@ -187,10 +187,12 @@ tf: ## use this to spawn a loaded shell
 		export TF_VAR_GRAFANA_DATASOURCE_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/grafana_datasource.yml\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r') && \
 		aws s3 cp infra/common/grafana/provisioning/dashboards/default.yml \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/grafana_provider.yml\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
 		export TF_VAR_GRAFANA_PROVIDER_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/grafana_provider.yml\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\r') && \
-		aws s3 cp infra/common/grafana/provisioning/dashboards/ytdlp-health.json \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/ytdlp-health.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
-		export TF_VAR_YTDLP_DASHBOARD_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/ytdlp-health.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\\r') && \
-		aws s3 cp infra/common/grafana/provisioning/dashboards/captcha-security.json \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/captcha-security.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
-		export TF_VAR_CAPTCHA_SECURITY_DASHBOARD_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/captcha-security.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\\r') && \
+		aws s3 cp infra/common/grafana/provisioning/dashboards/api-health.json \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/api-health.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
+		export TF_VAR_API_HEALTH_DASHBOARD_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/api-health.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\\r') && \
+		aws s3 cp infra/common/grafana/provisioning/dashboards/security-overview.json \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/security-overview.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
+		export TF_VAR_SECURITY_OVERVIEW_DASHBOARD_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/security-overview.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\\r') && \
+		aws s3 cp infra/common/grafana/provisioning/dashboards/domain-services.json \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/domain-services.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" && \
+		export TF_VAR_DOMAIN_SERVICES_DASHBOARD_URL=\$$(aws s3 presign \"s3://\$$AWS_S3_BUCKET_NAME/terraform/data/domain-services.json\" --endpoint-url \"\$$AWS_ENDPOINT_URL_S3\" --expires-in 3600 | tr -d '\\r') && \
 		export MSYS_NO_PATHCONV=1 && \
 		cd $(TF_STACK_DIR) && \
 		unset PROMPT_COMMAND && \

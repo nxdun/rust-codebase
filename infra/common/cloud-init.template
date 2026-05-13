@@ -24,8 +24,6 @@ write_files:
             - NET_ADMIN
           devices:
             - /dev/net/tun:/dev/net/tun
-          ports:
-            - "40000:40000"
 
         app:
           image: ${GHCR_IMAGE}
@@ -249,8 +247,9 @@ write_files:
       fetch_url "${PROMETHEUS_CONFIG_URL}" /opt/app/prometheus/prometheus.yml
       fetch_url "${GRAFANA_DATASOURCE_URL}" /opt/app/grafana/provisioning/datasources/prometheus.yml
       fetch_url "${GRAFANA_PROVIDER_URL}" /opt/app/grafana/provisioning/dashboards/default.yml
-      fetch_url "${YTDLP_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/ytdlp-health.json
-      fetch_url "${CAPTCHA_SECURITY_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/captcha-security.json
+      fetch_url "${API_HEALTH_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/api-health.json
+      fetch_url "${SECURITY_OVERVIEW_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/security-overview.json
+      fetch_url "${DOMAIN_SERVICES_DASHBOARD_URL}" /opt/app/grafana/provisioning/dashboards/domain-services.json
 
       # APP_PORT: Dynamic
       sed -i "s/app:[0-9]*/app:${APP_PORT}/g" /opt/app/prometheus/prometheus.yml
