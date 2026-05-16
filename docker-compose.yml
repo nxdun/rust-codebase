@@ -4,39 +4,62 @@ services:
   warp:
     image: nxdun/cloudflare-warp-proxy:latest
     restart: unless-stopped
-    ports:
-      - "40000:40000"
+
+    # ADD NET_ADMIN capability and mount /dev/net/tun for WireGuard support
+
+    # cap_add:
+    #   - NET_ADMIN
+    # devices:
+    #   - /dev/net/tun:/dev/net/tun
 
   app:
-    # Use `nadzu:local` for local development. For production deployments, use
-    # the published image `ghcr.io/nxdun/nadzu:latest` or an appropriate tagged release.
-    image: nadzu:local
-    container_name: nadzu
+    image: ${GHCR_IMAGE}
+    restart: unless-stopped
     depends_on:
       - warp
+    volumes:
+      - "${MOUNT_PATH}:/home/app/downloads"
+    env_file:
+      - .env
     environment:
-      APP_PORT: "${APP_PORT}"
-      APP_ENV: "${APP_ENV}"
-      APP_NAME: "${APP_NAME}"
-      ALLOWED_ORIGINS: "${ALLOWED_ORIGINS}"
-      MAX_CONCURRENT_DOWNLOADS: "${MAX_CONCURRENT_DOWNLOADS}"
-      CAPTCHA_SECRET_KEY: "${CAPTCHA_SECRET_KEY}"
-      MASTER_API_KEY: "${MASTER_API_KEY}"
-      
-      HTTP_PROXY: "socks5h://warp:40000"
-      HTTPS_PROXY: "socks5h://warp:40000"
-      ALL_PROXY: "socks5h://warp:40000"
+      - HTTP_PROXY=socks5h://warp:40000
+      - HTTPS_PROXY=socks5h://warp:40000
+      - ALL_PROXY=socks5h://warp:40000
+      - NO_PROXY=localhost,127.0.0.1,app,warp,caddy,prometheus,grafana
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
     ports:
       - "80:80"
-  # caddy:
-  #   image: caddy:alpine
-  #   restart: unless-stopped
-  #   ports:
-  #     - "80:80"
-  #     - "443:443"
-  #   volumes:
-  #     - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
-  #     - /opt/app/certs:/etc/caddy/certs:ro
-  #   depends_on:
-  #     - app
+      - "443:443"
+    volumes:
+      - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/app/certs:/etc/caddy/certs:ro
+      - /opt/app/browse.html:/etc/caddy/browse.html:ro
+      - "${MOUNT_PATH}:/home/app/downloads:ro"
+    depends_on:
+      - app
+
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    volumes:
+      - <prometheus.yml-path>:/etc/prometheus/prometheus.yml
+
+  grafana:
+    image: grafana/grafana:latest
+    restart: unless-stopped
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
+      - GF_SECURITY_ADMIN_USER=${GRAFANA_ADMIN_USER}
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_ADMIN_PASSWORD}
+      - GF_USERS_ALLOW_SIGN_UP=false
+      - GF_SERVER_SERVE_FROM_SUB_PATH=true
+      - GF_SERVER_ROOT_URL=https://${PRODUCTION_DOMAIN}/nadun/grafana/
+    volumes:
+      - <grafana-provisioning-folder>:/etc/grafana/provisioning
+    depends_on:
+      - prometheus
   
