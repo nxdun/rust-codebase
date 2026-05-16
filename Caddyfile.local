@@ -6,17 +6,20 @@
 
 # HTTP Protocol - Direct API Access
 http://:8080 {
+    header -Server
     reverse_proxy app:8080
 }
 
 # dev only: Redirect plain HTTP for nadzu.localhost to HTTPS permanently
 http://nadzu.localhost {
+    header -Server
     redir https://{host}{uri} 301
 }
 
 # HTTPS Protocol - Full Stack Access
 nadzu.localhost {
     tls internal
+    header -Server
 
     # 1. File System Access
     handle_path /nadun/fs/* {

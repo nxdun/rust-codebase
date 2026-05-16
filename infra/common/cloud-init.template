@@ -94,6 +94,7 @@ write_files:
 
       ${PRODUCTION_DOMAIN}:443 {
         tls /etc/caddy/certs/${PRODUCTION_DOMAIN}.pem /etc/caddy/certs/${PRODUCTION_DOMAIN}.key
+        header -Server
 
         # Global: Internal Access
         @internal_only {
