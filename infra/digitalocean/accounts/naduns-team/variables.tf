@@ -88,25 +88,25 @@ variable "GITHUB_USERNAME" {
 //APP Runtime Config
 // - - - - - - - - - - - - - -
 variable "APP_PORT" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_APP_PORT. never Declare
   description = "Container and host port for the API"
   type        = number
 }
 
 variable "APP_HOST" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_APP_HOST. never Declare
   description = "Host address for the API"
   type        = string
 }
 
 variable "APP_ENV" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_APP_ENV. never Declare
   description = "Environment name (e.g. production)"
   type        = string
 }
 
 variable "ALLOWED_ORIGINS" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_ALLOWED_ORIGINS. never Declare
   description = "Allowed CORS origins"
   type        = string
 }
@@ -118,19 +118,19 @@ variable "DOWNLOADS_MOUNT_PATH" {
 }
 
 variable "DOWNLOAD_DIR" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_DOWNLOAD_DIR. never Declare
   description = "Directory for persistent downloads"
   type        = string
 }
 
 variable "MAX_CONCURRENT_DOWNLOADS" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_MAX_CONCURRENT_DOWNLOADS. never Declare
   description = "Maximum number of concurrent downloads"
   type        = number
 }
 
 variable "RUST_LOG" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via root .env as TF_VAR_RUST_LOG. never Declare
   description = "Rust log filter directives"
   type        = string
 }
@@ -201,46 +201,48 @@ variable "MASTER_API_KEY" {
 
 
 variable "PROMETHEUS_CONFIG_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_PROMETHEUS_CONFIG_URL. never Declare
   description = "Presigned URL to download prometheus.yml"
   type        = string
 }
 
 variable "GRAFANA_DATASOURCE_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_GRAFANA_DATASOURCE_URL. never Declare
   description = "Presigned URL to download prometheus data source config"
   type        = string
 }
 
 variable "GRAFANA_PROVIDER_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_GRAFANA_PROVIDER_URL. never Declare
   description = "Presigned URL to download grafana provider config for dashboard"
   type        = string
 }
 variable "GRAFANA_ADMIN_USER" {
+  //VAR: Expected to be set via root .env as TF_VAR_GRAFANA_ADMIN_USER. never Declare
   description = "Admin username for Grafana"
   type        = string
 }
 
 variable "GRAFANA_ADMIN_PASSWORD" {
+  //SECRET: Expected to be set via root TF_VAR_GRAFANA_ADMIN_PASSWORD. never Declare
   description = "Admin password for Grafana"
   type        = string
   sensitive   = true
 }
-variable "API_HEALTH_DASHBOARD_URL" {
-  description = "Presigned URL to download api health dashboard json"
+variable "YTDLP_DASHBOARD_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_YTDLP_DASHBOARD_URL. never Declare
+  description = "Presigned URL to download ytdlp dashboard json"
   type        = string
 }
 
-variable "SECURITY_OVERVIEW_DASHBOARD_URL" {
-  description = "Presigned URL to download security overview dashboard json"
-  type        = string
-}
-
-variable "DOMAIN_SERVICES_DASHBOARD_URL" {
-  description = "Presigned URL to download domain services dashboard json"
+variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_CAPTCHA_SECURITY_DASHBOARD_URL. never Declare
+  description = "Presigned URL to download captcha security dashboard json"
   type        = string
 }
 
 variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
-  //VAR: Declare on terraform.tfvars
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_CADDY_CUSTOM_BROWSE_FILE_URL. never Declare
   description = "Presigned URL to download custom browse.html"
   type        = string
 }

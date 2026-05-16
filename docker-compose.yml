@@ -6,11 +6,13 @@ services:
   warp:
     image: nxdun/cloudflare-warp-proxy:latest
     restart: unless-stopped
-    # Required capabilities and devices for WireGuard to work properly
-    cap_add:
-      - NET_ADMIN
-    devices:
-      - /dev/net/tun:/dev/net/tun
+
+    # ADD NET_ADMIN capability and mount /dev/net/tun for WireGuard support
+
+    # cap_add:
+    #   - NET_ADMIN
+    # devices:
+    #   - /dev/net/tun:/dev/net/tun
 
   app:
     image: ${GHCR_IMAGE}
@@ -43,13 +45,13 @@ services:
 
   prometheus:
     image: prom/prometheus:latest
-    restart: ${DOCKER_RESTART_POLICY}
+    restart: unless-stopped
     volumes:
-      - ./infra/common/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - <prometheus.yml-path>:/etc/prometheus/prometheus.yml
 
   grafana:
     image: grafana/grafana:latest
-    restart: ${DOCKER_RESTART_POLICY}
+    restart: unless-stopped
     environment:
       - GF_AUTH_ANONYMOUS_ENABLED=true
       - GF_AUTH_ANONYMOUS_ORG_ROLE=Viewer
@@ -59,6 +61,7 @@ services:
       - GF_SERVER_SERVE_FROM_SUB_PATH=true
       - GF_SERVER_ROOT_URL=https://${PRODUCTION_DOMAIN}/nadun/grafana/
     volumes:
-      - ./infra/common/grafana/provisioning:/etc/grafana/provisioning
+      - <grafana-provisioning-folder>:/etc/grafana/provisioning
     depends_on:
       - prometheus
+  
