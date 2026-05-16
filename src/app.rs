@@ -22,7 +22,7 @@ pub async fn run() {
     // 1. Load environment variables from .env file
     dotenv().ok();
 
-    // 2. Initialize structured logging and environment-based log filtering
+    // 2. Initialize structured logging and prometheus metrics
     telemetry::init_tracing();
     tracing::info!("nadzu app::run() starting");
 
@@ -72,6 +72,9 @@ pub async fn run() {
         .layer(middleware::from_fn_with_state(
             state.clone(),
             enforce_tiered_rate_limit,
+        ))
+        .layer(middleware::from_fn(
+            crate::middleware::metrics::track_http_metrics,
         ))
         .layer(trace_layer)
         .layer(cors_layer)

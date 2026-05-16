@@ -3,6 +3,7 @@ use axum::http::header::HeaderName;
 pub mod api_key;
 pub mod captcha;
 pub mod cors;
+pub mod metrics;
 pub mod rate_limit;
 
 pub const HEADER_API_KEY: HeaderName = HeaderName::from_static("x-api-key");

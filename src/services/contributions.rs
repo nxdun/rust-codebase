@@ -1,4 +1,5 @@
 use dashmap::DashMap;
+use metrics::{counter, histogram};
 use reqwest::Client;
 use serde::Serialize;
 use std::borrow::Cow;
@@ -164,6 +165,7 @@ impl ContributionsService {
             if *expires_at > now {
                 let mut resp = cached_resp.clone();
                 resp.meta.cached = true;
+                counter!("github_contributions_fetch_total", "source" => "cache", "status" => "success").increment(1);
                 return Ok(resp);
             }
         }
@@ -182,7 +184,10 @@ impl ContributionsService {
 
                 if self.cache.len() < CACHE_MAX_CAPACITY {
                     self.cache.insert(cache_key, (new_resp.clone(), expires_at));
+                    #[allow(clippy::cast_precision_loss)]
+                    metrics::gauge!("github_cache_size").set(self.cache.len() as f64);
                 }
+                metrics::counter!("github_contributions_fetch_total", "source" => "api", "status" => "success").increment(1);
                 Ok(new_resp)
             }
             Err(e) => {
@@ -190,8 +195,10 @@ impl ContributionsService {
                 if let Some(entry) = self.cache.get(&cache_key) {
                     let mut resp = entry.value().0.clone();
                     resp.meta.cached = true;
+                    metrics::counter!("github_contributions_fetch_total", "source" => "cache", "status" => "stale_fallback").increment(1);
                     return Ok(resp);
                 }
+                metrics::counter!("github_contributions_fetch_total", "source" => "api", "status" => "error").increment(1);
                 Err(e)
             }
         }
@@ -210,6 +217,7 @@ impl ContributionsService {
             },
         };
 
+        let start_time = std::time::Instant::now();
         let resp = self
             .http_client
             .post(&self.graphql_url)
@@ -218,8 +226,12 @@ impl ContributionsService {
             .timeout(Duration::from_secs(30))
             .json(&payload)
             .send()
-            .await
-            .map_err(|e| AppError::UpstreamError(format!("Network or timeout error: {e}")))?;
+            .await;
+
+        histogram!("github_api_duration_seconds").record(start_time.elapsed().as_secs_f64());
+
+        let resp =
+            resp.map_err(|e| AppError::UpstreamError(format!("Network or timeout error: {e}")))?;
 
         if !resp.status().is_success() {
             return Err(AppError::UpstreamError(format!(

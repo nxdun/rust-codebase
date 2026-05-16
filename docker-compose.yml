@@ -1,4 +1,6 @@
-# Integrated WARP Proxy.
+
+# Production docker-compose file: refer to infra/common/cloud-init.template
+
 name: nadzu
 services:
   warp:
@@ -18,7 +20,7 @@ services:
     depends_on:
       - warp
     volumes:
-      - "${MOUNT_PATH}:/home/app/downloads"
+      - "./production/downloads:/home/app/downloads"
     env_file:
       - .env
     environment:
@@ -34,10 +36,10 @@ services:
       - "80:80"
       - "443:443"
     volumes:
-      - /opt/app/Caddyfile:/etc/caddy/Caddyfile:ro
-      - /opt/app/certs:/etc/caddy/certs:ro
-      - /opt/app/browse.html:/etc/caddy/browse.html:ro
-      - "${MOUNT_PATH}:/home/app/downloads:ro"
+      - Caddyfile:/etc/caddy/Caddyfile:ro
+      - ./infra/common/certs:/etc/caddy/certs:ro
+      - ./infra/common/browse.html:/etc/caddy/browse.html:ro
+      - "./production/downloads:/home/app/downloads:ro"
     depends_on:
       - app
 

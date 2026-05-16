@@ -139,12 +139,15 @@ pub async fn enforce_tiered_rate_limit(
     let client_key = request_client_key(&req, state.config.as_ref());
     let limiter = state.rate_limiters.limiter_for_api_key(has_valid_api_key);
 
+    let tier = if has_valid_api_key {
+        "enhanced"
+    } else {
+        "normal"
+    };
+
     if limiter.check_key(&client_key).is_err() {
-        let tier = if has_valid_api_key {
-            "enhanced"
-        } else {
-            "normal"
-        };
+        metrics::counter!("rate_limit_checks_total", "tier" => tier, "status" => "rejected")
+            .increment(1);
         debug!(
             client_key = %client_key,
             tier = tier,
@@ -152,6 +155,9 @@ pub async fn enforce_tiered_rate_limit(
         );
         return Err(AppError::Forbidden(format!("Rate limit exceeded ({tier})")));
     }
+
+    metrics::counter!("rate_limit_checks_total", "tier" => tier, "status" => "allowed")
+        .increment(1);
 
     Ok(next.run(req).await)
 }
