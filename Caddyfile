@@ -13,6 +13,7 @@
 
 ${PRODUCTION_DOMAIN}:443 {
     tls /etc/caddy/certs/${PRODUCTION_DOMAIN}.pem /etc/caddy/certs/${PRODUCTION_DOMAIN}.key
+    header -Server
 
     # Global Matcher: Only your SSH/VPN IPs can pass
     @internal_only {
