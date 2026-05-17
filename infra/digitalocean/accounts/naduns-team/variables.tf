@@ -229,20 +229,27 @@ variable "GRAFANA_ADMIN_PASSWORD" {
   type        = string
   sensitive   = true
 }
-variable "YTDLP_DASHBOARD_URL" {
-  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_YTDLP_DASHBOARD_URL. never Declare
-  description = "Presigned URL to download ytdlp dashboard json"
-  type        = string
-}
-
-variable "CAPTCHA_SECURITY_DASHBOARD_URL" {
-  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_CAPTCHA_SECURITY_DASHBOARD_URL. never Declare
-  description = "Presigned URL to download captcha security dashboard json"
-  type        = string
-}
 
 variable "CADDY_CUSTOM_BROWSE_FILE_URL" {
   //VAR: Expected to be set via Makefile (make tf) as TF_VAR_CADDY_CUSTOM_BROWSE_FILE_URL. never Declare
   description = "Presigned URL to download custom browse.html"
+  type        = string
+}
+
+variable "API_HEALTH_DASHBOARD_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_API_HEALTH_DASHBOARD_URL. never Declare
+  description = "Presigned URL to download api-health.json"
+  type        = string
+}
+
+variable "SECURITY_OVERVIEW_DASHBOARD_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_SECURITY_OVERVIEW_DASHBOARD_URL. never Declare
+  description = "Presigned URL to download security-overview.json"
+  type        = string
+}
+
+variable "DOMAIN_SERVICES_DASHBOARD_URL" {
+  //VAR: Expected to be set via Makefile (make tf) as TF_VAR_DOMAIN_SERVICES_DASHBOARD_URL. never Declare
+  description = "Presigned URL to download domain-services.json"
   type        = string
 }
