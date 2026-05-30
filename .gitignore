@@ -20,7 +20,7 @@ target
 **/.postman/**
 .github/**/*.md
 .vscode/
-
+.antigravitycli/
 infra/.terraform/
 
 # Terraform (ignore local/sensitive artifacts, keep lock files committed)
