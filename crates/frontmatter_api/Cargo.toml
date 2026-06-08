@@ -1,0 +1,31 @@
+[package]
+name = "frontmatter_api"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+shared_core = { path = "../shared_core" }
+axum = { workspace = true }
+tokio = { workspace = true }
+tower = { workspace = true }
+tower-http = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+apalis = { workspace = true }
+apalis-redis = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+dashmap = { workspace = true }
+validator = { workspace = true }
+reqwest = { workspace = true }
+dotenvy = { workspace = true }
+anyhow = { workspace = true }
+governor = { workspace = true }
+tower_governor = { workspace = true }
+url = { workspace = true }
+regex = { workspace = true }
+tokio-stream = { workspace = true }
+uuid = { workspace = true }
+sqlx = { workspace = true }
