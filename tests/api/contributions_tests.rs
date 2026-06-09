@@ -75,6 +75,9 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
         Some("fake_pat".into()),
         Some("nxdun".into()),
         mock_server.uri(),
+        "fake_key".into(),
+        "https://api.groq.com/openai/v1".into(),
+        "https://example.com/connector".into(),
     );
 
     let http_client = reqwest::Client::new();
@@ -87,10 +90,16 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
 
     let state = nadzu::state::AppState {
         config: Arc::new(config.clone()),
-        ytdlp_manager: Arc::new(nadzu::services::ytdlp::YtdlpManager::new(Arc::new(config))),
+        ytdlp_manager: Arc::new(nadzu::services::ytdlp::YtdlpManager::new(Arc::new(
+            config.clone(),
+        ))),
         rate_limiters: Arc::new(nadzu::middleware::rate_limit::RateLimiters::new()),
-        http_client,
+        http_client: http_client.clone(),
         contributions_service,
+        malee_service: Arc::new(nadzu::services::malee::service::MaleeService::new(
+            &config,
+            http_client.clone(),
+        )),
     };
 
     // Mock GitHub GraphQL response

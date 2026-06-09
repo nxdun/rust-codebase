@@ -53,6 +53,9 @@ pub fn create_test_state_with_options(
         None,
         None,
         "https://api.github.com/graphql".into(),
+        "fake_key".into(),
+        "https://api.groq.com/openai/v1".into(),
+        "https://example.com/connector".into(),
     ));
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));
@@ -66,11 +69,15 @@ pub fn create_test_state_with_options(
     ));
 
     AppState {
-        config,
+        config: config.clone(),
         ytdlp_manager,
         rate_limiters,
-        http_client,
+        http_client: http_client.clone(),
         contributions_service,
+        malee_service: Arc::new(nadzu::services::malee::service::MaleeService::new(
+            &config,
+            http_client,
+        )),
     }
 }
 

@@ -23,6 +23,9 @@ fn test_config(env: &str) -> AppConfig {
         None,
         None,
         "https://api.github.com/graphql".to_string(),
+        "fake_key".to_string(),
+        "https://api.groq.com/openai/v1".to_string(),
+        "https://example.com/connector".to_string(),
     )
 }
 
