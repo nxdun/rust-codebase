@@ -1,0 +1,108 @@
+use crate::models::malee::cart::CartState;
+use crate::models::malee::checkout::CheckoutDraft;
+use crate::services::malee::connector::types::CreateOrderArgs;
+use chrono::Utc;
+use regex::Regex;
+
+pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderArgs, Vec<String>> {
+    let mut errors = Vec::new();
+
+    if cart.items.is_empty() {
+        errors.push("cart".to_string());
+    }
+
+    #[allow(clippy::unwrap_used)]
+    let recipient = if let Some(r) = &draft.recipient {
+        let phone_re = Regex::new(r"^07[0-9]{8}$").unwrap();
+        if r.name.len() < 2 || r.name.len() > 80 {
+            errors.push("recipient.name".to_string());
+        }
+        if !phone_re.is_match(&r.phone) {
+            errors.push("recipient.phone".to_string());
+        }
+        if r.address_line1.len() < 5 || r.address_line1.len() > 200 {
+            errors.push("recipient.address_line1".to_string());
+        }
+        if r.city.trim().is_empty() {
+            errors.push("recipient.city".to_string());
+        }
+        r.clone()
+    } else {
+        errors.push("recipient".to_string());
+        crate::models::malee::checkout::RecipientInfo {
+            name: String::new(),
+            phone: String::new(),
+            address_line1: String::new(),
+            address_line2: None,
+            city: String::new(),
+        } // Dummy
+    };
+
+    let delivery = if let Some(d) = &draft.delivery {
+        let today = Utc::now().date_naive();
+        if d.date < today || d.date > today + chrono::Duration::days(90) {
+            errors.push("delivery.date".to_string());
+        }
+        d.clone()
+    } else {
+        errors.push("delivery".to_string());
+        crate::models::malee::checkout::DeliveryInfo {
+            date: Utc::now().date_naive(),
+            city: String::new(),
+            quote_status: crate::models::malee::checkout::QuoteStatus::Pending,
+        }
+    };
+
+    let sender = if let Some(s) = &draft.sender {
+        if s.name.len() < 2 || s.name.len() > 80 {
+            errors.push("sender.name".to_string());
+        }
+        if !s.email.contains('@') || !s.email.contains('.') {
+            errors.push("sender.email".to_string());
+        }
+        if s.phone.trim().is_empty() {
+            errors.push("sender.phone".to_string());
+        }
+        s.clone()
+    } else {
+        errors.push("sender".to_string());
+        crate::models::malee::checkout::SenderInfo {
+            name: String::new(),
+            email: String::new(),
+            phone: String::new(),
+        }
+    };
+
+    let gift_message = draft.gift_message.clone().map(|msg| {
+        if msg.len() > 240 {
+            msg.chars().take(240).collect()
+        } else {
+            msg
+        }
+    });
+
+    if errors.is_empty() {
+        Ok(CreateOrderArgs {
+            items: cart.items.clone(),
+            recipient,
+            delivery,
+            sender,
+            gift_message,
+        })
+    } else {
+        Err(errors)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_validate_empty() {
+        let draft = CheckoutDraft::default();
+        let cart = CartState::default();
+        let res = validate(&draft, &cart);
+        assert!(res.is_err());
+    }
+}
