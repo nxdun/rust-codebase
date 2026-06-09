@@ -1,6 +1,7 @@
 use crate::config::AppConfig;
 use crate::middleware::rate_limit::RateLimiters;
 use crate::services::contributions::ContributionsService;
+use crate::services::malee::MaleeService;
 use crate::services::ytdlp::YtdlpManager;
 use std::sync::Arc;
 
@@ -17,4 +18,6 @@ pub struct AppState {
     pub http_client: reqwest::Client,
     /// Service for handling GitHub contribution data.
     pub contributions_service: Arc<ContributionsService>,
+    /// Malee shopping assistant service.
+    pub malee_service: Arc<MaleeService>,
 }
