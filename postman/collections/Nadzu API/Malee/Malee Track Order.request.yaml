@@ -1,0 +1,31 @@
+$kind: http-request
+name: Malee Track Order
+url: "{{base_url}}/api/v1/malee/track"
+method: POST
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "order_id": "ORD-123"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has tracking details', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('status');
+        pm.expect(jsonData).to.have.property('recipient');
+        pm.expect(jsonData).to.have.property('items');
+        pm.expect(jsonData).to.have.property('timeline');
+      });
+    language: text/javascript
+order: 3004

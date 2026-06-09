@@ -1,0 +1,39 @@
+$kind: http-request
+name: Malee Action
+url: "{{base_url}}/api/v1/malee/action"
+method: POST
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "session_id": "{{malee_session_id}}",
+      "action": "add_to_cart",
+      "payload": {
+        "product_id": "p-123",
+        "name": "Blue Water Lily",
+        "price_lkr": 2500,
+        "quantity": 1,
+        "image_url": "https://example.com/image.jpg",
+        "is_perishable": true
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has session or cart', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.satisfy(function(res) {
+          return res.session !== undefined || res.cart !== undefined;
+        });
+      });
+    language: text/javascript
+order: 3001
