@@ -6,6 +6,7 @@ This document serves as the foundational mandate for all engineering work on nad
 
 ### DTO vs. Domain Model Separation
 *   **External DTOs (`*_dto.rs`)**: Strictly for mapping external API responses (e.g., GitHub, YouTube). They must mirror the external schema (e.g., `camelCase`).
+*   **Futureproof DTOs**: DTOs for outside connections (like MCP servers) must be futureproof by being extensible and reusable.
 *   **Domain Models (`src/models/`)**: Clean, optimized structures used by our business logic and returned to our frontend.
 *   **Anti-Corruption Layer**: Every service must implement a transformation pass (e.g., `transform_calendar`) to convert "dirty" DTOs into "pure" Domain Models. **Never leak external API structures into the rest of the application.**
 
@@ -35,6 +36,10 @@ This document serves as the foundational mandate for all engineering work on nad
 *   Use specific "Response" versions of models (e.g., `YtdlpJobResponse`) to filter sensitive fields.
 
 ## 4. Configuration Management
+
+### Environment Variables
+*   **No Default Fallbacks for Required Env**: Do not set default env fallbacks for required values (like LLM endpoints or Secrets). All required configurations must be passed from `.env`. Re-use existing design patterns instead of implementing new helpers.
+*   **Constants Location**: Configuration related values (like TTLs, model fallbacks, Max Item limits) must be defined as `const` in the same location where the business logic resides, EXCEPT for Secret values and endpoint URLs, which must be loaded from `.env`.
 
 ### Result-Based Loading
 *   `AppConfig::from_env()` must return a `Result<Self, ConfigError>`.
