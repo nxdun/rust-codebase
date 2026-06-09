@@ -130,3 +130,36 @@ impl From<std::io::Error> for AppError {
         Self::Internal(anyhow::anyhow!("IO error: {err}"))
     }
 }
+
+#[derive(Debug, Error)]
+pub enum MaleeError {
+    #[error("Agent loop depth exceeded")]
+    LoopDepthExceeded,
+    #[error("Upstream connector error: {0}")]
+    ConnectorError(String),
+    #[error("LLM API error: {0}")]
+    LlmError(String),
+    #[error("Cart is full (max {0} items)")]
+    CartFull(usize),
+    #[error("Order cooldown active, wait {seconds} seconds")]
+    OrderCooldown { seconds: u64 },
+    #[error("Validation error: {0}")]
+    Validation(String),
+    #[error("Internal error: {0}")]
+    Internal(String),
+}
+
+impl From<MaleeError> for AppError {
+    fn from(err: MaleeError) -> Self {
+        match err {
+            MaleeError::Validation(msg) => Self::Validation(msg),
+            MaleeError::CartFull(_) | MaleeError::OrderCooldown { .. } => {
+                Self::Validation(err.to_string())
+            }
+            MaleeError::ConnectorError(msg) | MaleeError::LlmError(msg) => Self::UpstreamError(msg),
+            MaleeError::LoopDepthExceeded | MaleeError::Internal(_) => {
+                Self::Internal(anyhow::anyhow!(err.to_string()))
+            }
+        }
+    }
+}

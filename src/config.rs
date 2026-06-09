@@ -74,6 +74,9 @@ pub struct AppConfig {
     pub github_username: Option<String>,
     /// GitHub GraphQL API URL.
     pub github_graphql_url: String,
+    pub malee_llm_api_key: String,
+    pub malee_llm_base_url: String,
+    pub malee_connector_url: String,
 }
 
 impl fmt::Debug for AppConfig {
@@ -97,6 +100,9 @@ impl fmt::Debug for AppConfig {
             .field("github_pat", &"***")
             .field("github_username", &self.github_username)
             .field("github_graphql_url", &self.github_graphql_url)
+            .field("malee_llm_api_key", &"***")
+            .field("malee_llm_base_url", &self.malee_llm_base_url)
+            .field("malee_connector_url", &self.malee_connector_url)
             .finish()
     }
 }
@@ -120,6 +126,9 @@ impl AppConfig {
         github_pat: Option<String>,
         github_username: Option<String>,
         github_graphql_url: String,
+        malee_llm_api_key: String,
+        malee_llm_base_url: String,
+        malee_connector_url: String,
     ) -> Self {
         Self {
             name,
@@ -137,6 +146,9 @@ impl AppConfig {
             github_pat,
             github_username,
             github_graphql_url,
+            malee_llm_api_key,
+            malee_llm_base_url,
+            malee_connector_url,
         }
     }
 
@@ -161,6 +173,12 @@ impl AppConfig {
             env_opt("GITHUB_PAT"),
             env_opt("GITHUB_USERNAME"),
             env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
+            env_opt("MALEE_LLM_API_KEY")
+                .ok_or_else(|| ConfigError::MissingVar("MALEE_LLM_API_KEY".to_string()))?,
+            env_opt("MALEE_LLM_BASE_URL")
+                .ok_or_else(|| ConfigError::MissingVar("MALEE_LLM_BASE_URL".to_string()))?,
+            env_opt("MALEE_CONNECTOR_URL")
+                .ok_or_else(|| ConfigError::MissingVar("MALEE_CONNECTOR_URL".to_string()))?,
         ))
     }
 
