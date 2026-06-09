@@ -14,5 +14,9 @@ mod ytdlp_routes;
 pub fn router(state: AppState) -> Router<AppState> {
     Router::new()
         .merge(ytdlp_routes::router(state.clone()))
-        .nest("/api/v1/contributions", contributions_routes::router(state))
+        .nest(
+            "/api/v1/contributions",
+            contributions_routes::router(state.clone()),
+        )
+        .nest("/api/v1", crate::routes::api::malee::malee_routes(state))
 }
