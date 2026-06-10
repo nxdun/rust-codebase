@@ -42,15 +42,50 @@ impl PromptBuilder {
             LanguageMode::Mixed => "Use a mix of Sinhala and English as appropriate.",
         };
 
+        // Format memories
+        let memories_str = if session.user_profile.memories.is_empty() {
+            "None".to_string()
+        } else {
+            session.user_profile.memories.join("\n- ")
+        };
+
+        // Format orders
+        let orders_str = if session.user_profile.order_history.is_empty() {
+            "None".to_string()
+        } else {
+            session
+                .user_profile
+                .order_history
+                .iter()
+                .map(|o| {
+                    format!(
+                        "{} on {}: {} ({} LKR)",
+                        o.order_ref,
+                        o.date.date_naive(),
+                        o.items.join(", "),
+                        o.total_lkr
+                    )
+                })
+                .collect::<Vec<_>>()
+                .join("\n- ")
+        };
+
         let ctx = context! {
             cart_item_count => session.cart.item_count(),
             cart_subtotal => session.cart.subtotal_lkr(),
-            preferred_city => session.user_profile.preferred_city.as_deref().unwrap_or("None"),
-            preferred_date => session.user_profile.preferred_delivery_date.map_or_else(|| "None".to_string(), |d| d.to_string()),
+            preferred_city => session.session_context.preferred_city.as_deref().unwrap_or("None"),
+            preferred_date => session.session_context.preferred_delivery_date.map_or_else(|| "None".to_string(), |d| d.to_string()),
             language_instruction => language_instruction,
-            recipient => session.user_profile.recipient_relation.as_deref().unwrap_or("None"),
-            occasion => session.user_profile.occasion.as_deref().unwrap_or("None"),
+            recipient => session.session_context.recipient_relation.as_deref().unwrap_or("None"),
+            occasion => session.session_context.occasion.as_deref().unwrap_or("None"),
             gift_message => session.checkout_draft.gift_message.as_deref().unwrap_or("None"),
+            user_name => format!("{} {}", session.user_profile.first_name.as_deref().unwrap_or(""), session.user_profile.last_name.as_deref().unwrap_or("")).trim(),
+            user_email => session.user_profile.email.as_deref().unwrap_or("None"),
+            user_phone => session.user_profile.phone.as_deref().unwrap_or("None"),
+            shipping_address => format!("{}, {}, {}", session.user_profile.address_line1.as_deref().unwrap_or(""), session.user_profile.city.as_deref().unwrap_or(""), session.user_profile.zip_code.as_deref().unwrap_or("")).trim_matches(|c| c == ',' || c == ' ').trim(),
+            memories => memories_str,
+            orders => orders_str,
+            fav_categories => session.user_profile.favorite_categories.join(", "),
         };
 
         tmpl.render(ctx)

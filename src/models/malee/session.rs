@@ -1,10 +1,11 @@
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use super::cart::CartState;
 use super::checkout::CheckoutDraft;
 use super::events::ProductCardView;
+use super::profile::{SessionContext, UserProfile};
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 #[serde(rename_all = "snake_case")]
@@ -41,16 +42,6 @@ pub struct ConversationTurn {
     pub tool_calls: Option<Vec<ToolCall>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize, Default)]
-pub struct UserShoppingProfile {
-    pub recipient_relation: Option<String>,
-    pub occasion: Option<String>,
-    pub budget_min_lkr: Option<i64>,
-    pub budget_max_lkr: Option<i64>,
-    pub preferred_city: Option<String>,
-    pub preferred_delivery_date: Option<NaiveDate>,
-}
-
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SessionState {
     pub session_id: Uuid,
@@ -58,9 +49,11 @@ pub struct SessionState {
     pub updated_at: DateTime<Utc>,
     pub language_mode: LanguageMode,
     pub conversation_history: Vec<ConversationTurn>,
-    pub user_profile: UserShoppingProfile,
+    pub user_profile: UserProfile,
+    pub session_context: SessionContext,
     pub cart: CartState,
     pub checkout_draft: CheckoutDraft,
     pub last_products: Vec<ProductCardView>,
     pub order_last_created_at: Option<DateTime<Utc>>,
+    pub active_llm_index: usize,
 }

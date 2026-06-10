@@ -75,10 +75,7 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
         Some("fake_pat".into()),
         Some("nxdun".into()),
         mock_server.uri(),
-        "fake_key".into(),
-        "https://api.groq.com/openai/v1".into(),
-        "llama-3.3-70b-versatile".into(),
-        "llama-3.1-8b-instant".into(),
+        vec![], // malee_llm_pool
         30000,
         "https://mcp.kapruka.com/mcp".into(),
         15000,
@@ -102,7 +99,7 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
         contributions_service,
         malee_service: Arc::new(nadzu::services::malee::service::MaleeService::new(
             &config,
-            http_client.clone(),
+            &http_client,
         )),
     };
 

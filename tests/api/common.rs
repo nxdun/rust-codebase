@@ -53,10 +53,7 @@ pub fn create_test_state_with_options(
         None,
         None,
         "https://api.github.com/graphql".into(),
-        "fake_key".into(),
-        "https://api.groq.com/openai/v1".into(),
-        "llama-3.3-70b-versatile".into(),
-        "llama-3.1-8b-instant".into(),
+        vec![], // malee_llm_pool
         30000,
         "https://mcp.kapruka.com/mcp".into(),
         15000,
@@ -80,7 +77,7 @@ pub fn create_test_state_with_options(
         contributions_service,
         malee_service: Arc::new(nadzu::services::malee::service::MaleeService::new(
             &config,
-            http_client,
+            &http_client,
         )),
     }
 }

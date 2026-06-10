@@ -21,6 +21,7 @@ pub struct SessionView {
     pub cart: CartView,
     pub checkout_draft: CheckoutDraftView,
     pub last_product_ids: Vec<String>,
+    pub active_llm_index: usize,
 }
 
 pub async fn get(
@@ -68,6 +69,7 @@ pub async fn get(
         cart: cart_view,
         checkout_draft,
         last_product_ids: session.last_products.into_iter().map(|p| p.id).collect(),
+        active_llm_index: session.active_llm_index,
     };
 
     Ok(Json(view))

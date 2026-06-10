@@ -12,7 +12,7 @@ pub fn get_few_shots() -> Vec<LlmMessage> {
         },
         LlmMessage {
             role: "assistant".to_string(),
-            content: String::new(), // NO conversational filler. Direct to tool.
+            content: String::new(),
             tool_calls: Some(vec![super::super::client::LlmToolCall {
                 id: "call_abc123".to_string(),
                 type_: "function".to_string(),
@@ -23,15 +23,35 @@ pub fn get_few_shots() -> Vec<LlmMessage> {
             }]),
             tool_call_id: None,
         },
+        // Few-Shot 2: Memory update
         LlmMessage {
-            role: "tool".to_string(),
-            content: r#"[{"id":"p1","name":"Purple Orchids Vase","price_lkr":6500,"in_stock":true}]"#.to_string(),
+            role: "user".to_string(),
+            content: "Actually, my sister's birthday is tomorrow. She's turning 25.".to_string(),
             tool_calls: None,
-            tool_call_id: Some("call_abc123".to_string()),
+            tool_call_id: None,
         },
         LlmMessage {
             role: "assistant".to_string(),
-            content: "I've found a stunning Purple Orchids Vase for 6500 LKR! It fits your budget perfectly. Would you like to check delivery details for this?".to_string(),
+            content: String::new(),
+            tool_calls: Some(vec![super::super::client::LlmToolCall {
+                id: "call_mem123".to_string(),
+                type_: "function".to_string(),
+                function: super::super::client::LlmFunctionCall {
+                    name: "save_user_fact".to_string(),
+                    arguments: r#"{"fact": "Sister's birthday is June 11th (tomorrow), she is turning 25."}"#.to_string(),
+                },
+            }]),
+            tool_call_id: None,
+        },
+        LlmMessage {
+            role: "tool".to_string(),
+            content: "Fact saved successfully".to_string(),
+            tool_calls: None,
+            tool_call_id: Some("call_mem123".to_string()),
+        },
+        LlmMessage {
+            role: "assistant".to_string(),
+            content: "Happy 25th Birthday to her! I've noted that down. Since it's for tomorrow, let's make sure we find something that can be delivered fast. Would you like to check delivery to your city?".to_string(),
             tool_calls: None,
             tool_call_id: None,
         },

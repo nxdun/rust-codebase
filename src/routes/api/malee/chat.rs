@@ -12,7 +12,7 @@ use uuid::Uuid;
 use crate::error::AppError;
 use crate::models::malee::cart::CartState;
 use crate::models::malee::checkout::CheckoutDraft;
-use crate::models::malee::session::UserShoppingProfile;
+use crate::models::malee::profile::{SessionContext, UserProfile};
 use crate::{
     models::malee::events::UiEvent,
     models::malee::session::{LanguageMode, SessionState},
@@ -56,11 +56,13 @@ pub async fn handler(
             updated_at: chrono::Utc::now(),
             language_mode: LanguageMode::Auto,
             conversation_history: vec![],
-            user_profile: UserShoppingProfile::default(),
+            user_profile: UserProfile::default(),
+            session_context: SessionContext::default(),
             cart: CartState::default(),
             checkout_draft: CheckoutDraft::default(),
             last_products: vec![],
             order_last_created_at: None,
+            active_llm_index: 0,
         };
         state.malee_service.session_store.upsert(s.clone());
         s
@@ -80,28 +82,28 @@ pub async fn handler(
         session.language_mode = hints.detected_mode;
     }
     if let Some(r) = hints.inferred_recipient {
-        session.user_profile.recipient_relation = Some(r);
+        session.session_context.recipient_relation = Some(r);
     }
     if let Some(o) = hints.inferred_occasion {
-        session.user_profile.occasion = Some(o);
+        session.session_context.occasion = Some(o);
     }
     if let Some(min) = hints.inferred_budget_min_lkr {
-        session.user_profile.budget_min_lkr = Some(min);
+        session.session_context.budget_min_lkr = Some(min);
     }
     if let Some(max) = hints.inferred_budget_max_lkr {
-        session.user_profile.budget_max_lkr = Some(max);
+        session.session_context.budget_max_lkr = Some(max);
     }
     if let Some(c) = hints.inferred_city_hint {
-        session.user_profile.preferred_city = Some(c);
+        session.session_context.preferred_city = Some(c);
     }
     if let Some(d) = hints.inferred_date_hint {
         let today = chrono::Utc::now().date_naive();
         if d == "today" {
-            session.user_profile.preferred_delivery_date = Some(today);
+            session.session_context.preferred_delivery_date = Some(today);
         } else if d == "tomorrow" {
-            session.user_profile.preferred_delivery_date = Some(today + chrono::Days::new(1));
+            session.session_context.preferred_delivery_date = Some(today + chrono::Days::new(1));
         } else if d == "next_week" {
-            session.user_profile.preferred_delivery_date = Some(today + chrono::Days::new(7));
+            session.session_context.preferred_delivery_date = Some(today + chrono::Days::new(7));
         }
     }
 
@@ -134,7 +136,7 @@ pub async fn handler(
             &mut current_session,
             body.message,
             &service_clone.connector,
-            service_clone.llm.as_ref(),
+            &service_clone.llm_router,
             &service_clone.prompt_builder,
             tx.clone(),
             &config_clone,

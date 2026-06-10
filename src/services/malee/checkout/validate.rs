@@ -113,6 +113,7 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
                 anonymous: false,
             },
             gift_message,
+            currency: "LKR".to_string(),
             response_format: "json".to_string(),
         })
     } else {

@@ -12,3 +12,5 @@ pub const TOOL_REMOVE_FROM_CART: &str = "remove_from_cart";
 pub const TOOL_SET_QUANTITY: &str = "set_quantity";
 pub const TOOL_CLEAR_CART: &str = "clear_cart";
 pub const TOOL_SETUP_DELIVERY: &str = "setup_delivery";
+pub const TOOL_SAVE_USER_FACT: &str = "save_user_fact";
+pub const TOOL_UPDATE_USER_PROFILE: &str = "update_user_profile";

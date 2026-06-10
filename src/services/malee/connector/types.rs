@@ -133,8 +133,14 @@ pub struct CreateOrderArgs {
     pub sender: McpSender,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gift_message: Option<String>,
+    #[serde(default = "default_lkr")]
+    pub currency: String,
     #[serde(default = "default_response_format")]
     pub response_format: String,
+}
+
+fn default_lkr() -> String {
+    "LKR".to_string()
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -165,6 +171,7 @@ pub struct McpDelivery {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpSender {
     pub name: String,
+    #[serde(default)]
     pub anonymous: bool,
 }
 

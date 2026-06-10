@@ -2,6 +2,7 @@ use std::{env, fmt};
 use thiserror::Error;
 
 use crate::middleware::constant_time_eq;
+use crate::services::malee::llm::pool::LlmBackendConfig;
 
 #[derive(Debug, Error)]
 pub enum ConfigError {
@@ -32,7 +33,7 @@ fn env_parse<T: std::str::FromStr>(key: &str, default: &str) -> Result<T, Config
     let val = env::var(key).unwrap_or_else(|_| default.to_string());
     val.parse::<T>().map_err(|_| ConfigError::InvalidValue {
         key: key.to_string(),
-        details: format!("'{}' is not a valid {}", val, std::any::type_name::<T>()),
+        details: format!("'{val}' is not a valid {}", std::any::type_name::<T>()),
     })
 }
 
@@ -74,10 +75,8 @@ pub struct AppConfig {
     pub github_username: Option<String>,
     /// GitHub GraphQL API URL.
     pub github_graphql_url: String,
-    pub malee_llm_api_key: String,
-    pub malee_llm_base_url: String,
-    pub malee_llm_model: String,
-    pub malee_llm_fallback_model: String,
+    // Malee AI
+    pub malee_llm_pool: Vec<LlmBackendConfig>,
     pub malee_llm_timeout_ms: u64,
     pub malee_connector_url: String,
     pub malee_connector_timeout_ms: u64,
@@ -104,10 +103,7 @@ impl fmt::Debug for AppConfig {
             .field("github_pat", &"***")
             .field("github_username", &self.github_username)
             .field("github_graphql_url", &self.github_graphql_url)
-            .field("malee_llm_api_key", &"***")
-            .field("malee_llm_base_url", &self.malee_llm_base_url)
-            .field("malee_llm_model", &self.malee_llm_model)
-            .field("malee_llm_fallback_model", &self.malee_llm_fallback_model)
+            .field("malee_llm_pool_size", &self.malee_llm_pool.len())
             .field("malee_llm_timeout_ms", &self.malee_llm_timeout_ms)
             .field("malee_connector_url", &self.malee_connector_url)
             .field(
@@ -137,10 +133,7 @@ impl AppConfig {
         github_pat: Option<String>,
         github_username: Option<String>,
         github_graphql_url: String,
-        malee_llm_api_key: String,
-        malee_llm_base_url: String,
-        malee_llm_model: String,
-        malee_llm_fallback_model: String,
+        malee_llm_pool: Vec<LlmBackendConfig>,
         malee_llm_timeout_ms: u64,
         malee_connector_url: String,
         malee_connector_timeout_ms: u64,
@@ -161,10 +154,7 @@ impl AppConfig {
             github_pat,
             github_username,
             github_graphql_url,
-            malee_llm_api_key,
-            malee_llm_base_url,
-            malee_llm_model,
-            malee_llm_fallback_model,
+            malee_llm_pool,
             malee_llm_timeout_ms,
             malee_connector_url,
             malee_connector_timeout_ms,
@@ -175,6 +165,15 @@ impl AppConfig {
     pub fn from_env() -> Result<Self, ConfigError> {
         let master_api_key = env_opt("MASTER_API_KEY")
             .ok_or_else(|| ConfigError::MissingVar("MASTER_API_KEY".to_string()))?;
+
+        let pool_str = env::var("MALEE_LLM_POOL")
+            .map_err(|_| ConfigError::MissingVar("MALEE_LLM_POOL".to_string()))?;
+
+        let malee_llm_pool =
+            LlmBackendConfig::parse_pool(&pool_str).map_err(|e| ConfigError::InvalidValue {
+                key: "MALEE_LLM_POOL".to_string(),
+                details: e.to_string(),
+            })?;
 
         Ok(Self::new(
             env_or("APP_NAME", "nadzu-backend"),
@@ -192,11 +191,7 @@ impl AppConfig {
             env_opt("GITHUB_PAT"),
             env_opt("GITHUB_USERNAME"),
             env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
-            env_opt("MALEE_LLM_API_KEY")
-                .ok_or_else(|| ConfigError::MissingVar("MALEE_LLM_API_KEY".to_string()))?,
-            env_or("MALEE_LLM_BASE_URL", "https://api.groq.com/openai/v1"),
-            env_or("MALEE_LLM_MODEL", "llama-3.3-70b-versatile"),
-            env_or("MALEE_LLM_FALLBACK_MODEL", "llama-3.1-8b-instant"),
+            malee_llm_pool,
             env_parse("MALEE_LLM_TIMEOUT_MS", "30000")?,
             env_opt("MALEE_CONNECTOR_URL")
                 .ok_or_else(|| ConfigError::MissingVar("MALEE_CONNECTOR_URL".to_string()))?,

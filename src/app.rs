@@ -53,7 +53,7 @@ pub async fn run() {
             config.github_graphql_url.clone(),
         ));
 
-    let malee_service = Arc::new(MaleeService::new(&config, http_client.clone()));
+    let malee_service = Arc::new(MaleeService::new(&config, &http_client));
 
     let state = AppState {
         config: config.clone(),
