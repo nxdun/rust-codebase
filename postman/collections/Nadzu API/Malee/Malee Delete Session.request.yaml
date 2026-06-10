@@ -11,5 +11,10 @@ scripts:
       pm.test('Status is 204', function () { 
         pm.response.to.have.status(204);
       });
+      
+      if (pm.response.code === 204) {
+        pm.collectionVariables.unset('malee_session_id');
+        console.log('Cleared Malee session ID');
+      }
     language: text/javascript
 order: 3003

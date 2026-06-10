@@ -1,5 +1,5 @@
 $kind: http-request
-name: Malee Action (Setup Delivery)
+name: Malee Setup Delivery
 url: "{{base_url}}/api/v1/malee/action"
 method: POST
 headers:

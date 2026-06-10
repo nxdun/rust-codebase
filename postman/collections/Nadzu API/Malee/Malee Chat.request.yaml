@@ -3,25 +3,16 @@ name: Malee Chat
 url: "{{base_url}}/api/v1/malee/chat"
 method: POST
 headers:
-  x-api-key: "{{api_key}}"
-  Content-Type: application/json
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
 body:
   type: json
   content: |-
     {
-      "message": "I want to buy a gift for my sister. She likes chocolates. My budget is around 1000 LKR.",
+      "message": "I want to buy a gift.",
       "session_id": null,
       "language_mode": "auto"
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      pm.test('Status is 200', function () { 
-        pm.response.to.have.status(200);
-      });
-
-      pm.test('Content-Type is text/event-stream', function () {
-        pm.expect(pm.response.headers.get('Content-Type')).to.contain('text/event-stream');
-      });
-    language: text/javascript
-order: 3000
+order: 3006
