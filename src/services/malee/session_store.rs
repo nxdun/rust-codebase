@@ -30,24 +30,44 @@ impl SessionStore {
         store
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn get(&self, id: &Uuid) -> Option<SessionState> {
-        self.sessions.get(id).map(|s| s.clone())
+        let session = self.sessions.get(id).map(|s| s.clone());
+        if session.is_some() {
+            tracing::debug!("Session cache hit: {}", id);
+        } else {
+            tracing::debug!("Session cache miss: {}", id);
+        }
+        session
     }
 
+    #[tracing::instrument(skip(self, session), fields(session_id = %session.session_id))]
     pub fn upsert(&self, mut session: SessionState) {
         session.updated_at = Utc::now();
+        tracing::debug!("Upserting session");
         self.sessions.insert(session.session_id, session);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn delete(&self, id: &Uuid) {
+        tracing::info!("Deleting session: {}", id);
         self.sessions.remove(id);
     }
 
+    #[tracing::instrument(skip(self))]
     pub fn sweep_expired(&self) {
         let now = Utc::now();
+        let mut count = 0;
         self.sessions.retain(|_, session| {
             let elapsed = now.signed_duration_since(session.updated_at).num_minutes();
-            elapsed < i64::try_from(SESSION_TTL_MINUTES).unwrap_or(i64::MAX)
+            let keep = elapsed < i64::try_from(SESSION_TTL_MINUTES).unwrap_or(i64::MAX);
+            if !keep {
+                count += 1;
+            }
+            keep
         });
+        if count > 0 {
+            tracing::info!("Swept {} expired sessions", count);
+        }
     }
 }

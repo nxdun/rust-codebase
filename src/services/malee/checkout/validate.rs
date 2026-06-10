@@ -1,10 +1,15 @@
 use crate::models::malee::cart::CartState;
 use crate::models::malee::checkout::CheckoutDraft;
-use crate::services::malee::connector::types::CreateOrderArgs;
+use crate::services::malee::connector::types::{
+    CreateOrderArgs, McpCartItem, McpDelivery, McpRecipient, McpSender,
+};
 use chrono::Utc;
 use regex::Regex;
 
+#[allow(clippy::too_many_lines)]
+#[tracing::instrument(skip_all)]
 pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderArgs, Vec<String>> {
+    tracing::debug!("Validating checkout draft");
     let mut errors = Vec::new();
 
     if cart.items.is_empty() {
@@ -12,7 +17,7 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
     }
 
     #[allow(clippy::unwrap_used)]
-    let recipient = if let Some(r) = &draft.recipient {
+    let recipient_info = if let Some(r) = &draft.recipient {
         let phone_re = Regex::new(r"^07[0-9]{8}$").unwrap();
         if r.name.len() < 2 || r.name.len() > 80 {
             errors.push("recipient.name".to_string());
@@ -38,7 +43,7 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
         } // Dummy
     };
 
-    let delivery = if let Some(d) = &draft.delivery {
+    let delivery_info = if let Some(d) = &draft.delivery {
         let today = Utc::now().date_naive();
         if d.date < today || d.date > today + chrono::Duration::days(90) {
             errors.push("delivery.date".to_string());
@@ -53,7 +58,7 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
         }
     };
 
-    let sender = if let Some(s) = &draft.sender {
+    let sender_info = if let Some(s) = &draft.sender {
         if s.name.len() < 2 || s.name.len() > 80 {
             errors.push("sender.name".to_string());
         }
@@ -83,11 +88,32 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
 
     if errors.is_empty() {
         Ok(CreateOrderArgs {
-            items: cart.items.clone(),
-            recipient,
-            delivery,
-            sender,
+            cart: cart
+                .items
+                .iter()
+                .map(|item| McpCartItem {
+                    product_id: item.product_id.clone(),
+                    quantity: item.quantity,
+                    icing_text: None,
+                })
+                .collect(),
+            recipient: McpRecipient {
+                name: recipient_info.name.clone(),
+                phone: recipient_info.phone.clone(),
+            },
+            delivery: McpDelivery {
+                address: recipient_info.address_line1,
+                city: delivery_info.city.clone(),
+                date: delivery_info.date.to_string(),
+                instructions: None,
+                location_type: Some("house".to_string()),
+            },
+            sender: McpSender {
+                name: sender_info.name,
+                anonymous: false,
+            },
             gift_message,
+            response_format: "json".to_string(),
         })
     } else {
         Err(errors)

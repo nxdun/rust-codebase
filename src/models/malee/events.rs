@@ -49,7 +49,7 @@ pub enum UiEvent {
         cart_summary: Vec<CartItemView>,
     },
     TrackingResult {
-        order_id: String,
+        order_number: String,
         status: String,
         recipient: String,
         items: Vec<String>,

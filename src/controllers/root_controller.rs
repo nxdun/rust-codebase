@@ -3,6 +3,7 @@ use axum::{Json, extract::State};
 use serde_json::{Value, json};
 
 /// root endpoint response.
+#[tracing::instrument(skip(state))]
 pub async fn root_handler(State(state): State<AppState>) -> Json<Value> {
     let cfg = &state.config;
     Json(json!({

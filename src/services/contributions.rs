@@ -128,6 +128,7 @@ impl ContributionsService {
     }
 
     /// Seeds the cache with a predefined response (primarily for testing).
+    #[tracing::instrument(skip(self, response))]
     pub fn seed_cache(&self, username: &str, response: ContributionsResponse, ttl_secs: u64) {
         let expires_at = now_unix() + ttl_secs;
         self.cache

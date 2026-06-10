@@ -47,7 +47,7 @@ async fn malee_session_management() {
     // 2. Track non-existent order
     let req = post_json_with_headers(
         "/api/v1/malee/track",
-        &json!({"order_id": "ORD-MISSING"}),
+        &json!({"order_number": "ORD-MISSING"}),
         &[(HEADER_API_KEY, TEST_MASTER_API_KEY)],
     );
     let (status, _) = send_json(&app, req).await;

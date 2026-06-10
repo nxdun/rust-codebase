@@ -20,6 +20,7 @@ pub struct RecipientInfo {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeliveryInfo {
+    #[serde(rename = "delivery_date")]
     pub date: NaiveDate,
     pub city: String,
     pub quote_status: QuoteStatus,

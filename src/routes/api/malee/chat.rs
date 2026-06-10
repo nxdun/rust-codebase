@@ -112,8 +112,10 @@ pub async fn handler(
     let config_clone = state.config.clone();
     let is_new_session = body.session_id.is_none();
     let session_id_str = session.session_id.to_string();
+    tracing::info!("Starting chat handler for session: {}", session_id_str);
 
     tokio::spawn(async move {
+        tracing::info!("Agent loop spawned for session: {}", session_id_str);
         if is_new_session {
             let _ = tx
                 .send(UiEvent::SessionCreated {
@@ -124,11 +126,16 @@ pub async fn handler(
 
         let mut current_session = session_clone;
 
+        tracing::info!(
+            "Running agent loop for session: {}",
+            current_session.session_id
+        );
         let res = run_agent_loop(
             &mut current_session,
             body.message,
             &service_clone.connector,
             service_clone.llm.as_ref(),
+            &service_clone.prompt_builder,
             tx.clone(),
             &config_clone,
         )

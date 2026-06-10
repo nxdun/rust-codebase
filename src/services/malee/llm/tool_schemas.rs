@@ -1,8 +1,9 @@
 use super::client::{ToolFunctionSchema, ToolSchema};
 
 use crate::services::malee::connector::tools::{
-    TOOL_CHECK_DELIVERY, TOOL_CREATE_ORDER, TOOL_GET_PRODUCT, TOOL_LIST_CATEGORIES,
-    TOOL_LIST_CITIES, TOOL_SEARCH_PRODUCTS, TOOL_TRACK_ORDER,
+    TOOL_ADD_TO_CART, TOOL_CHECK_DELIVERY, TOOL_CLEAR_CART, TOOL_CREATE_ORDER, TOOL_GET_PRODUCT,
+    TOOL_LIST_CATEGORIES, TOOL_LIST_CITIES, TOOL_REMOVE_FROM_CART, TOOL_SEARCH_PRODUCTS,
+    TOOL_SET_QUANTITY, TOOL_SETUP_DELIVERY, TOOL_TRACK_ORDER,
 };
 use serde_json::json;
 
@@ -17,10 +18,10 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "query": { "type": "string" },
-                        "category_id": { "type": "string" },
-                        "min_price": { "type": "integer" },
-                        "max_price": { "type": "integer" },
+                        "q": { "type": "string" },
+                        "category": { "type": "string" },
+                        "min_price": { "type": "number" },
+                        "max_price": { "type": "number" },
                         "limit": { "type": "integer" }
                     }
                 }),
@@ -55,10 +56,13 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_LIST_CITIES.to_string(),
-                description: "List all cities where delivery is available".to_string(),
+                description: "Search for deliverable cities by name or alias".to_string(),
                 parameters: json!({
                     "type": "object",
-                    "properties": {}
+                    "properties": {
+                        "query": { "type": "string" },
+                        "limit": { "type": "integer" }
+                    }
                 }),
             },
         },
@@ -72,9 +76,9 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                     "properties": {
                         "city": { "type": "string" },
                         "date": { "type": "string", "description": "YYYY-MM-DD" },
-                        "is_perishable": { "type": "boolean" }
+                        "product_id": { "type": "string", "description": "Optional product code to check perishable constraints" }
                     },
-                    "required": ["city", "date", "is_perishable"]
+                    "required": ["city","date"]
                 }),
             },
         },
@@ -86,7 +90,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "items": {
+                        "cart": {
                             "type": "array",
                             "items": {
                                 "type": "object",
@@ -113,11 +117,11 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         "delivery": {
                             "type": "object",
                             "properties": {
-                                "date": { "type": "string" },
+                                "delivery_date": { "type": "string" },
                                 "city": { "type": "string" },
                                 "quote_status": { "type": "object" }
                             },
-                            "required": ["date", "city", "quote_status"]
+                            "required": ["delivery_date", "city", "quote_status"]
                         },
                         "sender": {
                             "type": "object",
@@ -130,7 +134,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         },
                         "gift_message": { "type": "string" }
                     },
-                    "required": ["items", "recipient", "delivery", "sender"]
+                    "required": ["cart", "recipient", "delivery", "sender"]
                 }),
             },
         },
@@ -142,9 +146,80 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "order_id": { "type": "string" }
+                        "order_number": { "type": "string" }
                     },
-                    "required": ["order_id"]
+                    "required": ["order_number"]
+                }),
+            },
+        },
+        // Local session tools
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_ADD_TO_CART.to_string(),
+                description: "Add a product to the customer's cart. Always search for the product or get its details first to ensure correct ID and pricing.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "product_id": { "type": "string" },
+                        "name": { "type": "string" },
+                        "price_lkr": { "type": "integer" },
+                        "quantity": { "type": "integer", "default": 1 },
+                        "image_url": { "type": "string" },
+                        "is_perishable": { "type": "boolean", "default": false }
+                    },
+                    "required": ["product_id", "name", "price_lkr"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_REMOVE_FROM_CART.to_string(),
+                description: "Remove a product from the cart".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "product_id": { "type": "string" }
+                    },
+                    "required": ["product_id"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_SET_QUANTITY.to_string(),
+                description: "Update the quantity of a product in the cart".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "product_id": { "type": "string" },
+                        "quantity": { "type": "integer" }
+                    },
+                    "required": ["product_id", "quantity"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_CLEAR_CART.to_string(),
+                description: "Remove all items from the cart".to_string(),
+                parameters: json!({ "type": "object", "properties": {} }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_SETUP_DELIVERY.to_string(),
+                description: "Configure delivery city and date for the checkout draft. This does NOT create an order.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "city": { "type": "string", "description": "Canonical city name" },
+                        "date": { "type": "string", "description": "YYYY-MM-DD" }
+                    }
                 }),
             },
         },

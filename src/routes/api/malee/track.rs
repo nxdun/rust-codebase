@@ -6,7 +6,7 @@ use crate::{error::AppError, services::malee::connector::types::TrackOrderArgs, 
 
 #[derive(Debug, Deserialize)]
 pub struct TrackRequest {
-    pub order_id: String,
+    pub order_number: String,
 }
 
 pub async fn handler(
@@ -14,9 +14,15 @@ pub async fn handler(
     Json(body): Json<TrackRequest>,
 ) -> Result<impl IntoResponse, AppError> {
     let args = TrackOrderArgs {
-        order_id: body.order_id,
+        order_number: body.order_number,
+        response_format: "json".to_string(),
     };
-    let res = state.malee_service.connector.track_order(args).await?;
+    // Track endpoints might not have a session, pass a dummy or empty string
+    let res = state
+        .malee_service
+        .connector
+        .track_order(args, "track-endpoint")
+        .await?;
 
     Ok(Json(res))
 }

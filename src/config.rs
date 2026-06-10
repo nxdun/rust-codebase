@@ -76,7 +76,11 @@ pub struct AppConfig {
     pub github_graphql_url: String,
     pub malee_llm_api_key: String,
     pub malee_llm_base_url: String,
+    pub malee_llm_model: String,
+    pub malee_llm_fallback_model: String,
+    pub malee_llm_timeout_ms: u64,
     pub malee_connector_url: String,
+    pub malee_connector_timeout_ms: u64,
 }
 
 impl fmt::Debug for AppConfig {
@@ -102,7 +106,14 @@ impl fmt::Debug for AppConfig {
             .field("github_graphql_url", &self.github_graphql_url)
             .field("malee_llm_api_key", &"***")
             .field("malee_llm_base_url", &self.malee_llm_base_url)
+            .field("malee_llm_model", &self.malee_llm_model)
+            .field("malee_llm_fallback_model", &self.malee_llm_fallback_model)
+            .field("malee_llm_timeout_ms", &self.malee_llm_timeout_ms)
             .field("malee_connector_url", &self.malee_connector_url)
+            .field(
+                "malee_connector_timeout_ms",
+                &self.malee_connector_timeout_ms,
+            )
             .finish()
     }
 }
@@ -128,7 +139,11 @@ impl AppConfig {
         github_graphql_url: String,
         malee_llm_api_key: String,
         malee_llm_base_url: String,
+        malee_llm_model: String,
+        malee_llm_fallback_model: String,
+        malee_llm_timeout_ms: u64,
         malee_connector_url: String,
+        malee_connector_timeout_ms: u64,
     ) -> Self {
         Self {
             name,
@@ -148,7 +163,11 @@ impl AppConfig {
             github_graphql_url,
             malee_llm_api_key,
             malee_llm_base_url,
+            malee_llm_model,
+            malee_llm_fallback_model,
+            malee_llm_timeout_ms,
             malee_connector_url,
+            malee_connector_timeout_ms,
         }
     }
 
@@ -175,10 +194,13 @@ impl AppConfig {
             env_or("GITHUB_GRAPHQL_URL", "https://api.github.com/graphql"),
             env_opt("MALEE_LLM_API_KEY")
                 .ok_or_else(|| ConfigError::MissingVar("MALEE_LLM_API_KEY".to_string()))?,
-            env_opt("MALEE_LLM_BASE_URL")
-                .ok_or_else(|| ConfigError::MissingVar("MALEE_LLM_BASE_URL".to_string()))?,
+            env_or("MALEE_LLM_BASE_URL", "https://api.groq.com/openai/v1"),
+            env_or("MALEE_LLM_MODEL", "llama-3.3-70b-versatile"),
+            env_or("MALEE_LLM_FALLBACK_MODEL", "llama-3.1-8b-instant"),
+            env_parse("MALEE_LLM_TIMEOUT_MS", "30000")?,
             env_opt("MALEE_CONNECTOR_URL")
                 .ok_or_else(|| ConfigError::MissingVar("MALEE_CONNECTOR_URL".to_string()))?,
+            env_parse("MALEE_CONNECTOR_TIMEOUT_MS", "15000")?,
         ))
     }
 

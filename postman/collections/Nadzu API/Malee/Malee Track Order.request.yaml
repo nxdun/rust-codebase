@@ -11,7 +11,7 @@ body:
   type: json
   content: |-
     {
-      "order_id": "ORD-123"
+      "order_number": "ORD-123"
     }
 scripts:
   - type: afterResponse

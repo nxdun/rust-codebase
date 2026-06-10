@@ -17,7 +17,7 @@ pub struct McpParams {
 #[derive(Debug, Deserialize)]
 pub struct McpResponse {
     pub jsonrpc: String,
-    pub id: Option<u64>,
+    pub id: Option<serde_json::Value>,
     pub result: Option<McpResult>,
     pub error: Option<McpError>,
 }

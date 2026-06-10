@@ -25,7 +25,11 @@ fn test_config(env: &str) -> AppConfig {
         "https://api.github.com/graphql".to_string(),
         "fake_key".to_string(),
         "https://api.groq.com/openai/v1".to_string(),
-        "https://example.com/connector".to_string(),
+        "llama-3.3-70b-versatile".to_string(),
+        "llama-3.1-8b-instant".to_string(),
+        30000,
+        "https://mcp.kapruka.com/mcp".to_string(),
+        15000,
     )
 }
 

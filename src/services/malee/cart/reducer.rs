@@ -14,11 +14,13 @@ pub enum CartAction {
     clippy::cast_possible_wrap,
     clippy::cast_sign_loss
 )]
+#[tracing::instrument(skip_all)]
 pub fn reduce(
     mut state: CartState,
     action: CartAction,
     max_items: usize,
 ) -> Result<CartState, MaleeError> {
+    tracing::debug!("Reducing cart action: {:?}", action);
     let current_count = state.item_count();
     match action {
         CartAction::AddItem { product } => {

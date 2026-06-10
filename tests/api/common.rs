@@ -55,7 +55,11 @@ pub fn create_test_state_with_options(
         "https://api.github.com/graphql".into(),
         "fake_key".into(),
         "https://api.groq.com/openai/v1".into(),
-        "https://example.com/connector".into(),
+        "llama-3.3-70b-versatile".into(),
+        "llama-3.1-8b-instant".into(),
+        30000,
+        "https://mcp.kapruka.com/mcp".into(),
+        15000,
     ));
 
     let ytdlp_manager = Arc::new(YtdlpManager::new(config.clone()));

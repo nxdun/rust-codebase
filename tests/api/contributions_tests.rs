@@ -77,7 +77,11 @@ async fn get_contributions_hits_mock_server_when_cache_empty() {
         mock_server.uri(),
         "fake_key".into(),
         "https://api.groq.com/openai/v1".into(),
-        "https://example.com/connector".into(),
+        "llama-3.3-70b-versatile".into(),
+        "llama-3.1-8b-instant".into(),
+        30000,
+        "https://mcp.kapruka.com/mcp".into(),
+        15000,
     );
 
     let http_client = reqwest::Client::new();
