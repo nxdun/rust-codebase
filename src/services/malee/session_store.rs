@@ -20,7 +20,7 @@ impl SessionStore {
 
         let store_clone = Arc::clone(&store);
         tokio::spawn(async move {
-            let mut interval = tokio::time::interval(std::time::Duration::from_secs(300));
+            let mut interval = tokio::time::interval(std::time::Duration::from_mins(5));
             loop {
                 interval.tick().await;
                 store_clone.sweep_expired();

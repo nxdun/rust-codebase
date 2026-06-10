@@ -305,7 +305,7 @@ impl MaleeConnector {
         session_id: &str,
     ) -> Result<Vec<Category>, MaleeError> {
         if let Some(cached) = self.category_cache.get("all")
-            && cached.0.elapsed() < Duration::from_secs(180)
+            && cached.0.elapsed() < Duration::from_mins(3)
         {
             return Ok(cached.1.clone());
         }
@@ -325,7 +325,7 @@ impl MaleeConnector {
         session_id: &str,
     ) -> Result<Vec<String>, MaleeError> {
         if let Some(cached) = self.city_cache.get("all")
-            && cached.0.elapsed() < Duration::from_secs(600)
+            && cached.0.elapsed() < Duration::from_mins(10)
         {
             return Ok(cached.1.clone());
         }
