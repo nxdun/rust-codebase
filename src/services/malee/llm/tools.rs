@@ -197,60 +197,110 @@ pub async fn execute_tool(
             ))
         }
         TOOL_CREATE_ORDER => {
-            let mut args: crate::services::malee::connector::types::CreateOrderArgs =
-                serde_json::from_value(arguments)
-                    .map_err(|e| MaleeError::LlmError(e.to_string()))?;
+            // The simplified schema only passes optional gift_message.
+            // All order data is built from session state (the source of truth).
+            let llm_gift: Option<String> = arguments
+                .get("gift_message")
+                .and_then(serde_json::Value::as_str)
+                .map(String::from);
 
-            // 1. Sync from Session Memory (The Absolute Source of Truth)
-            // We prioritize the structured draft data over LLM arguments
-            if let Some(d) = &session.checkout_draft.delivery {
-                args.delivery.city = d.city.clone();
-                args.delivery.date = d.date.to_string();
-            }
-            if let Some(r) = &session.checkout_draft.recipient {
-                args.recipient.name = r.name.clone();
-                args.recipient.phone = r.phone.clone();
-                args.delivery.address = format!(
-                    "{}{}",
-                    r.address_line1,
-                    r.address_line2
-                        .as_ref()
-                        .map(|l| format!(", {l}"))
-                        .unwrap_or_default()
-                );
-            }
-            if let Some(s) = &session.checkout_draft.sender {
-                args.sender.name = s.name.clone();
-            }
+            // 1. Validate all checkout steps are complete
+            let delivery = session.checkout_draft.delivery.as_ref().ok_or_else(|| {
+                MaleeError::LlmError(
+                    "Cannot create order: delivery info missing. Complete setup_delivery first."
+                        .to_string(),
+                )
+            })?;
+            let recipient = session.checkout_draft.recipient.as_ref().ok_or_else(|| {
+                MaleeError::LlmError(
+                    "Cannot create order: recipient info missing. Complete setup_recipient first."
+                        .to_string(),
+                )
+            })?;
+            let sender = session.checkout_draft.sender.as_ref().ok_or_else(|| {
+                MaleeError::LlmError(
+                    "Cannot create order: sender info missing. Complete setup_sender first."
+                        .to_string(),
+                )
+            })?;
 
-            if let Some(gift) = &session.checkout_draft.gift_message {
-                args.gift_message = Some(gift.clone());
-            }
-            if let Some(instr) = &session.checkout_draft.special_instructions {
-                args.delivery.instructions = Some(instr.clone());
-            }
-            if let Some(loc) = &session.checkout_draft.location_type {
-                args.delivery.location_type = Some(loc.clone());
+            if session.cart.items.is_empty() {
+                return Err(MaleeError::LlmError(
+                    "Cannot create order: cart is empty.".to_string(),
+                ));
             }
 
-            // 2. Final Phone Normalization
-            let digits: String = args
-                .recipient
+            // 2. Build cart items from session
+            let cart_items: Vec<crate::services::malee::connector::types::McpCartItem> = session
+                .cart
+                .items
+                .iter()
+                .map(
+                    |item| crate::services::malee::connector::types::McpCartItem {
+                        product_id: item.product_id.clone(),
+                        quantity: item.quantity,
+                        icing_text: None,
+                    },
+                )
+                .collect();
+
+            // 3. Build address from recipient
+            let address = format!(
+                "{}{}",
+                recipient.address_line1,
+                recipient
+                    .address_line2
+                    .as_ref()
+                    .map(|l| format!(", {l}"))
+                    .unwrap_or_default()
+            );
+
+            // 4. Phone normalization
+            let digits: String = recipient
                 .phone
                 .chars()
                 .filter(char::is_ascii_digit)
                 .collect();
-            args.recipient.phone = if digits.starts_with("94") && digits.len() == 11 {
+            let norm_phone = if digits.starts_with("94") && digits.len() == 11 {
                 digits
             } else if digits.starts_with('0') && digits.len() == 10 {
                 format!("94{}", &digits[1..])
             } else if digits.len() == 9 {
                 format!("94{digits}")
             } else {
-                args.recipient.phone.clone()
+                return Err(MaleeError::LlmError(format!(
+                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
+                    recipient.phone
+                )));
             };
 
-            // 3. City Validation (Final registry check)
+            // 5. Resolve gift message: LLM arg > session draft > None
+            let gift_message = llm_gift.or_else(|| session.checkout_draft.gift_message.clone());
+
+            // 6. Build the full CreateOrderArgs from session state
+            let args = crate::services::malee::connector::types::CreateOrderArgs {
+                cart: cart_items,
+                recipient: crate::services::malee::connector::types::McpRecipient {
+                    name: recipient.name.clone(),
+                    phone: norm_phone,
+                },
+                delivery: crate::services::malee::connector::types::McpDelivery {
+                    address,
+                    city: delivery.city.clone(),
+                    date: delivery.date.to_string(),
+                    instructions: session.checkout_draft.special_instructions.clone(),
+                    location_type: session.checkout_draft.location_type.clone(),
+                },
+                sender: crate::services::malee::connector::types::McpSender {
+                    name: sender.name.clone(),
+                    anonymous: false,
+                },
+                gift_message,
+                currency: "LKR".to_string(),
+                response_format: "json".to_string(),
+            };
+
+            // 7. City validation (final registry check)
             let city_res = connector
                 .list_cities(
                     crate::services::malee::connector::types::ListCitiesArgs {
@@ -268,12 +318,12 @@ pub async fn execute_tool(
 
             if !valid_city {
                 return Err(MaleeError::LlmError(format!(
-                    "Invalid delivery city: {}. Please ensure you have validated this city via list_cities.",
+                    "Invalid delivery city: {}. Please validate via kapruka_list_delivery_cities.",
                     args.delivery.city
                 )));
             }
 
-            // 4. Create actual order
+            // 8. Create the order
             let res = connector.create_order(args, session_id).await?;
             let output_str =
                 serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?;
@@ -435,7 +485,10 @@ pub async fn execute_tool(
             } else if digits.len() == 9 {
                 format!("94{digits}")
             } else {
-                args.phone.clone()
+                return Err(MaleeError::LlmError(format!(
+                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
+                    args.phone
+                )));
             };
 
             session.checkout_draft.recipient =
@@ -469,7 +522,10 @@ pub async fn execute_tool(
             } else if digits.len() == 9 {
                 format!("94{digits}")
             } else {
-                args.phone.clone()
+                return Err(MaleeError::LlmError(format!(
+                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
+                    args.phone
+                )));
             };
 
             session.checkout_draft.sender = Some(crate::models::malee::checkout::SenderInfo {

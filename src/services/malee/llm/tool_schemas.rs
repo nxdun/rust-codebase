@@ -11,22 +11,44 @@ use crate::services::malee::connector::tools::{
 };
 use serde_json::json;
 
+/// Returns all tool schemas exposed to the LLM for function calling.
+///
+/// Each schema includes a precise description encoding purpose, prerequisites,
+/// and constraints. Parameter-level descriptions specify formats and valid values.
 #[allow(clippy::too_many_lines)]
 pub fn all_tool_schemas() -> Vec<ToolSchema> {
     vec![
+        // ═══════════════════════════════════════
+        // DISCOVERY TOOLS
+        // ═══════════════════════════════════════
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SEARCH_PRODUCTS.to_string(),
-                description: "Search for products by query, category, or price range".to_string(),
+                description: "Search the product catalog. Use descriptive English keywords. Combine with category or price filters when the user specifies budget or product type.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "q": { "type": "string" },
-                        "category": { "type": "string" },
-                        "min_price": { "type": "number" },
-                        "max_price": { "type": "number" },
-                        "limit": { "type": "integer" }
+                        "q": {
+                            "type": "string",
+                            "description": "Search query in English. Use descriptive terms (e.g., 'flower bouquet birthday' not 'gift for amma')."
+                        },
+                        "category": {
+                            "type": "string",
+                            "description": "Category slug from kapruka_list_categories results."
+                        },
+                        "min_price": {
+                            "type": "number",
+                            "description": "Minimum price in LKR."
+                        },
+                        "max_price": {
+                            "type": "number",
+                            "description": "Maximum price in LKR. Set from user's budget."
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results to return. Default 8, use 3-5 for focused recommendations."
+                        }
                     }
                 }),
             },
@@ -35,11 +57,14 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_GET_PRODUCT.to_string(),
-                description: "Get detailed information about a specific product".to_string(),
+                description: "Fetch full details for a specific product. Use when the user asks about a particular item or you need to check perishable status before adding to cart.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "product_id": { "type": "string" }
+                        "product_id": {
+                            "type": "string",
+                            "description": "Product ID from a prior search result."
+                        }
                     },
                     "required": ["product_id"]
                 }),
@@ -49,23 +74,32 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_LIST_CATEGORIES.to_string(),
-                description: "List all available product categories".to_string(),
+                description: "List all product categories. Use when the user browses without a specific idea or asks 'what do you have?'.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {}
                 }),
             },
         },
+        // ═══════════════════════════════════════
+        // DELIVERY TOOLS
+        // ═══════════════════════════════════════
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_LIST_CITIES.to_string(),
-                description: "Search for deliverable cities by name or alias".to_string(),
+                description: "Search for deliverable Sri Lankan cities. Use to validate a city name before setup_delivery, or when user asks 'do you deliver to X?'.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "query": { "type": "string" },
-                        "limit": { "type": "integer" }
+                        "query": {
+                            "type": "string",
+                            "description": "City name or partial match (e.g., 'Col' for Colombo)."
+                        },
+                        "limit": {
+                            "type": "integer",
+                            "description": "Max results. Default 10."
+                        }
                     }
                 }),
             },
@@ -74,101 +108,64 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_CHECK_DELIVERY.to_string(),
-                description: "Check delivery feasibility, date, and rate for a specific city. Only use explicitly provided city and date; ask the user if missing.".to_string(),
+                description: "Check delivery feasibility and shipping rate for a city+date combination. Both city and date are required — ask the user if either is missing. Do NOT guess.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "city": { "type": "string" },
-                        "date": { "type": "string", "description": "YYYY-MM-DD" },
-                        "product_id": { "type": "string", "description": "Optional product code to check perishable constraints" }
+                        "city": {
+                            "type": "string",
+                            "description": "Canonical city name from kapruka_list_delivery_cities."
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Delivery date in YYYY-MM-DD format. Must be today or future."
+                        },
+                        "product_id": {
+                            "type": "string",
+                            "description": "Product ID to check perishable delivery constraints. Optional."
+                        }
                     },
-                    "required": ["city","date"]
+                    "required": ["city", "date"]
                 }),
             },
         },
-        ToolSchema {
-            type_: "function".to_string(),
-            function: ToolFunctionSchema {
-                name: TOOL_CREATE_ORDER.to_string(),
-                description: "Create an order and get a checkout link. Only call when cart, recipient, delivery, and sender are fully confirmed.".to_string(),
-                parameters: json!({
-                    "type": "object",
-                    "properties": {
-                        "cart": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "product_id": { "type": "string" },
-                                    "name": { "type": "string" },
-                                    "price_lkr": { "type": "integer" },
-                                    "quantity": { "type": "integer" },
-                                    "is_perishable": { "type": "boolean" }
-                                },
-                                "required": ["product_id", "name", "price_lkr", "quantity", "is_perishable"]
-                            }
-                        },
-                        "recipient": {
-                            "type": "object",
-                            "properties": {
-                                "name": { "type": "string" },
-                                "phone": { "type": "string" }
-                            },
-                            "required": ["name", "phone"]
-                        },
-                        "delivery": {
-                            "type": "object",
-                            "properties": {
-                                "address": { "type": "string" },
-                                "city": { "type": "string" },
-                                "date": { "type": "string", "description": "YYYY-MM-DD" },
-                                "instructions": { "type": "string" },
-                                "location_type": { "type": "string", "enum": ["house", "apartment", "office", "other"] }
-                            },
-                            "required": ["address", "city", "date"]
-                        },
-                        "sender": {
-                            "type": "object",
-                            "properties": {
-                                "name": { "type": "string" }
-                            },
-                            "required": ["name"]
-                        },
-                        "gift_message": { "type": "string" }
-                    },
-                    "required": ["cart", "recipient", "delivery", "sender"]
-                }),
-            },
-        },
-        ToolSchema {
-            type_: "function".to_string(),
-            function: ToolFunctionSchema {
-                name: TOOL_TRACK_ORDER.to_string(),
-                description: "Track an existing order by its ID".to_string(),
-                parameters: json!({
-                    "type": "object",
-                    "properties": {
-                        "order_number": { "type": "string" }
-                    },
-                    "required": ["order_number"]
-                }),
-            },
-        },
-        // Local session tools
+        // ═══════════════════════════════════════
+        // CART TOOLS
+        // ═══════════════════════════════════════
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_ADD_TO_CART.to_string(),
-                description: "Add a product to the customer's cart. Always search for the product or get its details first to ensure correct ID and pricing.".to_string(),
+                description: "Add a product to the cart. PREREQUISITE: product_id and price_lkr MUST come from a prior kapruka_search_products or kapruka_get_product result. Never fabricate these values.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "product_id": { "type": "string" },
-                        "name": { "type": "string" },
-                        "price_lkr": { "type": "integer" },
-                        "quantity": { "type": "integer", "default": 1 },
-                        "image_url": { "type": "string" },
-                        "is_perishable": { "type": "boolean", "default": false }
+                        "product_id": {
+                            "type": "string",
+                            "description": "Exact product ID from search/get_product result."
+                        },
+                        "name": {
+                            "type": "string",
+                            "description": "Product display name from search/get_product result."
+                        },
+                        "price_lkr": {
+                            "type": "integer",
+                            "description": "Price in LKR from search/get_product result. Do NOT estimate."
+                        },
+                        "quantity": {
+                            "type": "integer",
+                            "description": "Number of units. Defaults to 1.",
+                            "default": 1
+                        },
+                        "image_url": {
+                            "type": "string",
+                            "description": "Product image URL from search result."
+                        },
+                        "is_perishable": {
+                            "type": "boolean",
+                            "description": "True for flowers, cakes, fresh food. Check via get_product if unsure.",
+                            "default": false
+                        }
                     },
                     "required": ["product_id", "name", "price_lkr"]
                 }),
@@ -178,11 +175,14 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_REMOVE_FROM_CART.to_string(),
-                description: "Remove a product from the cart".to_string(),
+                description: "Remove a specific product from the cart by its product_id.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "product_id": { "type": "string" }
+                        "product_id": {
+                            "type": "string",
+                            "description": "ID of the product to remove."
+                        }
                     },
                     "required": ["product_id"]
                 }),
@@ -192,12 +192,18 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SET_QUANTITY.to_string(),
-                description: "Update the quantity of a product in the cart".to_string(),
+                description: "Update the quantity of a cart item. Set to 0 to remove it.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "product_id": { "type": "string" },
-                        "quantity": { "type": "integer" }
+                        "product_id": {
+                            "type": "string",
+                            "description": "ID of the product in cart."
+                        },
+                        "quantity": {
+                            "type": "integer",
+                            "description": "New quantity. 0 removes the item."
+                        }
                     },
                     "required": ["product_id", "quantity"]
                 }),
@@ -207,20 +213,29 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_CLEAR_CART.to_string(),
-                description: "Remove all items from the cart".to_string(),
+                description: "Remove ALL items from the cart. Only use when user explicitly says 'empty cart' or 'start over'.".to_string(),
                 parameters: json!({ "type": "object", "properties": {} }),
             },
         },
+        // ═══════════════════════════════════════
+        // CHECKOUT TOOLS (call in sequence)
+        // ═══════════════════════════════════════
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_DELIVERY.to_string(),
-                description: "Step 1: Configure delivery city and date. Do this first to check availability.".to_string(),
+                description: "Checkout Step 1: Save delivery city and date. Validate city via kapruka_list_delivery_cities first. Call this before setup_recipient.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "city": { "type": "string", "description": "Canonical city name" },
-                        "date": { "type": "string", "description": "YYYY-MM-DD" }
+                        "city": {
+                            "type": "string",
+                            "description": "Validated city name from kapruka_list_delivery_cities."
+                        },
+                        "date": {
+                            "type": "string",
+                            "description": "Delivery date in YYYY-MM-DD format."
+                        }
                     }
                 }),
             },
@@ -229,14 +244,27 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_RECIPIENT.to_string(),
-                description: "Step 2: Set recipient name, phone, and full street address. Address MUST be detailed (e.g., 'No 42, Main Street, Colombo 03'). Phone must be SL format (10 digits).".to_string(),
+                description: "Checkout Step 2: Save recipient details. Address MUST include house/building number + street + area (e.g., 'No 42, Main Street, Colombo 03'). Reject vague addresses. Requires setup_delivery first.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "name": { "type": "string" },
-                        "phone": { "type": "string" },
-                        "address": { "type": "string" },
-                        "location_type": { "type": "string", "enum": ["house", "apartment", "office", "other"] }
+                        "name": {
+                            "type": "string",
+                            "description": "Recipient's full name (2-80 characters)."
+                        },
+                        "phone": {
+                            "type": "string",
+                            "description": "Sri Lankan phone number. Accept any format (077..., 07..., +94...) — backend normalizes."
+                        },
+                        "address": {
+                            "type": "string",
+                            "description": "Full street address: 'No/Building, Street Name, Area/Town'. NOT just a city or area name."
+                        },
+                        "location_type": {
+                            "type": "string",
+                            "enum": ["house", "apartment", "office", "other"],
+                            "description": "Type of delivery location. Optional."
+                        }
                     },
                     "required": ["name", "phone", "address"]
                 }),
@@ -246,13 +274,22 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_SENDER.to_string(),
-                description: "Step 3: Set sender (user) name, email, and phone for the order.".to_string(),
+                description: "Checkout Step 3: Save sender (buyer) details. Requires setup_delivery and setup_recipient first. Use known profile data if available.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "name": { "type": "string" },
-                        "email": { "type": "string" },
-                        "phone": { "type": "string" }
+                        "name": {
+                            "type": "string",
+                            "description": "Sender's full name."
+                        },
+                        "email": {
+                            "type": "string",
+                            "description": "Sender's email for order confirmation."
+                        },
+                        "phone": {
+                            "type": "string",
+                            "description": "Sender's phone number."
+                        }
                     },
                     "required": ["name", "email", "phone"]
                 }),
@@ -262,11 +299,14 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SET_SPECIAL_INSTRUCTIONS.to_string(),
-                description: "Optional Step: Add special delivery instructions or a gift note message.".to_string(),
+                description: "Optional: Add a gift message or special delivery instructions. Call after all checkout steps if the user wants to include a note.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "instructions": { "type": "string" }
+                        "instructions": {
+                            "type": "string",
+                            "description": "Gift message or delivery instructions (max 240 characters)."
+                        }
                     },
                     "required": ["instructions"]
                 }),
@@ -275,8 +315,27 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
+                name: TOOL_CREATE_ORDER.to_string(),
+                description: "Finalize the order and get a payment link. ONLY call when all checkout steps (delivery, recipient, sender) are complete. Cart and checkout data are read from the session — just pass an optional gift message.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "gift_message": {
+                            "type": "string",
+                            "description": "Optional gift note to include with the order."
+                        }
+                    }
+                }),
+            },
+        },
+        // ═══════════════════════════════════════
+        // DATA COLLECTION
+        // ═══════════════════════════════════════
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
                 name: TOOL_ASK_QUESTION.to_string(),
-                description: "Ask the user for one or more pieces of information using optimized UI inputs (e.g., date picker, phone input). Only use this tool during the checkout process (Step 1-4) or when specifically required for a tool like check_delivery. Do not use during general search or product discovery.".to_string(),
+                description: "Show structured form inputs to the user. Use ONLY during checkout to collect delivery/recipient/sender fields efficiently. Do NOT use during product discovery or general conversation.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -285,28 +344,48 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                             "items": {
                                 "type": "object",
                                 "properties": {
-                                    "field": { "type": "string", "description": "Technical field name (e.g., delivery_date, recipient_name, sender_email)" },
-                                    "label": { "type": "string", "description": "Human-readable question (e.g., When should we deliver?)" },
-                                    "input_type": { "type": "string", "enum": ["text", "tel", "date", "email", "textarea"] },
-                                    "placeholder": { "type": "string" }
+                                    "field": {
+                                        "type": "string",
+                                        "description": "Technical field key: delivery_city, delivery_date, recipient_name, recipient_phone, recipient_address, sender_name, sender_email, sender_phone."
+                                    },
+                                    "label": {
+                                        "type": "string",
+                                        "description": "User-facing question text."
+                                    },
+                                    "input_type": {
+                                        "type": "string",
+                                        "enum": ["text", "tel", "date", "email", "textarea"],
+                                        "description": "HTML input type for the field."
+                                    },
+                                    "placeholder": {
+                                        "type": "string",
+                                        "description": "Example value shown in the input."
+                                    }
                                 },
                                 "required": ["field", "label", "input_type"]
-                            }
+                            },
+                            "description": "Batch related fields together (e.g., all delivery fields in one call)."
                         }
                     },
                     "required": ["questions"]
                 }),
             },
         },
+        // ═══════════════════════════════════════
+        // MEMORY & PROFILE
+        // ═══════════════════════════════════════
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SAVE_USER_FACT.to_string(),
-                description: "Save a fact about the user for future reference. Do not duplicate existing facts.".to_string(),
+                description: "Save a personal fact about the user for future sessions (e.g., 'Sister Nimali loves orchids', 'Prefers dark chocolate', 'Lives in Colombo'). Save relationship info, preferences, and special dates. Do NOT duplicate facts already in memory.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
-                        "fact": { "type": "string" }
+                        "fact": {
+                            "type": "string",
+                            "description": "A concise, factual statement about the user or their preferences."
+                        }
                     },
                     "required": ["fact"]
                 }),
@@ -316,7 +395,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_UPDATE_USER_PROFILE.to_string(),
-                description: "Update the user's permanent profile data. Only modify if explicitly requested; ignore if data already exists and the user hasn't asked to change it.".to_string(),
+                description: "Update structured profile fields (name, email, phone, address). Use when the user explicitly provides or corrects their contact details. For personal preferences and facts, use save_user_fact instead.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -327,8 +406,31 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         "address_line1": { "type": "string" },
                         "city": { "type": "string" },
                         "zip_code": { "type": "string" },
-                        "favorite_categories": { "type": "array", "items": { "type": "string" } }
+                        "favorite_categories": {
+                            "type": "array",
+                            "items": { "type": "string" }
+                        }
                     }
+                }),
+            },
+        },
+        // ═══════════════════════════════════════
+        // ORDER TRACKING
+        // ═══════════════════════════════════════
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_TRACK_ORDER.to_string(),
+                description: "Track an existing order by its reference number. Use when the user provides an order ID or asks about a past order.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "order_number": {
+                            "type": "string",
+                            "description": "Order reference number (e.g., 'KAP-12345')."
+                        }
+                    },
+                    "required": ["order_number"]
                 }),
             },
         },

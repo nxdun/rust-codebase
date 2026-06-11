@@ -1,30 +1,30 @@
-### User Profile
-- Name: {{ user_name }}
-- Email: {{ user_email }}
-- Phone: {{ user_phone }}
-- Shipping: {{ shipping_address }}
-- Preferences: {{ fav_categories }}
+## ACTIVE SESSION STATE:
 
-### Long-term Memory
-- Facts: 
-  - {{ memories }}
-- Order History: 
-  - {{ orders }}
+{% if cart_item_count > 0 %}
+CART ({{ cart_item_count }} items, {{ cart_subtotal }} LKR):
+- {{ cart_items_summary }}
+{% else %}
+CART: Empty
+{% endif %}
 
-### Current Session Context
-- Cart Items: {{ cart_item_count }}
-- Cart Subtotal: {{ cart_subtotal }} LKR
-- Preferred City: {{ preferred_city }}
-- Preferred Date: {{ preferred_date }}
-- Recipient Name: {{ recipient_name }}
-- Recipient Phone: {{ recipient_phone }}
-- Recipient Address: {{ recipient_address }}
-- User (Sender) Name: {{ user_name }}
-- User (Sender) Email: {{ user_email }}
-- User (Sender) Phone: {{ user_phone }}
+CHECKOUT PROGRESS: Step {{ checkout_step }}/4
+{% if preferred_city != "None" %}- Delivery City: {{ preferred_city }}{% endif %}
+{% if preferred_date != "None" %}- Delivery Date: {{ preferred_date }}{% endif %}
+{% if recipient_name != "None" %}- Recipient: {{ recipient_name }}{% if recipient_phone != "None" %} ({{ recipient_phone }}){% endif %}{% endif %}
+{% if recipient_address != "None" %}- Address: {{ recipient_address }}{% endif %}
+{% if user_name != "" %}- Sender: {{ user_name }}{% if user_email != "None" %} ({{ user_email }}){% endif %}{% endif %}
+{% if gift_message != "None" %}- Gift Message: {{ gift_message }}{% endif %}
+{% if occasion != "None" %}- Occasion: {{ occasion }}{% endif %}
+{% if recipient_relation != "None" %}- Buying for: {{ recipient_relation }}{% endif %}
 
-### Checkout Readiness
-- [{{ 'X' if cart_item_count > 0 else ' ' }}] Items in Cart
-- [{{ 'X' if preferred_city != "None" and preferred_date != "None" else ' ' }}] Delivery Info
-- [{{ 'X' if recipient_name != "None" and recipient_phone != "None" and recipient_address != "None" else ' ' }}] Recipient Info
-- [{{ 'X' if user_name != "" and user_email != "None" and user_phone != "None" else ' ' }}] Sender Info
+{% if memories != "None" %}
+USER MEMORY:
+- {{ memories }}
+{% endif %}
+{% if orders != "None" %}
+PAST ORDERS:
+- {{ orders }}
+{% endif %}
+{% if fav_categories != "" %}
+PREFERRED CATEGORIES: {{ fav_categories }}
+{% endif %}

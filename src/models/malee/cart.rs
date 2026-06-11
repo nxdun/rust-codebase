@@ -7,9 +7,15 @@ pub struct CartItem {
     pub product_id: String,
     pub name: String,
     pub price_lkr: i64,
+    #[serde(default = "default_quantity")]
     pub quantity: u32,
     pub image_url: Option<String>,
+    #[serde(default)]
     pub is_perishable: bool,
+}
+
+const fn default_quantity() -> u32 {
+    1
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
