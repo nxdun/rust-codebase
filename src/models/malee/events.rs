@@ -48,6 +48,12 @@ pub enum UiEvent {
         expires_in_minutes: u32,
         cart_summary: Vec<CartItemView>,
     },
+    CheckoutProgress {
+        current_step: u32,
+        total_steps: u32,
+        step_name: String,
+        missing_fields: Vec<String>,
+    },
     TrackingResult {
         order_number: String,
         status: String,

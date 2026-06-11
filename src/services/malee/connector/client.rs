@@ -41,6 +41,11 @@ impl MaleeConnector {
         }
     }
 
+    pub fn internal_inject_city_cache(&self, query: &str, cities: Vec<String>) {
+        self.city_cache
+            .insert(query.to_string(), (Instant::now(), cities));
+    }
+
     async fn initialize_mcp(&self, user_session_id: &str) -> Result<String, MaleeError> {
         tracing::info!(user_session_id, "Initializing new MCP session");
 
@@ -209,8 +214,7 @@ impl MaleeConnector {
             let json_text = if body_text.contains("event: message") {
                 body_text
                     .lines()
-                    .find(|l| l.starts_with("data: "))
-                    .map(|l| l.trim_start_matches("data: "))
+                    .find_map(crate::services::malee::sse::parser::parse_sse_line)
                     .ok_or_else(|| {
                         MaleeError::ConnectorError("Malformed SSE: missing data".to_string())
                     })?
@@ -324,7 +328,9 @@ impl MaleeConnector {
         args: ListCitiesArgs,
         session_id: &str,
     ) -> Result<Vec<String>, MaleeError> {
-        if let Some(cached) = self.city_cache.get("all")
+        let cache_key = args.query.as_deref().unwrap_or("all").to_string();
+
+        if let Some(cached) = self.city_cache.get(&cache_key)
             && cached.0.elapsed() < Duration::from_mins(10)
         {
             return Ok(cached.1.clone());
@@ -332,8 +338,10 @@ impl MaleeConnector {
 
         let res: ListCitiesResponse = self.call_tool(TOOL_LIST_CITIES, args, session_id).await?;
         let names: Vec<String> = res.cities.into_iter().map(|c| c.name).collect();
+
         self.city_cache
-            .insert("all".to_string(), (Instant::now(), names.clone()));
+            .insert(cache_key, (Instant::now(), names.clone()));
+
         Ok(names)
     }
 

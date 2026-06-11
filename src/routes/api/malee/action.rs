@@ -6,11 +6,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    models::malee::{
-        cart::CartItem,
-        checkout::DeliveryInfo,
-        events::{CartItemView, CartView},
-    },
+    models::malee::{cart::CartItem, checkout::DeliveryInfo, events::CartView},
     services::malee::cart::reducer::{CartAction, reduce},
     state::AppState,
 };
@@ -124,22 +120,7 @@ pub async fn handler(
         }
     }
 
-    let cart_view = CartView {
-        items: session
-            .cart
-            .items
-            .iter()
-            .map(|i| CartItemView {
-                product_id: i.product_id.clone(),
-                name: i.name.clone(),
-                price_lkr: i.price_lkr,
-                quantity: i.quantity,
-                image_url: i.image_url.clone(),
-            })
-            .collect(),
-        subtotal_lkr: session.cart.subtotal_lkr(),
-        item_count: session.cart.item_count(),
-    };
+    let cart_view = CartView::from(&session.cart);
 
     state.malee_service.session_store.upsert(session);
 

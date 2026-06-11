@@ -153,25 +153,25 @@ impl GroqClient {
                     if line.is_empty() {
                         continue;
                     }
-                    if line == "data: [DONE]" {
-                        tracing::debug!("LLM stream reached [DONE]");
-                        if let Some(id) = current_tool_id
-                            && let (Some(name), Ok(args)) =
-                                (current_tool_name, serde_json::from_str(&current_tool_args))
-                        {
-                            let _ = tx
-                                .send(Ok(LlmChunk::ToolCall {
-                                    id,
-                                    name,
-                                    arguments: args,
-                                }))
-                                .await;
+                    if let Some(data) = crate::services::malee::sse::parser::parse_sse_line(&line) {
+                        if data == "[DONE]" {
+                            tracing::debug!("LLM stream reached [DONE]");
+                            if let Some(id) = current_tool_id
+                                && let (Some(name), Ok(args)) =
+                                    (current_tool_name, serde_json::from_str(&current_tool_args))
+                            {
+                                let _ = tx
+                                    .send(Ok(LlmChunk::ToolCall {
+                                        id,
+                                        name,
+                                        arguments: args,
+                                    }))
+                                    .await;
+                            }
+                            let _ = tx.send(Ok(LlmChunk::Done)).await;
+                            return;
                         }
-                        let _ = tx.send(Ok(LlmChunk::Done)).await;
-                        return;
-                    }
 
-                    if let Some(data) = line.strip_prefix("data: ") {
                         match serde_json::from_str::<serde_json::Value>(data) {
                             Ok(json) => {
                                 if let Some(err) = json.get("error") {
@@ -435,5 +435,41 @@ impl LlmClient for OllamaClient {
         });
 
         Ok(Box::pin(ReceiverStream::new(rx)))
+    }
+}
+
+#[derive(Debug)]
+pub struct GenericOpenAiClient {
+    client: Client,
+    api_key: String,
+    base_url: String,
+    model: String,
+}
+
+impl GenericOpenAiClient {
+    pub const fn new(client: Client, api_key: String, base_url: String, model: String) -> Self {
+        Self {
+            client,
+            api_key,
+            base_url,
+            model,
+        }
+    }
+}
+
+#[async_trait]
+impl LlmClient for GenericOpenAiClient {
+    async fn stream_chat(
+        &self,
+        messages: Vec<LlmMessage>,
+        tools: Vec<ToolSchema>,
+    ) -> Result<Pin<Box<dyn Stream<Item = Result<LlmChunk, MaleeError>> + Send>>, MaleeError> {
+        let groq = GroqClient::new(
+            self.client.clone(),
+            self.api_key.clone(),
+            self.base_url.clone(),
+            self.model.clone(),
+        );
+        groq.stream_chat(messages, tools).await
     }
 }

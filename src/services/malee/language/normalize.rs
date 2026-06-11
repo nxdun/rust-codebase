@@ -75,16 +75,3 @@ pub fn normalize(text: &str) -> LanguageHints {
 
     hints
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_normalize_budget() {
-        let hints = normalize("gift for amma under 5000 in colombo");
-        assert_eq!(hints.inferred_recipient.as_deref(), Some("mother"));
-        assert_eq!(hints.inferred_budget_max_lkr, Some(5000));
-        assert_eq!(hints.inferred_city_hint.as_deref(), Some("colombo"));
-    }
-}

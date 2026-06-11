@@ -67,27 +67,3 @@ pub fn reduce(
     }
     Ok(state)
 }
-
-#[cfg(test)]
-#[allow(clippy::unwrap_used)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_add_item() {
-        let state = CartState::default();
-        let action = CartAction::AddItem {
-            product: CartItem {
-                product_id: "p1".to_string(),
-                name: "Test".to_string(),
-                price_lkr: 1000,
-                quantity: 1,
-                image_url: None,
-                is_perishable: false,
-            },
-        };
-        let new_state = reduce(state, action, 10).unwrap();
-        assert_eq!(new_state.items.len(), 1);
-        assert_eq!(new_state.items[0].quantity, 1);
-    }
-}

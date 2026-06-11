@@ -10,7 +10,7 @@ use uuid::Uuid;
 
 use crate::{
     error::AppError,
-    models::malee::events::{CartItemView, CartView, CheckoutDraftView},
+    models::malee::events::{CartView, CheckoutDraftView},
     state::AppState,
 };
 
@@ -34,34 +34,9 @@ pub async fn get(
         .get(&id)
         .ok_or_else(|| AppError::NotFound("Session not found".to_string()))?;
 
-    let cart_view = CartView {
-        items: session
-            .cart
-            .items
-            .iter()
-            .map(|i| CartItemView {
-                product_id: i.product_id.clone(),
-                name: i.name.clone(),
-                price_lkr: i.price_lkr,
-                quantity: i.quantity,
-                image_url: i.image_url.clone(),
-            })
-            .collect(),
-        subtotal_lkr: session.cart.subtotal_lkr(),
-        item_count: session.cart.item_count(),
-    };
+    let cart_view = CartView::from(&session.cart);
 
-    let checkout_draft = CheckoutDraftView {
-        recipient_name: session.checkout_draft.recipient.map(|r| r.name),
-        delivery_city: session
-            .checkout_draft
-            .delivery
-            .as_ref()
-            .map(|d| d.city.clone()),
-        delivery_date: session.checkout_draft.delivery.map(|d| d.date.to_string()),
-        sender_name: session.checkout_draft.sender.map(|s| s.name),
-        gift_message: session.checkout_draft.gift_message,
-    };
+    let checkout_draft = CheckoutDraftView::from(&session.checkout_draft);
 
     let view = SessionView {
         session_id: session.session_id.to_string(),

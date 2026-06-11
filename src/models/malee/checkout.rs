@@ -1,3 +1,4 @@
+use super::events::CheckoutDraftView;
 use chrono::NaiveDate;
 use serde::{Deserialize, Serialize};
 
@@ -7,6 +8,8 @@ pub struct CheckoutDraft {
     pub delivery: Option<DeliveryInfo>,
     pub sender: Option<SenderInfo>,
     pub gift_message: Option<String>,
+    pub special_instructions: Option<String>,
+    pub location_type: Option<String>, // house, apartment, office, other
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -37,7 +40,7 @@ impl Default for DeliveryInfo {
     }
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct SenderInfo {
     pub name: String,
     pub email: String,
@@ -52,4 +55,16 @@ pub enum QuoteStatus {
         rate_lkr: i64,
     },
     NotDeliverable,
+}
+
+impl From<&CheckoutDraft> for CheckoutDraftView {
+    fn from(draft: &CheckoutDraft) -> Self {
+        Self {
+            recipient_name: draft.recipient.as_ref().map(|r| r.name.clone()),
+            delivery_city: draft.delivery.as_ref().map(|d| d.city.clone()),
+            delivery_date: draft.delivery.as_ref().map(|d| d.date.to_string()),
+            sender_name: draft.sender.as_ref().map(|s| s.name.clone()),
+            gift_message: draft.gift_message.clone(),
+        }
+    }
 }

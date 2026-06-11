@@ -72,5 +72,8 @@ This document serves as the foundational mandate for all engineering work on nad
 *   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.do not over document, make guesses about the unseen code.
 *   Complex logic (like the Midnight Snap caching strategy) must be documented inline.
 
+### Testing
+*   **No Inline Tests in `src/`**: Adding test files or `#[cfg(test)]` modules inside the `src/` directory is strictly prohibited. All tests must be placed in the `tests/` folder.
+
 ---
 *Follow these rules to ensure the codebase remains scalable, secure, and blazingly fast.*

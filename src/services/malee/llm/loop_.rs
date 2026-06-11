@@ -1,16 +1,12 @@
+use super::state_machine::{AgentEvent, AgentStateMachine};
+use super::tools::{ToolResult, execute_tool};
 use crate::config::AppConfig;
 use crate::error::MaleeError;
 use crate::models::malee::events::{
-    CartView, CategoryView, ProductCardView, ProductDetailView, UiEvent,
+    CartView, CategoryView, CheckoutDraftView, ProductCardView, ProductDetailView, UiEvent,
 };
 use crate::models::malee::session::{ConversationTurn, Role, SessionState};
 use crate::services::malee::connector::client::MaleeConnector;
-use crate::services::malee::connector::tools::{
-    TOOL_ADD_TO_CART, TOOL_CHECK_DELIVERY, TOOL_CLEAR_CART, TOOL_CREATE_ORDER, TOOL_GET_PRODUCT,
-    TOOL_LIST_CATEGORIES, TOOL_LIST_CITIES, TOOL_REMOVE_FROM_CART, TOOL_SAVE_USER_FACT,
-    TOOL_SEARCH_PRODUCTS, TOOL_SET_QUANTITY, TOOL_SETUP_DELIVERY, TOOL_TRACK_ORDER,
-    TOOL_UPDATE_USER_PROFILE,
-};
 use crate::services::malee::llm::client::{LlmChunk, LlmMessage};
 use crate::services::malee::llm::pool::LlmRouter;
 use crate::services::malee::llm::prompt::PromptBuilder;
@@ -19,7 +15,6 @@ use futures::StreamExt;
 use tokio::sync::mpsc;
 
 const MAX_TURN_DEPTH: usize = 6;
-const DEFAULT_CART_LIMIT: usize = 20;
 const GUEST_CHECKOUT_EXPIRY_MINS: u32 = 60;
 const MAX_MALFORMED_RETRIES: u32 = 2;
 const MAX_BACKEND_FAILOVERS: usize = 3;
@@ -38,6 +33,7 @@ pub async fn run_agent_loop(
     event_tx: mpsc::Sender<UiEvent>,
     _config: &AppConfig,
 ) -> Result<(), MaleeError> {
+    let mut state_machine = AgentStateMachine::new();
     let mut depth = 0;
 
     tracing::info!("Starting agent loop with multi-provider failover support");
@@ -56,6 +52,8 @@ pub async fn run_agent_loop(
         depth += 1;
         let turn_span = tracing::info_span!("agent_turn", depth = depth);
         let _enter = turn_span.enter();
+
+        state_machine.transition(AgentEvent::StartTurn);
 
         let mut malformed_retries = 0;
         let mut tool_called = false;
@@ -110,20 +108,22 @@ pub async fn run_agent_loop(
                     let is_retryable = err_str.contains("RATE_LIMIT")
                         || err_str.contains("HTTP 5")
                         || err_str.contains("tool_use_failed")
-                        || err_str.contains("HTTP 400"); // Broaden 400 to failover
+                        || err_str.contains("HTTP 400")
+                        || err_str.contains("429");
 
                     if is_retryable && failover_count < MAX_BACKEND_FAILOVERS {
                         failover_count += 1;
-                        if backend_index + 1 < llm_router.backend_count() {
+                        session.active_llm_index =
+                            (session.active_llm_index + 1) % llm_router.backend_count();
+                        if failover_count >= llm_router.backend_count() {
+                            tracing::warn!(
+                                "All backends failed or limit reached. Retrying next with delay..."
+                            );
+                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                        } else {
                             tracing::warn!(
                                 "Backend {backend_index} failed: {err_str}. Failing over..."
                             );
-                            session.active_llm_index += 1;
-                        } else {
-                            tracing::warn!(
-                                "All backends failed or limit reached. Retrying current with delay..."
-                            );
-                            tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                         }
                         continue 'retry_loop;
                     }
@@ -138,7 +138,10 @@ pub async fn run_agent_loop(
                 match chunk_res {
                     Ok(LlmChunk::Token(t)) => {
                         full_text.push_str(&t);
-                        let _ = event_tx.send(UiEvent::Token { text: t }).await;
+                        let events = state_machine.transition(AgentEvent::ReceiveToken(t));
+                        for event in events {
+                            let _ = event_tx.send(event).await;
+                        }
                     }
                     Ok(LlmChunk::ToolCall {
                         id,
@@ -153,17 +156,12 @@ pub async fn run_agent_loop(
                     }
                     Ok(LlmChunk::Done) => {
                         if !tool_calls_collected.is_empty() {
-                            session.conversation_history.push(ConversationTurn {
-                                role: Role::Assistant,
-                                content: full_text.clone(),
-                                tool_call_id: None,
-                                tool_calls: Some(tool_calls_collected.clone()),
-                            });
-
+                            let mut parsed_args: Vec<serde_json::Value> =
+                                Vec::with_capacity(tool_calls_collected.len());
                             for tc in &tool_calls_collected {
                                 tracing::info!(tool = %tc.name, tool_id = %tc.id, "LLM requested tool call");
-                                let args_val = match serde_json::from_str(&tc.arguments) {
-                                    Ok(v) => v,
+                                match serde_json::from_str(&tc.arguments) {
+                                    Ok(v) => parsed_args.push(v),
                                     Err(e) => {
                                         tracing::warn!(
                                             "Malformed tool arguments: {e}. Retry {}/{}",
@@ -190,7 +188,21 @@ pub async fn run_agent_loop(
                                             "Malformed tool arguments: {e}"
                                         )));
                                     }
-                                };
+                                }
+                            }
+
+                            session.conversation_history.push(ConversationTurn {
+                                role: Role::Assistant,
+                                content: full_text.clone(),
+                                tool_call_id: None,
+                                tool_calls: Some(tool_calls_collected.clone()),
+                            });
+
+                            for (tc, args_val) in tool_calls_collected.iter().zip(parsed_args) {
+                                state_machine.transition(AgentEvent::CallTool {
+                                    name: tc.name.clone(),
+                                    args: args_val.clone(),
+                                });
 
                                 let result_content = match dispatch_tool(
                                     session,
@@ -202,10 +214,20 @@ pub async fn run_agent_loop(
                                 )
                                 .await
                                 {
-                                    Ok(res) => res,
+                                    Ok(res) => {
+                                        state_machine.transition(AgentEvent::ReceiveToolResult {
+                                            result: res.clone(),
+                                        });
+                                        res
+                                    }
                                     Err(e) => {
                                         tracing::warn!("Tool execution failed: {:?}", e);
-                                        format!("Error executing tool {}: {}", tc.name, e)
+                                        let res =
+                                            format!("Error executing tool {}: {}", tc.name, e);
+                                        state_machine.transition(AgentEvent::ReceiveToolResult {
+                                            result: res.clone(),
+                                        });
+                                        res
                                     }
                                 };
 
@@ -223,11 +245,11 @@ pub async fn run_agent_loop(
 
                         if !full_text.is_empty() {
                             tracing::debug!("LLM finished stream with {} tokens", full_text.len());
-                            let _ = event_tx
-                                .send(UiEvent::AssistantMessageDone {
-                                    full_text: full_text.clone(),
-                                })
-                                .await;
+                            let events =
+                                state_machine.transition(AgentEvent::FinishTurn(full_text.clone()));
+                            for event in events {
+                                let _ = event_tx.send(event).await;
+                            }
                             session.conversation_history.push(ConversationTurn {
                                 role: Role::Assistant,
                                 content: full_text.clone(),
@@ -243,16 +265,20 @@ pub async fn run_agent_loop(
                         let is_retryable = err_str.contains("RATE_LIMIT")
                             || err_str.contains("HTTP 5")
                             || err_str.contains("tool_use_failed")
-                            || err_str.contains("HTTP 400");
+                            || err_str.contains("HTTP 400")
+                            || err_str.contains("429");
 
                         if is_retryable && failover_count < MAX_BACKEND_FAILOVERS {
                             failover_count += 1;
-                            if backend_index + 1 < llm_router.backend_count() {
-                                tracing::warn!("Stream error: {err_str}. Failing over...");
-                                session.active_llm_index += 1;
-                            } else {
-                                tracing::warn!("Stream error: {err_str}. Retrying with delay...");
+                            session.active_llm_index =
+                                (session.active_llm_index + 1) % llm_router.backend_count();
+                            if failover_count >= llm_router.backend_count() {
+                                tracing::warn!(
+                                    "Stream error: {err_str}. All backends failed. Retrying next with delay..."
+                                );
                                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+                            } else {
+                                tracing::warn!("Stream error: {err_str}. Failing over...");
                             }
                             continue 'retry_loop;
                         }
@@ -270,13 +296,11 @@ pub async fn run_agent_loop(
     }
 
     tracing::warn!("Agent loop depth exceeded limit ({})", MAX_TURN_DEPTH);
-    let _ = event_tx
-        .send(UiEvent::Error {
-            code: "LOOP_DEPTH".to_string(),
-            message: "Agent took too many turns".to_string(),
-            recoverable: true,
-        })
-        .await;
+    let events =
+        state_machine.transition(AgentEvent::Error("Agent took too many turns".to_string()));
+    for event in events {
+        let _ = event_tx.send(event).await;
+    }
 
     Err(MaleeError::LoopDepthExceeded)
 }
@@ -292,13 +316,12 @@ async fn dispatch_tool(
     session_id: &str,
 ) -> Result<String, MaleeError> {
     tracing::info!("Dispatching tool: {}", name);
-    match name {
-        TOOL_SEARCH_PRODUCTS => {
-            let args = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let res = connector.search_products(args, session_id).await?;
+    let (tool_result, output_str) =
+        execute_tool(session, connector, name, arguments.clone(), session_id).await?;
 
-            let views: Vec<ProductCardView> = res
+    match tool_result {
+        ToolResult::SearchProducts(products) => {
+            let views: Vec<ProductCardView> = products
                 .iter()
                 .map(|p| ProductCardView {
                     id: p.id.clone(),
@@ -309,9 +332,6 @@ async fn dispatch_tool(
                 })
                 .collect();
 
-            // Store in session for visual memory
-            session.last_products.clone_from(&views);
-
             let _ = event_tx
                 .send(UiEvent::ProductCarousel {
                     title: "Search Results".to_string(),
@@ -319,14 +339,8 @@ async fn dispatch_tool(
                     items: views,
                 })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_GET_PRODUCT => {
-            let args = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let res = connector.get_product(args, session_id).await?;
-
+        ToolResult::GetProduct(res) => {
             let view = ProductDetailView {
                 id: res.id.clone(),
                 name: res.name.clone(),
@@ -339,14 +353,8 @@ async fn dispatch_tool(
             };
 
             let _ = event_tx.send(UiEvent::ProductDetail { item: view }).await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_LIST_CATEGORIES => {
-            let args = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let res = connector.list_categories(args, session_id).await?;
-
+        ToolResult::ListCategories(res) => {
             let views = res
                 .iter()
                 .map(|c| CategoryView {
@@ -359,51 +367,26 @@ async fn dispatch_tool(
             let _ = event_tx
                 .send(UiEvent::CategoryGrid { categories: views })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_LIST_CITIES => {
-            let args: crate::services::malee::connector::types::ListCitiesArgs =
-                serde_json::from_value(arguments)
-                    .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let query = args.query.clone().unwrap_or_default();
-            let res = connector.list_cities(args, session_id).await?;
-
+        ToolResult::ListCities(res) => {
+            let query = arguments["query"].as_str().unwrap_or_default().to_string();
             let _ = event_tx
-                .send(UiEvent::CitySuggestions {
-                    query,
-                    cities: res.clone(),
-                })
+                .send(UiEvent::CitySuggestions { query, cities: res })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_CHECK_DELIVERY => {
-            let args: crate::services::malee::connector::types::CheckDeliveryArgs =
-                serde_json::from_value(arguments)
-                    .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let city = args.city.clone();
-            let date = args.date.clone();
-            let res = connector.check_delivery(args, session_id).await?;
-
+        ToolResult::CheckDelivery { city, date, quote } => {
             let _ = event_tx
                 .send(UiEvent::DeliveryQuote {
                     city,
                     date,
-                    rate_lkr: res.rate.round() as i64,
-                    deliverable: res.available,
-                    perishable_warning: res.perishable_warning.is_some(),
-                    next_available_date: res.next_available_date.clone(),
+                    rate_lkr: quote.rate.round() as i64,
+                    deliverable: quote.available,
+                    perishable_warning: quote.perishable_warning.is_some(),
+                    next_available_date: quote.next_available_date.clone(),
                 })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_CREATE_ORDER => {
-            let args = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let res = connector.create_order(args, session_id).await?;
-
+        ToolResult::CreateOrder(res) => {
             let _ = event_tx
                 .send(UiEvent::CheckoutReady {
                     pay_url: res.pay_url.clone(),
@@ -412,234 +395,78 @@ async fn dispatch_tool(
                     cart_summary: vec![],
                 })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        TOOL_TRACK_ORDER => {
-            let args: crate::services::malee::connector::types::TrackOrderArgs =
-                serde_json::from_value(arguments)
-                    .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let req_order_number = args.order_number.clone();
-            let res = connector.track_order(args, session_id).await?;
-
+        ToolResult::TrackOrder {
+            order_number,
+            details,
+        } => {
             let _ = event_tx
                 .send(UiEvent::TrackingResult {
-                    order_number: req_order_number,
-                    status: res.status.clone(),
-                    recipient: res.recipient.name.clone(),
-                    items: res.items.iter().map(|i| i.name.clone()).collect(),
-                    timeline: res.progress.clone(),
+                    order_number,
+                    status: details.status.clone(),
+                    recipient: details.recipient.name.clone(),
+                    items: details.items.iter().map(|i| i.name.clone()).collect(),
+                    timeline: details.progress.clone(),
                 })
                 .await;
-
-            Ok(serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?)
         }
-        // Local Tools
-        TOOL_ADD_TO_CART => {
-            let item: crate::models::malee::cart::CartItem = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            let action = crate::services::malee::cart::reducer::CartAction::AddItem {
-                product: item.clone(),
+        ToolResult::AddToCart { .. }
+        | ToolResult::RemoveFromCart { .. }
+        | ToolResult::SetQuantity { .. }
+        | ToolResult::ClearCart => {
+            let _ = event_tx
+                .send(UiEvent::CartUpdated {
+                    cart: CartView::from(&session.cart),
+                })
+                .await;
+        }
+        ToolResult::SetupDelivery
+        | ToolResult::SetupRecipient
+        | ToolResult::SetupSender
+        | ToolResult::SetSpecialInstructions => {
+            let missing_fields = match crate::services::malee::checkout::validate::validate(
+                &session.checkout_draft,
+                &session.cart,
+            ) {
+                Ok(_) => vec![],
+                Err(errs) => errs,
             };
-            session.cart = crate::services::malee::cart::reducer::reduce(
-                session.cart.clone(),
-                action,
-                DEFAULT_CART_LIMIT,
-            )?;
+
+            // Calculate step progress
+            let mut current_step = 1;
+            let mut step_name = "Delivery Details".to_string();
+
+            if session.checkout_draft.delivery.is_some() {
+                current_step = 2;
+                step_name = "Recipient Details".to_string();
+            }
+            if session.checkout_draft.recipient.is_some() {
+                current_step = 3;
+                step_name = "Sender Details".to_string();
+            }
+            if session.checkout_draft.sender.is_some() {
+                current_step = 4;
+                step_name = "Finalize".to_string();
+            }
 
             let _ = event_tx
-                .send(UiEvent::CartUpdated {
-                    cart: CartView {
-                        items: session
-                            .cart
-                            .items
-                            .iter()
-                            .map(|i| crate::models::malee::events::CartItemView {
-                                product_id: i.product_id.clone(),
-                                name: i.name.clone(),
-                                price_lkr: i.price_lkr,
-                                quantity: i.quantity,
-                                image_url: i.image_url.clone(),
-                            })
-                            .collect(),
-                        subtotal_lkr: session.cart.subtotal_lkr(),
-                        item_count: session.cart.item_count(),
-                    },
+                .send(UiEvent::CheckoutProgress {
+                    current_step,
+                    total_steps: 4,
+                    step_name,
+                    missing_fields: missing_fields.clone(),
                 })
                 .await;
 
-            Ok(format!("Added {} to cart", item.name))
-        }
-        TOOL_REMOVE_FROM_CART => {
-            let args: serde_json::Value = arguments;
-            let product_id = args["product_id"]
-                .as_str()
-                .ok_or_else(|| MaleeError::LlmError("Missing product_id".to_string()))?;
-            let action = crate::services::malee::cart::reducer::CartAction::RemoveItem {
-                product_id: product_id.to_string(),
-            };
-            session.cart = crate::services::malee::cart::reducer::reduce(
-                session.cart.clone(),
-                action,
-                DEFAULT_CART_LIMIT,
-            )?;
-
             let _ = event_tx
-                .send(UiEvent::CartUpdated {
-                    cart: CartView {
-                        items: session
-                            .cart
-                            .items
-                            .iter()
-                            .map(|i| crate::models::malee::events::CartItemView {
-                                product_id: i.product_id.clone(),
-                                name: i.name.clone(),
-                                price_lkr: i.price_lkr,
-                                quantity: i.quantity,
-                                image_url: i.image_url.clone(),
-                            })
-                            .collect(),
-                        subtotal_lkr: session.cart.subtotal_lkr(),
-                        item_count: session.cart.item_count(),
-                    },
+                .send(UiEvent::CheckoutForm {
+                    draft: CheckoutDraftView::from(&session.checkout_draft),
+                    missing_fields,
                 })
                 .await;
-
-            Ok(format!("Removed {product_id} from cart"))
         }
-        TOOL_SET_QUANTITY => {
-            let args: serde_json::Value = arguments;
-            let product_id = args["product_id"]
-                .as_str()
-                .ok_or_else(|| MaleeError::LlmError("Missing product_id".to_string()))?;
-            let quantity = args["quantity"]
-                .as_u64()
-                .ok_or_else(|| MaleeError::LlmError("Missing quantity".to_string()))?
-                as u32;
-
-            let action = crate::services::malee::cart::reducer::CartAction::SetQuantity {
-                product_id: product_id.to_string(),
-                quantity,
-            };
-            session.cart = crate::services::malee::cart::reducer::reduce(
-                session.cart.clone(),
-                action,
-                DEFAULT_CART_LIMIT,
-            )?;
-
-            let _ = event_tx
-                .send(UiEvent::CartUpdated {
-                    cart: CartView {
-                        items: session
-                            .cart
-                            .items
-                            .iter()
-                            .map(|i| crate::models::malee::events::CartItemView {
-                                product_id: i.product_id.clone(),
-                                name: i.name.clone(),
-                                price_lkr: i.price_lkr,
-                                quantity: i.quantity,
-                                image_url: i.image_url.clone(),
-                            })
-                            .collect(),
-                        subtotal_lkr: session.cart.subtotal_lkr(),
-                        item_count: session.cart.item_count(),
-                    },
-                })
-                .await;
-
-            Ok(format!("Set quantity of {product_id} to {quantity}"))
-        }
-        TOOL_CLEAR_CART => {
-            let action = crate::services::malee::cart::reducer::CartAction::Clear;
-            session.cart = crate::services::malee::cart::reducer::reduce(
-                session.cart.clone(),
-                action,
-                DEFAULT_CART_LIMIT,
-            )?;
-
-            let _ = event_tx
-                .send(UiEvent::CartUpdated {
-                    cart: CartView {
-                        items: vec![],
-                        subtotal_lkr: 0,
-                        item_count: 0,
-                    },
-                })
-                .await;
-
-            Ok("Cleared cart".to_string())
-        }
-        TOOL_SETUP_DELIVERY => {
-            let args: serde_json::Value = arguments;
-            if let Some(city) = args["city"].as_str() {
-                session.checkout_draft.delivery =
-                    Some(crate::models::malee::checkout::DeliveryInfo {
-                        city: city.to_string(),
-                        date: session
-                            .checkout_draft
-                            .delivery
-                            .as_ref()
-                            .map_or_else(|| chrono::Utc::now().date_naive(), |d| d.date),
-                        quote_status: crate::models::malee::checkout::QuoteStatus::Pending,
-                    });
-            }
-            if let Some(date_str) = args["date"].as_str()
-                && let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
-            {
-                session.checkout_draft.delivery =
-                    Some(crate::models::malee::checkout::DeliveryInfo {
-                        city: session
-                            .checkout_draft
-                            .delivery
-                            .as_ref()
-                            .map_or_else(String::new, |d| d.city.clone()),
-                        date,
-                        quote_status: crate::models::malee::checkout::QuoteStatus::Pending,
-                    });
-            }
-
-            Ok("Updated delivery info".to_string())
-        }
-        TOOL_SAVE_USER_FACT => {
-            let args: serde_json::Value = arguments;
-            let fact = args["fact"]
-                .as_str()
-                .ok_or_else(|| MaleeError::LlmError("Missing fact".to_string()))?;
-            session.user_profile.memories.push(fact.to_string());
-            Ok("Fact saved successfully".to_string())
-        }
-        TOOL_UPDATE_USER_PROFILE => {
-            let args: serde_json::Value = arguments;
-            if let Some(v) = args["first_name"].as_str() {
-                session.user_profile.first_name = Some(v.to_string());
-            }
-            if let Some(v) = args["last_name"].as_str() {
-                session.user_profile.last_name = Some(v.to_string());
-            }
-            if let Some(v) = args["email"].as_str() {
-                session.user_profile.email = Some(v.to_string());
-            }
-            if let Some(v) = args["phone"].as_str() {
-                session.user_profile.phone = Some(v.to_string());
-            }
-            if let Some(v) = args["address_line1"].as_str() {
-                session.user_profile.address_line1 = Some(v.to_string());
-            }
-            if let Some(v) = args["city"].as_str() {
-                session.user_profile.city = Some(v.to_string());
-            }
-            if let Some(v) = args["zip_code"].as_str() {
-                session.user_profile.zip_code = Some(v.to_string());
-            }
-            if let Some(v) = args["favorite_categories"].as_array() {
-                session.user_profile.favorite_categories = v
-                    .iter()
-                    .filter_map(|x| x.as_str().map(ToString::to_string))
-                    .collect();
-            }
-            Ok("Profile updated successfully".to_string())
-        }
-        _ => Err(MaleeError::LlmError(format!("Unknown tool: {name}"))),
+        ToolResult::SaveUserFact | ToolResult::UpdateUserProfile => {}
     }
+
+    Ok(output_str)
 }

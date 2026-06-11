@@ -7,6 +7,7 @@ This document describes the API endpoints for the **Malee (මලී)** feature,
 - **Base URL**: `/api/v1/malee`
 - **Authentication**: All requests require the `x-api-key` header.
 - **Content-Type**: `application/json` (except for the chat endpoint which returns `text/event-stream`).
+- **Intelligence**: Powered by a pooled LLM system supporting Groq, Google Gemini, Cerebras, and Fireworks for high-speed, reliable Sri Lankan e-commerce assistance.
 
 ## 2. Authentication
 
@@ -49,7 +50,7 @@ Synchronous endpoint to update session state (cart, delivery info, etc.) without
 }
 ```
 - **Supported Actions**:
-    - `add_to_cart`: Payload is a `Product` object.
+    - `add_to_cart`: Payload is a `CartItem` object.
     - `remove_from_cart`: Payload `{ "product_id": "string" }`.
     - `set_quantity`: Payload `{ "product_id": "string", "quantity": number }`.
     - `clear_cart`: No payload.
@@ -57,7 +58,7 @@ Synchronous endpoint to update session state (cart, delivery info, etc.) without
     - `set_delivery_date`: Payload `{ "date": "YYYY-MM-DD" }`.
     - `set_gift_note`: Payload `{ "note": "string" }`.
     - `set_language`: Payload `{ "mode": "string" }`.
-- **Response**: `200 OK` with updated `CartView` or `SessionView`.
+- **Response**: `200 OK` with updated `CartView`.
 
 ---
 
@@ -94,6 +95,7 @@ Directly track an order without conversation history.
 - **Response**: `200 OK`
 ```json
 {
+  "order_number": "string",
   "status": "string",
   "recipient": "string",
   "items": ["item1", "item2"],
@@ -112,20 +114,22 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 | `session_created` | `{ "session_id": "uuid" }` | Emitted when a new session is started. |
 | `token` | `{ "text": "token" }` | Incremental chat token (for typing effect). |
 | `assistant_message_done` | `{ "full_text": "full text" }` | Final accumulated assistant message. |
-| `product_carousel` | `{ "title": "Lily Gifts", "items": [...] }` | List of products to display as cards. |
+| `product_carousel` | `{ "title": "Lily Gifts", "subtitle": "...", "items": [...] }` | List of products to display as cards. |
 | `product_detail` | `{ "item": {...} }` | Full details for a single product. |
 | `category_grid` | `{ "categories": [...] }` | Product categories for navigation. |
 | `cart_updated` | `{ "cart": {...} }` | Triggered when the agent modifies the cart. |
 | `city_suggestions` | `{ "query": "Colo", "cities": ["Colombo"] }` | List of deliverable cities. |
-| `delivery_quote` | `{ "city": "Colombo", "rate_lkr": 500, "deliverable": true }` | Shipping costs and feasibility. |
+| `delivery_quote` | `{ "city": "...", "date": "...", "rate_lkr": 500, "deliverable": true, "perishable_warning": false, "next_available_date": null }` | Shipping costs and feasibility. |
 | `checkout_form` | `{ "draft": {...}, "missing_fields": ["phone"] }` | Current checkout state and missing fields. |
-| `checkout_ready` | `{ "pay_url": "...", "order_ref": "...", "expires_in_minutes": 15 }` | Payment link is ready. |
+| `checkout_ready` | `{ "pay_url": "...", "order_ref": "...", "expires_in_minutes": 15, "cart_summary": [...] }` | Payment link is ready. |
+| `question_prompt` | `{ "questions": [{ "field": "delivery_date", "label": "...", "input_type": "date" }] }` | Optimized input prompt for one or more fields. |
 | `tracking_result` | `{ "order_number": "...", "status": "Shipped", ... }` | Result of an order tracking request. |
+| `language_changed` | `{ "mode": "sinhala" }` | Emitted when language mode is switched. |
 | `error` | `{ "code": "LOOP_DEPTH", "message": "...", "recoverable": true }` | Error details. |
 
 ## 5. Data Models (JSON)
 
-### ProductCard
+### ProductCardView
 ```json
 {
   "id": "string",
@@ -136,7 +140,21 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 }
 ```
 
-### Cart
+### ProductDetailView
+```json
+{
+  "id": "string",
+  "name": "string",
+  "description": "string | null",
+  "price_lkr": number,
+  "image_urls": ["string"],
+  "in_stock": boolean,
+  "is_perishable": boolean,
+  "vendor_name": "string | null"
+}
+```
+
+### CartView
 ```json
 {
   "items": [
@@ -153,7 +171,7 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 }
 ```
 
-### CheckoutDraft
+### CheckoutDraftView
 ```json
 {
   "recipient_name": "string | null",

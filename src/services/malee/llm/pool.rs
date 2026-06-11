@@ -5,7 +5,9 @@ use serde::{Deserialize, Serialize};
 use std::pin::Pin;
 use std::sync::Arc;
 
-use super::client::{GroqClient, LlmChunk, LlmClient, LlmMessage, OllamaClient, ToolSchema};
+use super::client::{
+    GenericOpenAiClient, GroqClient, LlmChunk, LlmClient, LlmMessage, OllamaClient, ToolSchema,
+};
 use crate::error::MaleeError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -15,6 +17,9 @@ pub enum LlmProvider {
     Ollama,
     OpenAi,
     Anthropic,
+    Google,
+    Cerebras,
+    Fireworks,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -72,6 +77,9 @@ impl LlmBackendConfig {
                 "ollama" => LlmProvider::Ollama,
                 "openai" => LlmProvider::OpenAi,
                 "anthropic" => LlmProvider::Anthropic,
+                "google" => LlmProvider::Google,
+                "cerebras" => LlmProvider::Cerebras,
+                "fireworks" => LlmProvider::Fireworks,
                 _ => {
                     return Err(MaleeError::LlmError(format!(
                         "Unknown provider: {}",
@@ -138,7 +146,28 @@ impl LlmRouter {
                         .unwrap_or_else(|| "http://localhost:11434".to_string()),
                     config.model.clone(),
                 )),
-                _ => continue, // TODO: Implement others
+                LlmProvider::OpenAi
+                | LlmProvider::Cerebras
+                | LlmProvider::Fireworks
+                | LlmProvider::Google => {
+                    let default_endpoint = match config.provider {
+                        LlmProvider::Cerebras => "https://api.cerebras.ai/v1".to_string(),
+                        LlmProvider::Fireworks => {
+                            "https://api.fireworks.ai/inference/v1".to_string()
+                        }
+                        LlmProvider::Google => {
+                            "https://generativelanguage.googleapis.com/v1beta/openai".to_string()
+                        }
+                        _ => "https://api.openai.com/v1".to_string(),
+                    };
+                    Arc::new(GenericOpenAiClient::new(
+                        http_client.clone(),
+                        config.api_key.clone(),
+                        config.endpoint.clone().unwrap_or(default_endpoint),
+                        config.model.clone(),
+                    ))
+                }
+                LlmProvider::Anthropic => continue, // TODO: Implement Anthropic
             };
             backends.push(client);
         }

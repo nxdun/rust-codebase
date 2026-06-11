@@ -3,16 +3,14 @@ name: Malee Chat
 url: "{{base_url}}/api/v1/malee/chat"
 method: POST
 headers:
-  - key: x-api-key
-    value: "{{api_key}}"
-  - key: Content-Type
-    value: application/json
+  x-api-key: "{{api_key}}"
+  Content-Type: application/json
 body:
   type: json
   content: |-
     {
-      "message": "I want to buy a gift.",
-      "session_id": null,
+      "message": "{{msg}}",
+      "session_id": "c918518a-8882-4a33-b9e5-e7a28aaf0c49",
       "language_mode": "auto"
     }
 order: 3006

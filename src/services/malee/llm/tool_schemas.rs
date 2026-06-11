@@ -6,6 +6,7 @@ use crate::services::malee::connector::tools::{
     TOOL_SEARCH_PRODUCTS, TOOL_SET_QUANTITY, TOOL_SETUP_DELIVERY, TOOL_TRACK_ORDER,
     TOOL_UPDATE_USER_PROFILE,
 };
+use super::tools::{TOOL_SETUP_RECIPIENT, TOOL_SETUP_SENDER, TOOL_SET_SPECIAL_INSTRUCTIONS};
 use serde_json::json;
 
 #[allow(clippy::too_many_lines)]
@@ -71,7 +72,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_CHECK_DELIVERY.to_string(),
-                description: "Check delivery feasibility, date, and rate for a specific city".to_string(),
+                description: "Check delivery feasibility, date, and rate for a specific city. Only use explicitly provided city and date; ask the user if missing.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -214,7 +215,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_DELIVERY.to_string(),
-                description: "Configure delivery city and date for the checkout draft. This does NOT create an order.".to_string(),
+                description: "Step 1: Configure delivery city and date. Do this first to check availability.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -227,8 +228,55 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
+                name: TOOL_SETUP_RECIPIENT.to_string(),
+                description: "Step 2: Set recipient name, phone, and address. Phone must be SL format (10 digits).".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "phone": { "type": "string" },
+                        "address": { "type": "string" },
+                        "location_type": { "type": "string", "enum": ["house", "apartment", "office", "other"] }
+                    },
+                    "required": ["name", "phone", "address"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_SETUP_SENDER.to_string(),
+                description: "Step 3: Set sender (user) name, email, and phone for the order.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "name": { "type": "string" },
+                        "email": { "type": "string" },
+                        "phone": { "type": "string" }
+                    },
+                    "required": ["name", "email", "phone"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_SET_SPECIAL_INSTRUCTIONS.to_string(),
+                description: "Optional Step: Add special delivery instructions or a gift note message.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "instructions": { "type": "string" }
+                    },
+                    "required": ["instructions"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
                 name: TOOL_SAVE_USER_FACT.to_string(),
-                description: "Save a fact about the user for future reference (e.g., 'likes dark chocolate', 'sister is 12 years old').".to_string(),
+                description: "Save a fact about the user for future reference. Do not duplicate existing facts.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -242,7 +290,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_UPDATE_USER_PROFILE.to_string(),
-                description: "Update the user's permanent profile data (name, email, shipping address, etc.).".to_string(),
+                description: "Update the user's permanent profile data. Only modify if explicitly requested; ignore if data already exists and the user hasn't asked to change it.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {

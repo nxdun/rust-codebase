@@ -208,3 +208,8 @@ pub struct RecipientSummary {
 pub struct OrderItemSummary {
     pub name: String,
 }
+
+pub type Product = ProductSummary;
+pub type DeliveryQuote = DeliveryCheck;
+pub type OrderResult = OrderCreated;
+pub type TrackingDetails = OrderTracking;
