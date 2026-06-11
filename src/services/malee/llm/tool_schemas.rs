@@ -1,12 +1,14 @@
 use super::client::{ToolFunctionSchema, ToolSchema};
 
+use super::tools::{
+    TOOL_ASK_QUESTION, TOOL_SET_SPECIAL_INSTRUCTIONS, TOOL_SETUP_RECIPIENT, TOOL_SETUP_SENDER,
+};
 use crate::services::malee::connector::tools::{
     TOOL_ADD_TO_CART, TOOL_CHECK_DELIVERY, TOOL_CLEAR_CART, TOOL_CREATE_ORDER, TOOL_GET_PRODUCT,
     TOOL_LIST_CATEGORIES, TOOL_LIST_CITIES, TOOL_REMOVE_FROM_CART, TOOL_SAVE_USER_FACT,
     TOOL_SEARCH_PRODUCTS, TOOL_SET_QUANTITY, TOOL_SETUP_DELIVERY, TOOL_TRACK_ORDER,
     TOOL_UPDATE_USER_PROFILE,
 };
-use super::tools::{TOOL_SETUP_RECIPIENT, TOOL_SETUP_SENDER, TOOL_SET_SPECIAL_INSTRUCTIONS};
 use serde_json::json;
 
 #[allow(clippy::too_many_lines)]
@@ -128,11 +130,9 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         "sender": {
                             "type": "object",
                             "properties": {
-                                "name": { "type": "string" },
-                                "email": { "type": "string" },
-                                "phone": { "type": "string" }
+                                "name": { "type": "string" }
                             },
-                            "required": ["name", "email", "phone"]
+                            "required": ["name"]
                         },
                         "gift_message": { "type": "string" }
                     },
@@ -229,7 +229,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_RECIPIENT.to_string(),
-                description: "Step 2: Set recipient name, phone, and address. Phone must be SL format (10 digits).".to_string(),
+                description: "Step 2: Set recipient name, phone, and full street address. Address MUST be detailed (e.g., 'No 42, Main Street, Colombo 03'). Phone must be SL format (10 digits).".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -269,6 +269,32 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         "instructions": { "type": "string" }
                     },
                     "required": ["instructions"]
+                }),
+            },
+        },
+        ToolSchema {
+            type_: "function".to_string(),
+            function: ToolFunctionSchema {
+                name: TOOL_ASK_QUESTION.to_string(),
+                description: "Ask the user for one or more pieces of information using optimized UI inputs (e.g., date picker, phone input). Only use this tool during the checkout process (Step 1-4) or when specifically required for a tool like check_delivery. Do not use during general search or product discovery.".to_string(),
+                parameters: json!({
+                    "type": "object",
+                    "properties": {
+                        "questions": {
+                            "type": "array",
+                            "items": {
+                                "type": "object",
+                                "properties": {
+                                    "field": { "type": "string", "description": "Technical field name (e.g., delivery_date, recipient_name, sender_email)" },
+                                    "label": { "type": "string", "description": "Human-readable question (e.g., When should we deliver?)" },
+                                    "input_type": { "type": "string", "enum": ["text", "tel", "date", "email", "textarea"] },
+                                    "placeholder": { "type": "string" }
+                                },
+                                "required": ["field", "label", "input_type"]
+                            }
+                        }
+                    },
+                    "required": ["questions"]
                 }),
             },
         },

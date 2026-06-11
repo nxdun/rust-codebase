@@ -16,9 +16,15 @@
 - Cart Subtotal: {{ cart_subtotal }} LKR
 - Preferred City: {{ preferred_city }}
 - Preferred Date: {{ preferred_date }}
-- Recipient Relation: {{ recipient_relation }}
 - Recipient Name: {{ recipient_name }}
 - Recipient Phone: {{ recipient_phone }}
 - Recipient Address: {{ recipient_address }}
-- Occasion: {{ occasion }}
-{% if gift_message != "None" %}- Gift Note: {{ gift_message }}{% endif %}
+- User (Sender) Name: {{ user_name }}
+- User (Sender) Email: {{ user_email }}
+- User (Sender) Phone: {{ user_phone }}
+
+### Checkout Readiness
+- [{{ 'X' if cart_item_count > 0 else ' ' }}] Items in Cart
+- [{{ 'X' if preferred_city != "None" and preferred_date != "None" else ' ' }}] Delivery Info
+- [{{ 'X' if recipient_name != "None" and recipient_phone != "None" and recipient_address != "None" else ' ' }}] Recipient Info
+- [{{ 'X' if user_name != "" and user_email != "None" and user_phone != "None" else ' ' }}] Sender Info

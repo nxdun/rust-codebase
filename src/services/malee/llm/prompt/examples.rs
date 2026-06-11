@@ -55,5 +55,37 @@ pub fn get_few_shots() -> Vec<LlmMessage> {
             tool_calls: None,
             tool_call_id: None,
         },
+        // Few-Shot 3: Natural Discovery & Transition
+        LlmMessage {
+            role: "user".to_string(),
+            content: "Show me some dark keyboards".to_string(),
+            tool_calls: None,
+            tool_call_id: None,
+        },
+        LlmMessage {
+            role: "assistant".to_string(),
+            content: String::new(),
+            tool_calls: Some(vec![super::super::client::LlmToolCall {
+                id: "call_key123".to_string(),
+                type_: "function".to_string(),
+                function: super::super::client::LlmFunctionCall {
+                    name: "kapruka_search_products".to_string(),
+                    arguments: r#"{"q": "black keyboard"}"#.to_string(),
+                },
+            }]),
+            tool_call_id: None,
+        },
+        LlmMessage {
+            role: "tool".to_string(),
+            content: r#"[{"id":"K1","name":"Logitech Black Keyboard","price":{"amount":5000,"currency":"LKR"},"in_stock":true},{"id":"K2","name":"Razer RGB Gaming Keyboard","price":{"amount":15000,"currency":"LKR"},"in_stock":true}]"#.to_string(),
+            tool_call_id: Some("call_key123".to_string()),
+            tool_calls: None,
+        },
+        LlmMessage {
+            role: "assistant".to_string(),
+            content: "I found a couple of sleek black keyboards for you! The Logitech one (5,000 LKR) is a great reliable choice, or if you're into gaming, the Razer RGB one (15,000 LKR) looks amazing. Which one catches your eye?".to_string(),
+            tool_calls: None,
+            tool_call_id: None,
+        },
     ]
 }

@@ -54,6 +54,9 @@ pub enum UiEvent {
         step_name: String,
         missing_fields: Vec<String>,
     },
+    QuestionPrompt {
+        questions: Vec<crate::services::malee::llm::tools::QuestionField>,
+    },
     TrackingResult {
         order_number: String,
         status: String,
@@ -118,6 +121,7 @@ pub struct CategoryView {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CheckoutDraftView {
     pub recipient_name: Option<String>,
+    pub recipient_address: Option<String>,
     pub delivery_city: Option<String>,
     pub delivery_date: Option<String>,
     pub sender_name: Option<String>,

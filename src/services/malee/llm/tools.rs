@@ -12,8 +12,22 @@ use serde::{Deserialize, Serialize};
 pub const TOOL_SETUP_RECIPIENT: &str = "setup_recipient";
 pub const TOOL_SETUP_SENDER: &str = "setup_sender";
 pub const TOOL_SET_SPECIAL_INSTRUCTIONS: &str = "set_special_instructions";
+pub const TOOL_ASK_QUESTION: &str = "ask_question";
 
 const DEFAULT_CART_LIMIT: usize = 20;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct QuestionField {
+    pub field: String,
+    pub label: String,
+    pub input_type: String, // text, tel, date, email, textarea
+    pub placeholder: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AskQuestionArgs {
+    pub questions: Vec<QuestionField>,
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetupRecipientArgs {
@@ -100,6 +114,9 @@ pub enum ToolResult {
     SetupRecipient,
     SetupSender,
     SetSpecialInstructions,
+    AskQuestion {
+        questions: Vec<QuestionField>,
+    },
     SaveUserFact,
     UpdateUserProfile,
 }
@@ -184,7 +201,39 @@ pub async fn execute_tool(
                 serde_json::from_value(arguments)
                     .map_err(|e| MaleeError::LlmError(e.to_string()))?;
 
-            // 1. Phone Normalization
+            // 1. Sync from Session Memory (The Absolute Source of Truth)
+            // We prioritize the structured draft data over LLM arguments
+            if let Some(d) = &session.checkout_draft.delivery {
+                args.delivery.city = d.city.clone();
+                args.delivery.date = d.date.to_string();
+            }
+            if let Some(r) = &session.checkout_draft.recipient {
+                args.recipient.name = r.name.clone();
+                args.recipient.phone = r.phone.clone();
+                args.delivery.address = format!(
+                    "{}{}",
+                    r.address_line1,
+                    r.address_line2
+                        .as_ref()
+                        .map(|l| format!(", {l}"))
+                        .unwrap_or_default()
+                );
+            }
+            if let Some(s) = &session.checkout_draft.sender {
+                args.sender.name = s.name.clone();
+            }
+
+            if let Some(gift) = &session.checkout_draft.gift_message {
+                args.gift_message = Some(gift.clone());
+            }
+            if let Some(instr) = &session.checkout_draft.special_instructions {
+                args.delivery.instructions = Some(instr.clone());
+            }
+            if let Some(loc) = &session.checkout_draft.location_type {
+                args.delivery.location_type = Some(loc.clone());
+            }
+
+            // 2. Final Phone Normalization
             let digits: String = args
                 .recipient
                 .phone
@@ -198,10 +247,10 @@ pub async fn execute_tool(
             } else if digits.len() == 9 {
                 format!("94{digits}")
             } else {
-                args.recipient.phone
+                args.recipient.phone.clone()
             };
 
-            // 2. City Validation
+            // 3. City Validation (Final registry check)
             let city_res = connector
                 .list_cities(
                     crate::services::malee::connector::types::ListCitiesArgs {
@@ -219,42 +268,10 @@ pub async fn execute_tool(
 
             if !valid_city {
                 return Err(MaleeError::LlmError(format!(
-                    "Invalid delivery city: {}. Please use a valid Sri Lankan city.",
+                    "Invalid delivery city: {}. Please ensure you have validated this city via list_cities.",
                     args.delivery.city
                 )));
             }
-
-            // 3. Sync back to session memory to maintain consistency
-            session.checkout_draft.recipient =
-                Some(crate::models::malee::checkout::RecipientInfo {
-                    name: args.recipient.name.clone(),
-                    phone: args.recipient.phone.clone(),
-                    address_line1: args.delivery.address.clone(),
-                    address_line2: None,
-                    city: args.delivery.city.clone(),
-                });
-
-            session.checkout_draft.delivery = Some(crate::models::malee::checkout::DeliveryInfo {
-                city: args.delivery.city.clone(),
-                date: chrono::NaiveDate::parse_from_str(&args.delivery.date, "%Y-%m-%d")
-                    .unwrap_or_else(|_| chrono::Utc::now().date_naive()),
-                quote_status: crate::models::malee::checkout::QuoteStatus::Pending,
-            });
-
-            session.checkout_draft.sender = Some(crate::models::malee::checkout::SenderInfo {
-                name: args.sender.name.clone(),
-                email: session
-                    .user_profile
-                    .email
-                    .clone()
-                    .unwrap_or_else(|| "guest@kapruka.com".to_string()),
-                phone: session.user_profile.phone.clone().unwrap_or_default(),
-            });
-
-            session
-                .checkout_draft
-                .gift_message
-                .clone_from(&args.gift_message);
 
             // 4. Create actual order
             let res = connector.create_order(args, session_id).await?;
@@ -474,6 +491,16 @@ pub async fn execute_tool(
             Ok((
                 ToolResult::SetSpecialInstructions,
                 "Special instructions updated".to_string(),
+            ))
+        }
+        TOOL_ASK_QUESTION => {
+            let args: AskQuestionArgs = serde_json::from_value(arguments)
+                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
+            Ok((
+                ToolResult::AskQuestion {
+                    questions: args.questions,
+                },
+                "Question prompts sent to user".to_string(),
             ))
         }
         TOOL_SAVE_USER_FACT => {

@@ -36,8 +36,11 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
         if norm_phone.is_none() {
             errors.push("recipient.phone.invalid_sl_format".to_string());
         }
-        if r.address_line1.len() < 5 || r.address_line1.len() > 200 {
+        if r.address_line1.len() < 10 {
             errors.push("recipient.address.too_short".to_string());
+        }
+        if !r.address_line1.contains(' ') {
+            errors.push("recipient.address.incomplete".to_string());
         }
         if r.city.trim().is_empty() {
             errors.push("recipient.city.missing".to_string());
@@ -139,7 +142,10 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
                 city: delivery_info.city,
                 date: delivery_info.date.to_string(),
                 instructions: draft.special_instructions.clone(),
-                location_type: draft.location_type.clone().or(Some("house".to_string())),
+                location_type: draft
+                    .location_type
+                    .clone()
+                    .or_else(|| Some("house".to_string())),
             },
             sender: McpSender {
                 name: sender_info.name,

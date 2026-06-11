@@ -20,6 +20,7 @@ pub enum LlmProvider {
     Google,
     Cerebras,
     Fireworks,
+    Nvidia,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +81,7 @@ impl LlmBackendConfig {
                 "google" => LlmProvider::Google,
                 "cerebras" => LlmProvider::Cerebras,
                 "fireworks" => LlmProvider::Fireworks,
+                "nvidia" => LlmProvider::Nvidia,
                 _ => {
                     return Err(MaleeError::LlmError(format!(
                         "Unknown provider: {}",
@@ -149,7 +151,8 @@ impl LlmRouter {
                 LlmProvider::OpenAi
                 | LlmProvider::Cerebras
                 | LlmProvider::Fireworks
-                | LlmProvider::Google => {
+                | LlmProvider::Google
+                | LlmProvider::Nvidia => {
                     let default_endpoint = match config.provider {
                         LlmProvider::Cerebras => "https://api.cerebras.ai/v1".to_string(),
                         LlmProvider::Fireworks => {
@@ -158,6 +161,7 @@ impl LlmRouter {
                         LlmProvider::Google => {
                             "https://generativelanguage.googleapis.com/v1beta/openai".to_string()
                         }
+                        LlmProvider::Nvidia => "https://integrate.api.nvidia.com/v1".to_string(),
                         _ => "https://api.openai.com/v1".to_string(),
                     };
                     Arc::new(GenericOpenAiClient::new(

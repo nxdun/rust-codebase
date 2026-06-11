@@ -433,21 +433,15 @@ async fn dispatch_tool(
             };
 
             // Calculate step progress
-            let mut current_step = 1;
-            let mut step_name = "Delivery Details".to_string();
-
-            if session.checkout_draft.delivery.is_some() {
-                current_step = 2;
-                step_name = "Recipient Details".to_string();
-            }
-            if session.checkout_draft.recipient.is_some() {
-                current_step = 3;
-                step_name = "Sender Details".to_string();
-            }
-            if session.checkout_draft.sender.is_some() {
-                current_step = 4;
-                step_name = "Finalize".to_string();
-            }
+            let (current_step, step_name) = if session.checkout_draft.sender.is_some() {
+                (4, "Finalize".to_string())
+            } else if session.checkout_draft.recipient.is_some() {
+                (3, "Sender Details".to_string())
+            } else if session.checkout_draft.delivery.is_some() {
+                (2, "Recipient Details".to_string())
+            } else {
+                (1, "Delivery Details".to_string())
+            };
 
             let _ = event_tx
                 .send(UiEvent::CheckoutProgress {
@@ -464,6 +458,9 @@ async fn dispatch_tool(
                     missing_fields,
                 })
                 .await;
+        }
+        ToolResult::AskQuestion { questions } => {
+            let _ = event_tx.send(UiEvent::QuestionPrompt { questions }).await;
         }
         ToolResult::SaveUserFact | ToolResult::UpdateUserProfile => {}
     }

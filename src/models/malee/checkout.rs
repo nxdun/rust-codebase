@@ -59,8 +59,20 @@ pub enum QuoteStatus {
 
 impl From<&CheckoutDraft> for CheckoutDraftView {
     fn from(draft: &CheckoutDraft) -> Self {
+        let recipient_address = draft.recipient.as_ref().map(|r| {
+            format!(
+                "{}{}",
+                r.address_line1,
+                r.address_line2
+                    .as_ref()
+                    .map(|l| format!(", {l}"))
+                    .unwrap_or_default()
+            )
+        });
+
         Self {
             recipient_name: draft.recipient.as_ref().map(|r| r.name.clone()),
+            recipient_address,
             delivery_city: draft.delivery.as_ref().map(|d| d.city.clone()),
             delivery_date: draft.delivery.as_ref().map(|d| d.date.to_string()),
             sender_name: draft.sender.as_ref().map(|s| s.name.clone()),
