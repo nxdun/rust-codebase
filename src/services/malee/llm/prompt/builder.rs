@@ -1,5 +1,3 @@
-use super::super::client::LlmMessage;
-use super::examples::get_few_shots;
 use crate::error::MaleeError;
 use crate::models::malee::session::{LanguageMode, SessionState};
 use minijinja::{Environment, context};
@@ -23,6 +21,8 @@ impl PromptBuilder {
         env.add_template("persona", include_str!("templates/persona.j2"))
             .unwrap();
         env.add_template("rules", include_str!("templates/rules.j2"))
+            .unwrap();
+        env.add_template("examples", include_str!("templates/examples.j2"))
             .unwrap();
         env.add_template("tools", include_str!("templates/tools.j2"))
             .unwrap();
@@ -183,11 +183,6 @@ impl PromptBuilder {
 
         tmpl.render(ctx)
             .map_err(|e| MaleeError::LlmError(format!("Render error: {e}")))
-    }
-
-    /// Returns the few-shot examples that are prepended to conversation history.
-    pub fn get_few_shots(&self) -> Vec<LlmMessage> {
-        get_few_shots()
     }
 }
 

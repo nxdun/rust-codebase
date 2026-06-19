@@ -69,8 +69,6 @@ fn build_llm_messages(
         tool_call_id: None,
     }];
 
-    messages.extend(prompt_builder.get_few_shots());
-
     for turn in &session.conversation_history {
         let role = match turn.role {
             Role::User => "user",
@@ -296,6 +294,22 @@ pub async fn run_agent_loop(
                                     tool_call_id: Some(tc.id.clone()),
                                     tool_calls: None,
                                 });
+                            }
+
+                            if tool_calls_collected.iter().any(|tc| {
+                                tc.name == crate::services::malee::llm::tools::TOOL_ASK_QUESTION
+                            }) {
+                                tracing::info!(
+                                    "Halting agent loop to wait for user input from form"
+                                );
+                                finish_turn(
+                                    session,
+                                    &mut state_machine,
+                                    &event_tx,
+                                    full_text.clone(),
+                                )
+                                .await?;
+                                return Ok(());
                             }
 
                             tool_called = true;
