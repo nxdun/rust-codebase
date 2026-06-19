@@ -5,6 +5,7 @@ use super::super::client::{LlmFunctionCall, LlmMessage, LlmToolCall};
 /// These examples demonstrate: tool-first action, warm commentary after results,
 /// proper `add_to_cart` with verified data, `ask_question` for checkout data collection,
 /// and address validation enforcement.
+#[allow(clippy::too_many_lines)]
 pub fn get_few_shots() -> Vec<LlmMessage> {
     vec![
         // ── Example 1: Discovery → Search → Warm Commentary ──
@@ -94,18 +95,25 @@ pub fn get_few_shots() -> Vec<LlmMessage> {
             }]),
             tool_call_id: None,
         },
-        // ── Example 4: Address validation — reject vague addresses ──
-        // Teaches: Enforce full Sri Lankan street address format
+        // ── Example 4: Address validation — accept reasonable addresses ──
+        // Teaches: Accept addresses with house/building number and area
         LlmMessage {
             role: "user".to_string(),
-            content: "Recipient is Nimali, phone 0771234567, address is Rajagiriya".to_string(),
+            content: "Recipient is Nimali, phone 0771234567, address is No 23, Gemunupura, Kaduwela".to_string(),
             tool_calls: None,
             tool_call_id: None,
         },
         LlmMessage {
             role: "assistant".to_string(),
-            content: "Thank you! I have Nimali's name and phone number. However, I need a more complete delivery address to ensure smooth delivery. Could you provide the full street address? For example: \"No 15, Park Road, Rajagiriya\" — including a house/building number and street name.".to_string(),
-            tool_calls: None,
+            content: "Got it! I've saved Nimali's details for delivery to Gemunupura, Kaduwela.".to_string(),
+            tool_calls: Some(vec![LlmToolCall {
+                id: "call_def456".to_string(),
+                type_: "function".to_string(),
+                function: LlmFunctionCall {
+                    name: "setup_recipient".to_string(),
+                    arguments: r#"{"name": "Nimali", "phone": "0771234567", "address": "No 23, Gemunupura, Kaduwela"}"#.to_string(),
+                },
+            }]),
             tool_call_id: None,
         },
     ]

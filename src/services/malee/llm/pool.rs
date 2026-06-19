@@ -1,13 +1,8 @@
-use async_trait::async_trait;
-use futures::Stream;
 use reqwest::Client;
 use serde::{Deserialize, Serialize};
-use std::pin::Pin;
 use std::sync::Arc;
 
-use super::client::{
-    GenericOpenAiClient, GroqClient, LlmChunk, LlmClient, LlmMessage, OllamaClient, ToolSchema,
-};
+use super::client::{LlmClient, OllamaClient, OpenAiCompatibleClient};
 use crate::error::MaleeError;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
@@ -131,7 +126,7 @@ impl LlmRouter {
         let mut backends = Vec::new();
         for config in pool_config {
             let client: Arc<dyn LlmClient> = match config.provider {
-                LlmProvider::Groq => Arc::new(GroqClient::new(
+                LlmProvider::Groq => Arc::new(OpenAiCompatibleClient::new(
                     http_client.clone(),
                     config.api_key.clone(),
                     config
@@ -164,41 +159,33 @@ impl LlmRouter {
                         LlmProvider::Nvidia => "https://integrate.api.nvidia.com/v1".to_string(),
                         _ => "https://api.openai.com/v1".to_string(),
                     };
-                    Arc::new(GenericOpenAiClient::new(
+                    Arc::new(OpenAiCompatibleClient::new(
                         http_client.clone(),
                         config.api_key.clone(),
                         config.endpoint.clone().unwrap_or(default_endpoint),
                         config.model.clone(),
                     ))
                 }
-                LlmProvider::Anthropic => continue, // TODO: Implement Anthropic
+                LlmProvider::Anthropic => {
+                    tracing::warn!(
+                        "Anthropic provider not yet implemented — skipping backend: {}",
+                        config.model
+                    );
+                    continue;
+                }
             };
             backends.push(client);
         }
         Self { backends }
     }
 
+    /// Returns the backend at the given index, if it exists.
     pub fn get_backend(&self, index: usize) -> Option<Arc<dyn LlmClient>> {
         self.backends.get(index).cloned()
     }
 
+    /// Returns the total number of configured backends.
     pub fn backend_count(&self) -> usize {
         self.backends.len()
-    }
-}
-
-#[async_trait]
-impl LlmClient for LlmRouter {
-    async fn stream_chat(
-        &self,
-        _messages: Vec<LlmMessage>,
-        _tools: Vec<ToolSchema>,
-    ) -> Result<Pin<Box<dyn Stream<Item = Result<LlmChunk, MaleeError>> + Send>>, MaleeError> {
-        // This is tricky because LlmClient trait doesn't know about session index or failover state
-        // The failover should happen in the agent loop or we need a way to pass the context here.
-        // I will implement a custom method for the agent loop to use.
-        Err(MaleeError::LlmError(
-            "Use LlmRouter::stream_with_failover instead".to_string(),
-        ))
     }
 }

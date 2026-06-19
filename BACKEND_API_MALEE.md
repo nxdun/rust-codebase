@@ -1,13 +1,14 @@
 # Malee AI Shopping Guide - Backend API Documentation
 
-This document describes the API endpoints for the **Malee (මලී)** feature, a Sri Lankan AI shopping agent.
+This document describes the API endpoints for the **Malee (මලී)** feature, a Sri Lankan AI shopping agent. This is the **100% accurate contract document** matching the backend implementation.
 
 ## 1. General Information
 
 - **Base URL**: `/api/v1/malee`
 - **Authentication**: All requests require the `x-api-key` header.
 - **Content-Type**: `application/json` (except for the chat endpoint which returns `text/event-stream`).
-- **Intelligence**: Powered by a pooled LLM system supporting Groq, Google Gemini, Cerebras, and Fireworks for high-speed, reliable Sri Lankan e-commerce assistance.
+- **Intelligence**: Powered by a pooled LLM router supporting an `OpenAiCompatibleClient` wrapper for models from Groq, Cerebras, Fireworks, and Ollama.
+- **Resilience**: Features automatic multi-provider failover, `45s` chunk stream timeouts, and robust parsing to automatically recover from `RATE_LIMIT`, `5xx`, and malformed JSON errors without dropping user sessions.
 
 ## 2. Authentication
 
@@ -56,9 +57,9 @@ Synchronous endpoint to update session state (cart, delivery info, etc.) without
     - `clear_cart`: No payload.
     - `set_delivery_city`: Payload `{ "city": "string" }`.
     - `set_delivery_date`: Payload `{ "date": "YYYY-MM-DD" }`.
-    - `set_gift_note`: Payload `{ "note": "string" }`.
-    - `set_language`: Payload `{ "mode": "string" }`.
-- **Response**: `200 OK` with updated `CartView`.
+    - `set_gift_note`: Payload `{ "note": "string" }`. (Max 240 chars)
+    - `set_language`: Payload `{ "mode": "string" }` (auto, english, sinhala, mixed).
+- **Response**: `200 OK` with updated `CartView` (See Section 5).
 
 ---
 
@@ -105,6 +106,40 @@ Directly track an order without conversation history.
 }
 ```
 
+---
+
+### 3.6 Get User Profile
+Retrieve the user profile for a specific session.
+
+- **URL**: `GET /session/{id}/profile`
+- **Response**: `200 OK`
+```json
+{
+  "session_id": "uuid",
+  "profile": { ... } // See UserProfile in Section 5
+}
+```
+
+---
+
+### 3.7 Update User Profile
+Update the user profile for a specific session.
+
+- **URL**: `PUT /session/{id}/profile`
+- **Payload**:
+```json
+{
+  "profile": { ... } // See UserProfile in Section 5
+}
+```
+- **Response**: `200 OK` with the updated profile object.
+```json
+{
+  "session_id": "uuid",
+  "profile": { ... }
+}
+```
+
 ## 4. SSE Event Protocol
 
 The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON object with a `type` field.
@@ -120,9 +155,10 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 | `cart_updated` | `{ "cart": {...} }` | Triggered when the agent modifies the cart. |
 | `city_suggestions` | `{ "query": "Colo", "cities": ["Colombo"] }` | List of deliverable cities. |
 | `delivery_quote` | `{ "city": "...", "date": "...", "rate_lkr": 500, "deliverable": true, "perishable_warning": false, "next_available_date": null }` | Shipping costs and feasibility. |
+| `checkout_progress` | `{ "current_step": 2, "total_steps": 4, "step_name": "Recipient Details", "missing_fields": ["phone"] }` | Active checkout step indication. |
 | `checkout_form` | `{ "draft": {...}, "missing_fields": ["phone"] }` | Current checkout state and missing fields. |
-| `checkout_ready` | `{ "pay_url": "...", "order_ref": "...", "expires_in_minutes": 15, "cart_summary": [...] }` | Payment link is ready. |
-| `question_prompt` | `{ "questions": [{ "field": "delivery_date", "label": "...", "input_type": "date" }] }` | Optimized input prompt for one or more fields. |
+| `checkout_ready` | `{ "pay_url": "...", "order_ref": "...", "expires_in_minutes": 60, "cart_summary": [...] }` | Payment link is ready. |
+| `question_prompt` | `{ "questions": [{ "field": "delivery_date", "label": "...", "input_type": "date", "placeholder": null }] }` | Optimized input prompt for one or more fields. |
 | `tracking_result` | `{ "order_number": "...", "status": "Shipped", ... }` | Result of an order tracking request. |
 | `language_changed` | `{ "mode": "sinhala" }` | Emitted when language mode is switched. |
 | `error` | `{ "code": "LOOP_DEPTH", "message": "...", "recoverable": true }` | Error details. |
@@ -134,9 +170,9 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 {
   "id": "string",
   "name": "string",
-  "price_lkr": number,
+  "price_lkr": 1500,
   "image_url": "string | null",
-  "in_stock": boolean
+  "in_stock": true
 }
 ```
 
@@ -146,10 +182,10 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
   "id": "string",
   "name": "string",
   "description": "string | null",
-  "price_lkr": number,
+  "price_lkr": 1500,
   "image_urls": ["string"],
-  "in_stock": boolean,
-  "is_perishable": boolean,
+  "in_stock": true,
+  "is_perishable": false,
   "vendor_name": "string | null"
 }
 ```
@@ -161,13 +197,13 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
     {
       "product_id": "string",
       "name": "string",
-      "price_lkr": number,
-      "quantity": number,
+      "price_lkr": 1500,
+      "quantity": 1,
       "image_url": "string | null"
     }
   ],
-  "subtotal_lkr": number,
-  "item_count": number
+  "subtotal_lkr": 1500,
+  "item_count": 1
 }
 ```
 
@@ -175,9 +211,36 @@ The `/chat` endpoint streams lines prefixed with `data: `. Each line is a JSON o
 ```json
 {
   "recipient_name": "string | null",
+  "recipient_address": "string | null",
   "delivery_city": "string | null",
   "delivery_date": "string | null",
   "sender_name": "string | null",
   "gift_message": "string | null"
+}
+```
+
+### UserProfile
+```json
+{
+  "first_name": "string | null",
+  "last_name": "string | null",
+  "email": "string | null",
+  "phone": "string | null",
+  "address_line1": "string | null",
+  "address_line2": "string | null",
+  "city": "string | null",
+  "zip_code": "string | null",
+  "currency": "string | null",
+  "preferred_language": "string | null",
+  "favorite_categories": ["string"],
+  "memories": ["string"],
+  "order_history": [
+    {
+      "order_ref": "string",
+      "date": "ISO-8601 string",
+      "items": ["string"],
+      "total_lkr": 1500
+    }
+  ]
 }
 ```

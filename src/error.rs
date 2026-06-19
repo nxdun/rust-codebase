@@ -139,6 +139,17 @@ pub enum MaleeError {
     ConnectorError(String),
     #[error("LLM API error: {0}")]
     LlmError(String),
+    #[error("LLM rate limited by {provider}")]
+    LlmRateLimited {
+        provider: String,
+        retry_after_ms: Option<u64>,
+    },
+    #[error("LLM malformed output: {0}")]
+    LlmMalformedOutput(String),
+    #[error("LLM stream timeout after {seconds}s")]
+    LlmStreamTimeout { seconds: u64 },
+    #[error("Client disconnected")]
+    ClientDisconnected,
     #[error("Cart is full (max {0} items)")]
     CartFull(usize),
     #[error("Order cooldown active, wait {seconds} seconds")]
@@ -157,6 +168,18 @@ impl From<MaleeError> for AppError {
                 Self::Validation(err.to_string())
             }
             MaleeError::ConnectorError(msg) | MaleeError::LlmError(msg) => Self::UpstreamError(msg),
+            MaleeError::LlmRateLimited { provider, .. } => {
+                Self::UpstreamError(format!("LLM rate limited by {provider}"))
+            }
+            MaleeError::LlmStreamTimeout { seconds } => {
+                Self::UpstreamError(format!("LLM stream timeout after {seconds}s"))
+            }
+            MaleeError::LlmMalformedOutput(msg) => {
+                Self::Internal(anyhow::anyhow!("LLM malformed output: {msg}"))
+            }
+            MaleeError::ClientDisconnected => {
+                Self::Internal(anyhow::anyhow!("Client disconnected"))
+            }
             MaleeError::LoopDepthExceeded | MaleeError::Internal(_) => {
                 Self::Internal(anyhow::anyhow!(err.to_string()))
             }

@@ -171,6 +171,7 @@ pub struct McpDelivery {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpSender {
     pub name: String,
+    pub email: Option<String>,
     #[serde(default)]
     pub anonymous: bool,
 }

@@ -1,10 +1,9 @@
+use super::retry::ErrorClass;
 use super::state_machine::{AgentEvent, AgentStateMachine};
 use super::tools::{ToolResult, execute_tool};
 use crate::config::AppConfig;
 use crate::error::MaleeError;
-use crate::models::malee::events::{
-    CartView, CategoryView, CheckoutDraftView, ProductCardView, ProductDetailView, UiEvent,
-};
+use crate::models::malee::events::{CartView, CategoryView, CheckoutDraftView, UiEvent};
 use crate::models::malee::session::{ConversationTurn, Role, SessionState};
 use crate::services::malee::connector::client::MaleeConnector;
 use crate::services::malee::llm::client::{LlmChunk, LlmMessage};
@@ -18,6 +17,90 @@ const MAX_TURN_DEPTH: usize = 6;
 const GUEST_CHECKOUT_EXPIRY_MINS: u32 = 60;
 const MAX_MALFORMED_RETRIES: u32 = 2;
 const MAX_BACKEND_FAILOVERS: usize = 3;
+
+/// Sends a UI event, returning Err if the client has disconnected.
+async fn emit(tx: &mpsc::Sender<UiEvent>, event: UiEvent) -> Result<(), MaleeError> {
+    tx.send(event).await.map_err(|_| {
+        tracing::warn!("SSE channel closed — client disconnected");
+        MaleeError::ClientDisconnected
+    })
+}
+
+/// Finalizes the agent turn: emits `AssistantMessageDone`, pushes to history.
+async fn finish_turn(
+    session: &mut SessionState,
+    state_machine: &mut AgentStateMachine,
+    event_tx: &mpsc::Sender<UiEvent>,
+    text: String,
+) -> Result<(), MaleeError> {
+    let final_text = if text.trim().is_empty() {
+        "I'm sorry, I'm having trouble generating a response. Could you please try again?"
+            .to_string()
+    } else {
+        text
+    };
+
+    let events = state_machine.transition(AgentEvent::FinishTurn(final_text.clone()));
+    for event in events {
+        if let Err(e) = emit(event_tx, event).await {
+            tracing::warn!("Client disconnected during finish: {:?}", e);
+            break; // Stop emitting, but still update session
+        }
+    }
+
+    session.conversation_history.push(ConversationTurn {
+        role: Role::Assistant,
+        content: final_text,
+        tool_call_id: None,
+        tool_calls: None,
+    });
+
+    Ok(())
+}
+
+fn build_llm_messages(
+    session: &SessionState,
+    prompt_builder: &PromptBuilder,
+) -> Result<Vec<LlmMessage>, MaleeError> {
+    let mut messages = vec![LlmMessage {
+        role: "system".to_string(),
+        content: prompt_builder.render_system_prompt(session)?,
+        tool_calls: None,
+        tool_call_id: None,
+    }];
+
+    messages.extend(prompt_builder.get_few_shots());
+
+    for turn in &session.conversation_history {
+        let role = match turn.role {
+            Role::User => "user",
+            Role::Assistant => "assistant",
+            Role::Tool => "tool",
+        };
+
+        let tool_calls = turn.tool_calls.as_ref().map(|tcs| {
+            tcs.iter()
+                .map(|tc| crate::services::malee::llm::client::LlmToolCall {
+                    id: tc.id.clone(),
+                    type_: "function".to_string(),
+                    function: crate::services::malee::llm::client::LlmFunctionCall {
+                        name: tc.name.clone(),
+                        arguments: tc.arguments.clone(),
+                    },
+                })
+                .collect()
+        });
+
+        messages.push(LlmMessage {
+            role: role.to_string(),
+            content: turn.content.clone(),
+            tool_calls,
+            tool_call_id: turn.tool_call_id.clone(),
+        });
+    }
+
+    Ok(messages)
+}
 
 #[allow(clippy::too_many_lines)]
 #[tracing::instrument(
@@ -55,66 +138,34 @@ pub async fn run_agent_loop(
 
         state_machine.transition(AgentEvent::StartTurn);
 
+        let llm_messages = build_llm_messages(session, prompt_builder)?;
+
         let mut malformed_retries = 0;
         let mut tool_called = false;
+        let mut full_text = String::new();
+        let mut tool_calls_collected = Vec::new();
 
         'retry_loop: loop {
+            full_text.clear();
+            tool_calls_collected.clear();
+
             let backend_index = session.active_llm_index;
             let llm = llm_router.get_backend(backend_index).ok_or_else(|| {
                 MaleeError::LlmError(format!("No LLM backend at index {backend_index}"))
             })?;
-
-            let mut llm_messages = vec![LlmMessage {
-                role: "system".to_string(),
-                content: prompt_builder.render_system_prompt(session)?,
-                tool_calls: None,
-                tool_call_id: None,
-            }];
-
-            for turn in &session.conversation_history {
-                let role = match turn.role {
-                    Role::User => "user",
-                    Role::Assistant => "assistant",
-                    Role::Tool => "tool",
-                };
-
-                let tool_calls = turn.tool_calls.as_ref().map(|tcs| {
-                    tcs.iter()
-                        .map(|tc| crate::services::malee::llm::client::LlmToolCall {
-                            id: tc.id.clone(),
-                            type_: "function".to_string(),
-                            function: crate::services::malee::llm::client::LlmFunctionCall {
-                                name: tc.name.clone(),
-                                arguments: tc.arguments.clone(),
-                            },
-                        })
-                        .collect()
-                });
-
-                llm_messages.push(LlmMessage {
-                    role: role.to_string(),
-                    content: turn.content.clone(),
-                    tool_calls,
-                    tool_call_id: turn.tool_call_id.clone(),
-                });
-            }
 
             let stream_res = llm.stream_chat(llm_messages.clone(), schemas.clone()).await;
 
             let mut stream = match stream_res {
                 Ok(s) => s,
                 Err(e) => {
-                    let err_str = e.to_string();
-                    let is_retryable = err_str.contains("RATE_LIMIT")
-                        || err_str.contains("HTTP 5")
-                        || err_str.contains("tool_use_failed")
-                        || err_str.contains("HTTP 400")
-                        || err_str.contains("429");
-
-                    if is_retryable && failover_count < MAX_BACKEND_FAILOVERS {
+                    let err_class = ErrorClass::classify(&e);
+                    if err_class.is_retryable() && failover_count < MAX_BACKEND_FAILOVERS {
                         failover_count += 1;
-                        session.active_llm_index =
-                            (session.active_llm_index + 1) % llm_router.backend_count();
+                        if err_class.should_rotate_backend() {
+                            session.active_llm_index =
+                                (session.active_llm_index + 1) % llm_router.backend_count();
+                        }
                         if failover_count >= llm_router.backend_count() {
                             tracing::warn!(
                                 "All backends failed or limit reached. Retrying next with delay..."
@@ -122,7 +173,8 @@ pub async fn run_agent_loop(
                             tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                         } else {
                             tracing::warn!(
-                                "Backend {backend_index} failed: {err_str}. Failing over..."
+                                "Backend {backend_index} failed: {}. Failing over...",
+                                e
                             );
                         }
                         continue 'retry_loop;
@@ -131,16 +183,16 @@ pub async fn run_agent_loop(
                 }
             };
 
-            let mut full_text = String::new();
-            let mut tool_calls_collected = Vec::new();
-
             while let Some(chunk_res) = stream.next().await {
                 match chunk_res {
                     Ok(LlmChunk::Token(t)) => {
                         full_text.push_str(&t);
                         let events = state_machine.transition(AgentEvent::ReceiveToken(t));
                         for event in events {
-                            let _ = event_tx.send(event).await;
+                            // If emission fails, we log it, but we can keep running the stream
+                            if emit(&event_tx, event).await.is_err() {
+                                return Err(MaleeError::ClientDisconnected);
+                            }
                         }
                     }
                     Ok(LlmChunk::ToolCall {
@@ -181,12 +233,12 @@ pub async fn run_agent_loop(
                                             tracing::warn!(
                                                 "Malformed output limit reached. Failing over..."
                                             );
-                                            session.active_llm_index += 1;
+                                            session.active_llm_index = (session.active_llm_index
+                                                + 1)
+                                                % llm_router.backend_count();
                                             continue 'retry_loop;
                                         }
-                                        return Err(MaleeError::LlmError(format!(
-                                            "Malformed tool arguments: {e}"
-                                        )));
+                                        return Err(MaleeError::LlmMalformedOutput(e.to_string()));
                                     }
                                 }
                             }
@@ -199,6 +251,13 @@ pub async fn run_agent_loop(
                             });
 
                             for (tc, args_val) in tool_calls_collected.iter().zip(parsed_args) {
+                                if event_tx.is_closed() {
+                                    tracing::warn!(
+                                        "Client disconnected before tool dispatch, aborting"
+                                    );
+                                    return Err(MaleeError::ClientDisconnected);
+                                }
+
                                 state_machine.transition(AgentEvent::CallTool {
                                     name: tc.name.clone(),
                                     args: args_val.clone(),
@@ -243,42 +302,42 @@ pub async fn run_agent_loop(
                             break 'retry_loop;
                         }
 
-                        if !full_text.is_empty() {
-                            tracing::debug!("LLM finished stream with {} tokens", full_text.len());
-                            let events =
-                                state_machine.transition(AgentEvent::FinishTurn(full_text.clone()));
-                            for event in events {
-                                let _ = event_tx.send(event).await;
-                            }
-                            session.conversation_history.push(ConversationTurn {
-                                role: Role::Assistant,
-                                content: full_text.clone(),
-                                tool_call_id: None,
-                                tool_calls: None,
-                            });
+                        // Handle empty response with failover if no tools were called
+                        if full_text.trim().is_empty() && failover_count < MAX_BACKEND_FAILOVERS {
+                            failover_count += 1;
+                            session.active_llm_index =
+                                (session.active_llm_index + 1) % llm_router.backend_count();
+                            tracing::warn!(
+                                "LLM returned empty response. Failing over to backend {}...",
+                                session.active_llm_index
+                            );
+                            continue 'retry_loop;
                         }
+
+                        tracing::debug!("LLM finished stream with {} bytes", full_text.len());
+                        finish_turn(session, &mut state_machine, &event_tx, full_text.clone())
+                            .await?;
+
                         tracing::info!("Agent loop finished successfully");
                         return Ok(());
                     }
                     Err(e) => {
-                        let err_str = e.to_string();
-                        let is_retryable = err_str.contains("RATE_LIMIT")
-                            || err_str.contains("HTTP 5")
-                            || err_str.contains("tool_use_failed")
-                            || err_str.contains("HTTP 400")
-                            || err_str.contains("429");
-
-                        if is_retryable && failover_count < MAX_BACKEND_FAILOVERS {
+                        let err_class = ErrorClass::classify(&e);
+                        if err_class.is_retryable() && failover_count < MAX_BACKEND_FAILOVERS {
                             failover_count += 1;
-                            session.active_llm_index =
-                                (session.active_llm_index + 1) % llm_router.backend_count();
+                            if err_class.should_rotate_backend() {
+                                session.active_llm_index =
+                                    (session.active_llm_index + 1) % llm_router.backend_count();
+                            }
+
                             if failover_count >= llm_router.backend_count() {
                                 tracing::warn!(
-                                    "Stream error: {err_str}. All backends failed. Retrying next with delay..."
+                                    "Stream error: {}. All backends failed. Retrying next with delay...",
+                                    e
                                 );
                                 tokio::time::sleep(std::time::Duration::from_secs(2)).await;
                             } else {
-                                tracing::warn!("Stream error: {err_str}. Failing over...");
+                                tracing::warn!("Stream error: {}. Failing over...", e);
                             }
                             continue 'retry_loop;
                         }
@@ -291,6 +350,7 @@ pub async fn run_agent_loop(
 
         if !tool_called {
             tracing::debug!("No tool called in this turn, finishing");
+            finish_turn(session, &mut state_machine, &event_tx, full_text).await?;
             return Ok(());
         }
     }
@@ -299,7 +359,7 @@ pub async fn run_agent_loop(
     let events =
         state_machine.transition(AgentEvent::Error("Agent took too many turns".to_string()));
     for event in events {
-        let _ = event_tx.send(event).await;
+        let _ = emit(&event_tx, event).await;
     }
 
     Err(MaleeError::LoopDepthExceeded)
@@ -320,28 +380,20 @@ async fn dispatch_tool(
         execute_tool(session, connector, name, arguments.clone(), session_id).await?;
 
     match tool_result {
-        ToolResult::SearchProducts(products) => {
-            let views: Vec<ProductCardView> = products
-                .iter()
-                .map(|p| ProductCardView {
-                    id: p.id.clone(),
-                    name: p.name.clone(),
-                    price_lkr: p.price_info.amount.round() as i64,
-                    image_url: p.image_url.clone(),
-                    in_stock: p.in_stock,
-                })
-                .collect();
-
-            let _ = event_tx
-                .send(UiEvent::ProductCarousel {
+        ToolResult::SearchProducts(_products) => {
+            // views already calculated in `execute_tool` and stored in `session.last_products`
+            let _ = emit(
+                event_tx,
+                UiEvent::ProductCarousel {
                     title: "Search Results".to_string(),
                     subtitle: None,
-                    items: views,
-                })
-                .await;
+                    items: session.last_products.clone(),
+                },
+            )
+            .await;
         }
         ToolResult::GetProduct(res) => {
-            let view = ProductDetailView {
+            let view = crate::models::malee::events::ProductDetailView {
                 id: res.id.clone(),
                 name: res.name.clone(),
                 description: res.description.clone(),
@@ -352,7 +404,7 @@ async fn dispatch_tool(
                 vendor_name: res.attributes.as_ref().and_then(|a| a.vendor.clone()),
             };
 
-            let _ = event_tx.send(UiEvent::ProductDetail { item: view }).await;
+            let _ = emit(event_tx, UiEvent::ProductDetail { item: view }).await;
         }
         ToolResult::ListCategories(res) => {
             let views = res
@@ -364,61 +416,65 @@ async fn dispatch_tool(
                 })
                 .collect();
 
-            let _ = event_tx
-                .send(UiEvent::CategoryGrid { categories: views })
-                .await;
+            let _ = emit(event_tx, UiEvent::CategoryGrid { categories: views }).await;
         }
         ToolResult::ListCities(res) => {
             let query = arguments["query"].as_str().unwrap_or_default().to_string();
-            let _ = event_tx
-                .send(UiEvent::CitySuggestions { query, cities: res })
-                .await;
+            let _ = emit(event_tx, UiEvent::CitySuggestions { query, cities: res }).await;
         }
         ToolResult::CheckDelivery { city, date, quote } => {
-            let _ = event_tx
-                .send(UiEvent::DeliveryQuote {
+            let _ = emit(
+                event_tx,
+                UiEvent::DeliveryQuote {
                     city,
                     date,
                     rate_lkr: quote.rate.round() as i64,
                     deliverable: quote.available,
                     perishable_warning: quote.perishable_warning.is_some(),
                     next_available_date: quote.next_available_date.clone(),
-                })
-                .await;
+                },
+            )
+            .await;
         }
         ToolResult::CreateOrder(res) => {
-            let _ = event_tx
-                .send(UiEvent::CheckoutReady {
+            let _ = emit(
+                event_tx,
+                UiEvent::CheckoutReady {
                     pay_url: res.pay_url.clone(),
                     order_ref: res.order_ref.clone(),
                     expires_in_minutes: GUEST_CHECKOUT_EXPIRY_MINS,
                     cart_summary: vec![],
-                })
-                .await;
+                },
+            )
+            .await;
         }
         ToolResult::TrackOrder {
             order_number,
             details,
         } => {
-            let _ = event_tx
-                .send(UiEvent::TrackingResult {
+            let _ = emit(
+                event_tx,
+                UiEvent::TrackingResult {
                     order_number,
                     status: details.status.clone(),
                     recipient: details.recipient.name.clone(),
                     items: details.items.iter().map(|i| i.name.clone()).collect(),
                     timeline: details.progress.clone(),
-                })
-                .await;
+                },
+            )
+            .await;
         }
         ToolResult::AddToCart { .. }
         | ToolResult::RemoveFromCart { .. }
         | ToolResult::SetQuantity { .. }
         | ToolResult::ClearCart => {
-            let _ = event_tx
-                .send(UiEvent::CartUpdated {
+            let _ = emit(
+                event_tx,
+                UiEvent::CartUpdated {
                     cart: CartView::from(&session.cart),
-                })
-                .await;
+                },
+            )
+            .await;
         }
         ToolResult::SetupDelivery
         | ToolResult::SetupRecipient
@@ -443,24 +499,28 @@ async fn dispatch_tool(
                 (1, "Delivery Details".to_string())
             };
 
-            let _ = event_tx
-                .send(UiEvent::CheckoutProgress {
+            let _ = emit(
+                event_tx,
+                UiEvent::CheckoutProgress {
                     current_step,
                     total_steps: 4,
                     step_name,
                     missing_fields: missing_fields.clone(),
-                })
-                .await;
+                },
+            )
+            .await;
 
-            let _ = event_tx
-                .send(UiEvent::CheckoutForm {
+            let _ = emit(
+                event_tx,
+                UiEvent::CheckoutForm {
                     draft: CheckoutDraftView::from(&session.checkout_draft),
                     missing_fields,
-                })
-                .await;
+                },
+            )
+            .await;
         }
         ToolResult::AskQuestion { questions } => {
-            let _ = event_tx.send(UiEvent::QuestionPrompt { questions }).await;
+            let _ = emit(event_tx, UiEvent::QuestionPrompt { questions }).await;
         }
         ToolResult::SaveUserFact | ToolResult::UpdateUserProfile => {}
     }

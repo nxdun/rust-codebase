@@ -75,5 +75,10 @@ This document serves as the foundational mandate for all engineering work on nad
 ### Testing
 *   **No Inline Tests in `src/`**: Adding test files or `#[cfg(test)]` modules inside the `src/` directory is strictly prohibited. All tests must be placed in the `tests/` folder.
 
+## 7. Interaction & UX Policies (Malee / E-commerce)
+
+*   **Search vs. Checkout**: When users are finding/searching for products, do not ask delivery or checkout-related questions (city, date, recipient) until items are explicitly added to the cart.
+*   **Lenient Address Validation**: Do not be overly restrictive with address fields. Accept what the user provides as long as it has a house number/name and some area info. Do not force specific "Street Name" if the user hasn't provided one.
+
 ---
 *Follow these rules to ensure the codebase remains scalable, secure, and blazingly fast.*

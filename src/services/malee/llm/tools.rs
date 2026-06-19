@@ -1,3 +1,4 @@
+use super::phone::normalize_sl_phone;
 use crate::error::MaleeError;
 use crate::models::malee::session::SessionState;
 use crate::services::malee::connector::client::MaleeConnector;
@@ -187,6 +188,15 @@ pub async fn execute_tool(
             let res = connector.check_delivery(args, session_id).await?;
             let output_str =
                 serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?;
+
+            if res.available
+                && let Some(mut delivery) = session.checkout_draft.delivery.take()
+            {
+                delivery.quote_status = crate::models::malee::checkout::QuoteStatus::Quoted {
+                    rate_lkr: res.rate.round() as i64,
+                };
+                session.checkout_draft.delivery = Some(delivery);
+            }
             Ok((
                 ToolResult::CheckDelivery {
                     city,
@@ -197,6 +207,12 @@ pub async fn execute_tool(
             ))
         }
         TOOL_CREATE_ORDER => {
+            // Idempotency guard: prevent rapid duplicate orders
+            crate::services::malee::checkout::idempotency::check_order_cooldown(
+                session,
+                crate::services::malee::checkout::idempotency::ORDER_COOLDOWN_SECS,
+            )?;
+
             // The simplified schema only passes optional gift_message.
             // All order data is built from session state (the source of truth).
             let llm_gift: Option<String> = arguments
@@ -256,23 +272,7 @@ pub async fn execute_tool(
             );
 
             // 4. Phone normalization
-            let digits: String = recipient
-                .phone
-                .chars()
-                .filter(char::is_ascii_digit)
-                .collect();
-            let norm_phone = if digits.starts_with("94") && digits.len() == 11 {
-                digits
-            } else if digits.starts_with('0') && digits.len() == 10 {
-                format!("94{}", &digits[1..])
-            } else if digits.len() == 9 {
-                format!("94{digits}")
-            } else {
-                return Err(MaleeError::LlmError(format!(
-                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
-                    recipient.phone
-                )));
-            };
+            let norm_phone = normalize_sl_phone(&recipient.phone)?;
 
             // 5. Resolve gift message: LLM arg > session draft > None
             let gift_message = llm_gift.or_else(|| session.checkout_draft.gift_message.clone());
@@ -293,6 +293,7 @@ pub async fn execute_tool(
                 },
                 sender: crate::services::malee::connector::types::McpSender {
                     name: sender.name.clone(),
+                    email: Some(sender.email.clone()),
                     anonymous: false,
                 },
                 gift_message,
@@ -325,6 +326,10 @@ pub async fn execute_tool(
 
             // 8. Create the order
             let res = connector.create_order(args, session_id).await?;
+
+            // Mark order as created for cooldown tracking
+            crate::services::malee::checkout::idempotency::mark_order_created(session);
+
             let output_str =
                 serde_json::to_string(&res).map_err(|e| MaleeError::LlmError(e.to_string()))?;
             Ok((ToolResult::CreateOrder(res), output_str))
@@ -477,19 +482,7 @@ pub async fn execute_tool(
             let args: SetupRecipientArgs = serde_json::from_value(arguments)
                 .map_err(|e| MaleeError::LlmError(e.to_string()))?;
 
-            let digits: String = args.phone.chars().filter(char::is_ascii_digit).collect();
-            let norm_phone = if digits.starts_with("94") && digits.len() == 11 {
-                digits
-            } else if digits.starts_with('0') && digits.len() == 10 {
-                format!("94{}", &digits[1..])
-            } else if digits.len() == 9 {
-                format!("94{digits}")
-            } else {
-                return Err(MaleeError::LlmError(format!(
-                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
-                    args.phone
-                )));
-            };
+            let norm_phone = normalize_sl_phone(&args.phone)?;
 
             session.checkout_draft.recipient =
                 Some(crate::models::malee::checkout::RecipientInfo {
@@ -514,19 +507,7 @@ pub async fn execute_tool(
             let args: SetupSenderArgs = serde_json::from_value(arguments)
                 .map_err(|e| MaleeError::LlmError(e.to_string()))?;
 
-            let digits: String = args.phone.chars().filter(char::is_ascii_digit).collect();
-            let norm_phone = if digits.starts_with("94") && digits.len() == 11 {
-                digits
-            } else if digits.starts_with('0') && digits.len() == 10 {
-                format!("94{}", &digits[1..])
-            } else if digits.len() == 9 {
-                format!("94{digits}")
-            } else {
-                return Err(MaleeError::LlmError(format!(
-                    "Invalid phone number: {}. Must be a valid 10-digit Sri Lankan phone number (e.g., 0771234567).",
-                    args.phone
-                )));
-            };
+            let norm_phone = normalize_sl_phone(&args.phone)?;
 
             session.checkout_draft.sender = Some(crate::models::malee::checkout::SenderInfo {
                 name: args.name.clone(),

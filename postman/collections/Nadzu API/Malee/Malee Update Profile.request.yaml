@@ -1,0 +1,39 @@
+$kind: http-request
+name: Malee Update Profile
+url: "{{base_url}}/api/v1/malee/session/{{malee_session_id}}/profile"
+method: PUT
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "profile": {
+        "first_name": "Nadun",
+        "last_name": "De Silva",
+        "email": "nadun@example.com",
+        "phone": "+94771234567",
+        "address_line1": "No 123, Galle Road",
+        "city": "Colombo",
+        "zip_code": "00300",
+        "currency": "LKR",
+        "preferred_language": "sinhala",
+        "favorite_categories": ["Cakes", "Flowers"]
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Profile updated successfully', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData.profile.first_name).to.eql('Nadun');
+      });
+    language: text/javascript
+order: 3004

@@ -36,11 +36,8 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
         if norm_phone.is_none() {
             errors.push("recipient.phone.invalid_sl_format".to_string());
         }
-        if r.address_line1.len() < 10 {
+        if r.address_line1.len() < 3 {
             errors.push("recipient.address.too_short".to_string());
-        }
-        if !r.address_line1.contains(' ') {
-            errors.push("recipient.address.incomplete".to_string());
         }
         if r.city.trim().is_empty() {
             errors.push("recipient.city.missing".to_string());
@@ -149,6 +146,7 @@ pub fn validate(draft: &CheckoutDraft, cart: &CartState) -> Result<CreateOrderAr
             },
             sender: McpSender {
                 name: sender_info.name,
+                email: Some(sender_info.email),
                 anonymous: false,
             },
             gift_message,

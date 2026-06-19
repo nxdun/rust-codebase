@@ -244,7 +244,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_RECIPIENT.to_string(),
-                description: "Checkout Step 2: Save recipient details. Address MUST include house/building number + street + area (e.g., 'No 42, Main Street, Colombo 03'). Reject vague addresses. Requires setup_delivery first.".to_string(),
+                description: "Checkout Step 2: Save recipient details. Address should be as complete as possible (e.g., 'No 42, Main Street, Colombo 03'). Requires setup_delivery first.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -258,7 +258,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
                         },
                         "address": {
                             "type": "string",
-                            "description": "Full street address: 'No/Building, Street Name, Area/Town'. NOT just a city or area name."
+                            "description": "Delivery address. Include house/building number and street if available."
                         },
                         "location_type": {
                             "type": "string",
