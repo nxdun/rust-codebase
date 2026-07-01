@@ -171,9 +171,19 @@ pub struct McpDelivery {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct McpSender {
     pub name: String,
+    #[serde(skip_serializing)]
     pub email: Option<String>,
     #[serde(default)]
     pub anonymous: bool,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct OrderSummary {
+    pub items_total: f64,
+    pub delivery_fee: f64,
+    pub addons_total: f64,
+    pub grand_total: f64,
+    pub currency: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -181,6 +191,7 @@ pub struct OrderCreated {
     pub order_ref: String,
     #[serde(rename = "checkout_url")]
     pub pay_url: String,
+    pub summary: OrderSummary,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub expires_at: Option<String>,
 }
