@@ -1,0 +1,22 @@
+$kind: http-request
+name: Malee Get Session
+url: "{{base_url}}/api/v1/malee/session/{{malee_session_id}}"
+method: GET
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has session details', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('session_id');
+        pm.expect(jsonData).to.have.property('cart');
+        pm.expect(jsonData).to.have.property('checkout_draft');
+      });
+    language: text/javascript
+order: 3002

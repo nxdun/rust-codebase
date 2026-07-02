@@ -1,0 +1,20 @@
+$kind: http-request
+name: Malee Delete Session
+url: "{{base_url}}/api/v1/malee/session/{{malee_session_id}}"
+method: DELETE
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 204', function () { 
+        pm.response.to.have.status(204);
+      });
+      
+      if (pm.response.code === 204) {
+        pm.collectionVariables.unset('malee_session_id');
+        console.log('Cleared Malee session ID');
+      }
+    language: text/javascript
+order: 3003

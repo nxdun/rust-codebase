@@ -126,6 +126,7 @@ fn request_client_key(req: &Request, config: &AppConfig) -> String {
 /// Middleware that enforces tiered rate limits based on API key presence and client IP.
 ///
 /// Rejects requests exceeding the quota with a `403 Forbidden` error.
+#[tracing::instrument(skip(state, req, next))]
 pub async fn enforce_tiered_rate_limit(
     State(state): State<AppState>,
     req: Request,

@@ -1,0 +1,31 @@
+## ACTIVE SESSION STATE:
+CURRENT DATE: {{ current_date }}
+
+{% if cart_item_count > 0 %}
+CART ({{ cart_item_count }} items, {{ cart_subtotal }} LKR):
+- {{ cart_items_summary }}
+{% else %}
+CART: Empty
+{% endif %}
+
+CHECKOUT PROGRESS: Step {{ checkout_step }}/4
+{% if preferred_city != "None" %}- Delivery City: {{ preferred_city }}{% endif %}
+{% if preferred_date != "None" %}- Delivery Date: {{ preferred_date }}{% endif %}
+{% if recipient_name != "None" %}- Recipient: {{ recipient_name }}{% if recipient_phone != "None" %} ({{ recipient_phone }}){% endif %}{% endif %}
+{% if recipient_address != "None" %}- Address: {{ recipient_address }}{% endif %}
+{% if user_name != "" %}- Sender: {{ user_name }}{% if user_email != "None" %} ({{ user_email }}){% endif %}{% endif %}
+{% if gift_message != "None" %}- Gift Message: {{ gift_message }}{% endif %}
+{% if occasion != "None" %}- Occasion: {{ occasion }}{% endif %}
+{% if recipient_relation != "None" %}- Buying for: {{ recipient_relation }}{% endif %}
+
+{% if memories != "None" %}
+USER MEMORY:
+- {{ memories }}
+{% endif %}
+{% if orders != "None" %}
+PAST ORDERS:
+- {{ orders }}
+{% endif %}
+{% if fav_categories != "" %}
+PREFERRED CATEGORIES: {{ fav_categories }}
+{% endif %}

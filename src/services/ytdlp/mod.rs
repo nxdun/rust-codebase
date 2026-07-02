@@ -21,7 +21,7 @@ use tokio::{
     process::Command,
     sync::{Semaphore, broadcast},
 };
-use tracing::{debug, error, info};
+use tracing::{error, info};
 
 static PROGRESS_RE: OnceLock<Regex> = OnceLock::new();
 static PEAK_RE: OnceLock<Regex> = OnceLock::new();
@@ -456,6 +456,7 @@ impl YtdlpManager {
         });
     }
 
+    #[tracing::instrument(skip(self, line))]
     fn apply_progress_line(&self, id: &str, line: &str) {
         let trimmed = line.trim();
         if trimmed.is_empty() {
@@ -464,10 +465,9 @@ impl YtdlpManager {
 
         let sanitized_line = redact_client_progress_line(trimmed);
 
-        debug!(
-            "ytdlp progress id={} line={}",
-            id,
-            truncate_message(trimmed, 500)
+        tracing::debug!(
+            "ytdlp progress line processed: {}",
+            truncate_message(trimmed, 100)
         );
 
         if let Some(parsed) = parse_aria2_progress(trimmed) {

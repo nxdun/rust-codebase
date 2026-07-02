@@ -23,6 +23,10 @@ fn test_config(env: &str) -> AppConfig {
         None,
         None,
         "https://api.github.com/graphql".to_string(),
+        vec![], // malee_llm_pool
+        30000,
+        "https://mcp.kapruka.com/mcp".to_string(),
+        15000,
     )
 }
 

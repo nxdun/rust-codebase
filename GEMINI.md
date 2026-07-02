@@ -6,6 +6,7 @@ This document serves as the foundational mandate for all engineering work on nad
 
 ### DTO vs. Domain Model Separation
 *   **External DTOs (`*_dto.rs`)**: Strictly for mapping external API responses (e.g., GitHub, YouTube). They must mirror the external schema (e.g., `camelCase`).
+*   **Futureproof DTOs**: DTOs for outside connections (like MCP servers) must be futureproof by being extensible and reusable.
 *   **Domain Models (`src/models/`)**: Clean, optimized structures used by our business logic and returned to our frontend.
 *   **Anti-Corruption Layer**: Every service must implement a transformation pass (e.g., `transform_calendar`) to convert "dirty" DTOs into "pure" Domain Models. **Never leak external API structures into the rest of the application.**
 
@@ -35,6 +36,10 @@ This document serves as the foundational mandate for all engineering work on nad
 *   Use specific "Response" versions of models (e.g., `YtdlpJobResponse`) to filter sensitive fields.
 
 ## 4. Configuration Management
+
+### Environment Variables
+*   **No Default Fallbacks for Required Env**: Do not set default env fallbacks for required values (like LLM endpoints or Secrets). All required configurations must be passed from `.env`. Re-use existing design patterns instead of implementing new helpers.
+*   **Constants Location**: Configuration related values (like TTLs, model fallbacks, Max Item limits) must be defined as `const` in the same location where the business logic resides, EXCEPT for Secret values and endpoint URLs, which must be loaded from `.env`.
 
 ### Result-Based Loading
 *   `AppConfig::from_env()` must return a `Result<Self, ConfigError>`.
@@ -66,6 +71,14 @@ This document serves as the foundational mandate for all engineering work on nad
 ### Documentation
 *   All public-facing methods and services must have `///` (Rustdoc) comments explaining intent and behavior.do not over document, make guesses about the unseen code.
 *   Complex logic (like the Midnight Snap caching strategy) must be documented inline.
+
+### Testing
+*   **No Inline Tests in `src/`**: Adding test files or `#[cfg(test)]` modules inside the `src/` directory is strictly prohibited. All tests must be placed in the `tests/` folder.
+
+## 7. Interaction & UX Policies (Malee / E-commerce)
+
+*   **Search vs. Checkout**: When users are finding/searching for products, do not ask delivery or checkout-related questions (city, date, recipient) until items are explicitly added to the cart.
+*   **Lenient Address Validation**: Do not be overly restrictive with address fields. Accept what the user provides as long as it has a house number/name and some area info. Do not force specific "Street Name" if the user hasn't provided one.
 
 ---
 *Follow these rules to ensure the codebase remains scalable, secure, and blazingly fast.*

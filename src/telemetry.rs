@@ -6,23 +6,49 @@ use tower_http::{
     trace::{DefaultMakeSpan, DefaultOnRequest, DefaultOnResponse, TraceLayer},
 };
 use tracing::Level;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{EnvFilter, fmt, layer::SubscriberExt, util::SubscriberInitExt};
 
 /// Initializes structured logging and environment-based log filtering.
+/// Supports concurrent logging to Console and File.
 pub fn init_tracing() {
-    #[allow(clippy::expect_used)]
-    let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| "info".into())
-        .add_directive(
-            "tower_http=info"
-                .parse()
-                .expect("static directive should parse"),
-        );
+    // Force "nadzu" to be included in logs if not specified in RUST_LOG
+    let mut env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+
+    // Add directives safely without unwrapping inside the filter chain
+    if let Ok(dir) = "nadzu=debug".parse() {
+        env_filter = env_filter.add_directive(dir);
+    }
+    if let Ok(dir) = "tower_http=info".parse() {
+        env_filter = env_filter.add_directive(dir);
+    }
+
+    // File appender for persistent logs
+    let file_appender = tracing_appender::rolling::daily("logs", "nadzu.log");
+    let (non_blocking_file, guard) = tracing_appender::non_blocking(file_appender);
+
+    // We must leak the guard to keep the background worker alive for the process duration
+    Box::leak(Box::new(guard));
+
+    let fmt_layer = fmt::layer()
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_line_number(true);
+
+    let file_layer = fmt::layer()
+        .with_ansi(false) // No colors in file logs
+        .with_target(true)
+        .with_thread_ids(true)
+        .with_line_number(true)
+        .with_writer(non_blocking_file);
 
     tracing_subscriber::registry()
         .with(env_filter)
-        .with(tracing_subscriber::fmt::layer())
+        .with(fmt_layer)
+        .with(file_layer)
         .init();
+
+    tracing::info!("Telemetry system initialized: Console + File sinks active");
 }
 
 pub type AppTraceLayer = TraceLayer<

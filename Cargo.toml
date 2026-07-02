@@ -2,7 +2,7 @@
 name = "nadzu"
 version = "0.5.1"
 edition = "2024"
-authors = ["Nadun <nadun@nadzu.net>"]
+authors = ["Nadun <inbox.nadun@gmail.com>"]
 description = "A high-performance YouTube downloader backend built with Axum and Rust."
 repository = "https://github.com/nxdun/rust-codebase"
 license = "MIT"
@@ -11,9 +11,12 @@ categories = ["web-programming::http-server", "multimedia::video"]
 
 [dependencies]
 anyhow = "1.0"
+async-trait = "0.1"
 axum = { version = "0.8", features = ["macros"] }
+chrono = { version = "0.4", features = ["serde"] }
 dashmap = "6.1.0"
 dotenvy = "0.15"
+futures = "0.3"
 governor = "0.10"
 metrics = "0.22"
 metrics-exporter-prometheus = "0.13"
@@ -30,7 +33,10 @@ tower_governor = "0.8"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "fmt"] }
 url = "2.5.8"
+uuid = { version = "1.0", features = ["v4", "serde"] }
 validator = { version = "0.20", features = ["derive"] }
+tracing-appender = "0.2.5"
+minijinja = { version = "2.20.0", features = ["loader"] }
 
 [dev-dependencies]
 http-body-util = "0.1"
