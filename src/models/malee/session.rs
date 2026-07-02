@@ -47,6 +47,7 @@ pub struct SessionState {
     pub session_id: Uuid,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    pub version: u64,
     pub language_mode: LanguageMode,
     pub conversation_history: Vec<ConversationTurn>,
     pub user_profile: UserProfile,

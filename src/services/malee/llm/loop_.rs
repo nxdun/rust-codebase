@@ -119,9 +119,125 @@ pub async fn run_agent_loop(
 
     tracing::info!("Starting agent loop with multi-provider failover support");
 
+    let is_json_response =
+        user_message.trim().starts_with('{') && user_message.trim().ends_with('}');
+
+    if is_json_response
+        && let Ok(form_data) = serde_json::from_str::<serde_json::Value>(&user_message)
+    {
+        if let Some(obj) = form_data.as_object() {
+            // Apply fields to session.checkout_draft directly
+            if session.checkout_draft.delivery.is_none() {
+                session.checkout_draft.delivery =
+                    Some(crate::models::malee::checkout::DeliveryInfo::default());
+            }
+            if let Some(d) = &mut session.checkout_draft.delivery {
+                if let Some(c) = obj.get("delivery_city").and_then(|v| v.as_str()) {
+                    d.city = c.to_string();
+                }
+                if let Some(date_str) = obj.get("delivery_date").and_then(|v| v.as_str())
+                    && let Ok(date) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d")
+                {
+                    d.date = date;
+                }
+            }
+
+            if session.checkout_draft.recipient.is_none() {
+                session.checkout_draft.recipient =
+                    Some(crate::models::malee::checkout::RecipientInfo {
+                        name: String::new(),
+                        phone: String::new(),
+                        address_line1: String::new(),
+                        address_line2: None,
+                        city: session
+                            .checkout_draft
+                            .delivery
+                            .as_ref()
+                            .map_or(String::new(), |d| d.city.clone()),
+                    });
+            }
+            if let Some(r) = &mut session.checkout_draft.recipient {
+                if let Some(n) = obj.get("recipient_name").and_then(|v| v.as_str()) {
+                    r.name = n.to_string();
+                }
+                if let Some(p) = obj.get("recipient_phone").and_then(|v| v.as_str()) {
+                    r.phone = p.to_string();
+                }
+                if let Some(a) = obj.get("recipient_address").and_then(|v| v.as_str()) {
+                    r.address_line1 = a.to_string();
+                }
+            }
+
+            if session.checkout_draft.sender.is_none() {
+                session.checkout_draft.sender = Some(crate::models::malee::checkout::SenderInfo {
+                    name: String::new(),
+                    email: String::new(),
+                    phone: String::new(),
+                });
+            }
+            if let Some(s) = &mut session.checkout_draft.sender {
+                if let Some(n) = obj.get("sender_name").and_then(|v| v.as_str()) {
+                    s.name = n.to_string();
+                }
+                if let Some(e) = obj.get("sender_email").and_then(|v| v.as_str()) {
+                    s.email = e.to_string();
+                }
+                if let Some(p) = obj.get("sender_phone").and_then(|v| v.as_str()) {
+                    s.phone = p.to_string();
+                }
+            }
+        }
+
+        // Validate the draft
+        let missing_fields = match crate::services::malee::checkout::validate::validate(
+            &session.checkout_draft,
+            &session.cart,
+        ) {
+            Ok(_) => vec![],
+            Err(errs) => errs,
+        };
+
+        if !missing_fields.is_empty() {
+            // Generate a new question prompt with remaining missing fields
+            let questions = build_missing_questions(&missing_fields);
+
+            let _ = emit(&event_tx, UiEvent::QuestionPrompt { questions }).await;
+
+            let (current_step, step_name) = calculate_checkout_progress(&session.checkout_draft);
+
+            let _ = emit(
+                &event_tx,
+                UiEvent::CheckoutProgress {
+                    current_step,
+                    total_steps: 4,
+                    step_name,
+                    missing_fields: missing_fields.clone(),
+                },
+            )
+            .await;
+
+            let _ = emit(
+                &event_tx,
+                UiEvent::CheckoutForm {
+                    draft: CheckoutDraftView::from(&session.checkout_draft),
+                    missing_fields,
+                },
+            )
+            .await;
+
+            return Ok(());
+        }
+    }
+
+    let formatted_user_message = if is_json_response {
+        "[Form Response Received] All checkout details collected. Please summarize and call kapruka_create_order.".to_string()
+    } else {
+        user_message.clone()
+    };
+
     session.conversation_history.push(ConversationTurn {
         role: Role::User,
-        content: user_message.clone(),
+        content: formatted_user_message,
         tool_call_id: None,
         tool_calls: None,
     });
@@ -297,7 +413,7 @@ pub async fn run_agent_loop(
                             }
 
                             if tool_calls_collected.iter().any(|tc| {
-                                tc.name == crate::services::malee::llm::tools::TOOL_ASK_QUESTION
+                                tc.name == crate::services::malee::llm::tools::TOOL_START_CHECKOUT
                             }) {
                                 tracing::info!(
                                     "Halting agent loop to wait for user input from form"
@@ -533,11 +649,106 @@ async fn dispatch_tool(
             )
             .await;
         }
-        ToolResult::AskQuestion { questions } => {
+        ToolResult::StartCheckout => {
+            let missing_fields = match crate::services::malee::checkout::validate::validate(
+                &session.checkout_draft,
+                &session.cart,
+            ) {
+                Ok(_) => vec![],
+                Err(errs) => errs,
+            };
+
+            let questions = build_missing_questions(&missing_fields);
             let _ = emit(event_tx, UiEvent::QuestionPrompt { questions }).await;
+
+            let (current_step, step_name) = calculate_checkout_progress(&session.checkout_draft);
+            let _ = emit(
+                event_tx,
+                UiEvent::CheckoutProgress {
+                    current_step,
+                    total_steps: 4,
+                    step_name,
+                    missing_fields: missing_fields.clone(),
+                },
+            )
+            .await;
+
+            let _ = emit(
+                event_tx,
+                UiEvent::CheckoutForm {
+                    draft: CheckoutDraftView::from(&session.checkout_draft),
+                    missing_fields,
+                },
+            )
+            .await;
         }
         ToolResult::SaveUserFact | ToolResult::UpdateUserProfile => {}
     }
 
     Ok(output_str)
+}
+
+fn calculate_checkout_progress(
+    draft: &crate::models::malee::checkout::CheckoutDraft,
+) -> (u32, String) {
+    if draft.sender.is_some() {
+        (4, "Finalize".to_string())
+    } else if draft.recipient.is_some() {
+        (3, "Sender Details".to_string())
+    } else if draft.delivery.is_some() {
+        (2, "Recipient Details".to_string())
+    } else {
+        (1, "Delivery Details".to_string())
+    }
+}
+
+fn build_missing_questions(
+    missing_fields: &[String],
+) -> Vec<crate::services::malee::llm::tools::QuestionField> {
+    let mut questions = Vec::new();
+    let mut added = std::collections::HashSet::new();
+
+    for f in missing_fields {
+        let (field, label, input_type) =
+            if f.starts_with("delivery.city") || f == "delivery.missing" {
+                ("delivery_city", "Delivery City", "text")
+            } else if f.starts_with("delivery.date") {
+                ("delivery_date", "Delivery Date", "date")
+            } else if f.starts_with("recipient.name") || f == "recipient.missing" {
+                ("recipient_name", "Recipient Name", "text")
+            } else if f.starts_with("recipient.phone") {
+                ("recipient_phone", "Recipient Phone", "tel")
+            } else if f.starts_with("recipient.address") {
+                ("recipient_address", "Delivery Address", "text")
+            } else if f.starts_with("sender.name") || f == "sender.missing" {
+                ("sender_name", "Your Name", "text")
+            } else if f.starts_with("sender.email") {
+                ("sender_email", "Your Email", "email")
+            } else if f.starts_with("sender.phone") {
+                ("sender_phone", "Your Phone", "tel")
+            } else {
+                continue;
+            };
+
+        if added.insert(field) {
+            questions.push(crate::services::malee::llm::tools::QuestionField {
+                field: field.to_string(),
+                label: label.to_string(),
+                input_type: input_type.to_string(),
+                placeholder: None,
+            });
+        }
+    }
+
+    // Ensure date is added if delivery is missing entirely
+    if missing_fields.contains(&"delivery.missing".to_string()) && added.insert("delivery_date") {
+        questions.push(crate::services::malee::llm::tools::QuestionField {
+            field: "delivery_date".to_string(),
+            label: "Delivery Date".to_string(),
+            input_type: "date".to_string(),
+            placeholder: None,
+        });
+    }
+
+    questions
 }

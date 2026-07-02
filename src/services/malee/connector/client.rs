@@ -1,5 +1,6 @@
 use dashmap::DashMap;
 use reqwest::Client;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::time::sleep;
 
@@ -26,18 +27,31 @@ pub struct MaleeConnector {
     timeout: Duration,
     category_cache: DashMap<String, (Instant, Vec<Category>)>,
     city_cache: DashMap<String, (Instant, Vec<String>)>,
-    mcp_sessions: DashMap<String, String>,
+    mcp_sessions: Arc<DashMap<String, (Instant, String)>>,
 }
 
 impl MaleeConnector {
     pub fn new(client: Client, base_url: String, timeout_ms: u64) -> Self {
+        let mcp_sessions = Arc::new(DashMap::new());
+        let mcp_sessions_clone = Arc::clone(&mcp_sessions);
+
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(Duration::from_mins(5));
+            loop {
+                interval.tick().await;
+                mcp_sessions_clone.retain(|_, val: &mut (Instant, String)| {
+                    val.0.elapsed() < Duration::from_hours(2)
+                });
+            }
+        });
+
         Self {
             client,
             base_url,
             timeout: Duration::from_millis(timeout_ms),
             category_cache: DashMap::new(),
             city_cache: DashMap::new(),
-            mcp_sessions: DashMap::new(),
+            mcp_sessions,
         }
     }
 
@@ -120,11 +134,13 @@ impl MaleeConnector {
             attempt += 1;
 
             // Get or initialize MCP session
-            let mcp_session_id = if let Some(id) = self.mcp_sessions.get(session_id) {
-                id.clone()
+            let mcp_session_id = if let Some(mut entry) = self.mcp_sessions.get_mut(session_id) {
+                entry.value_mut().0 = Instant::now();
+                entry.value().1.clone()
             } else {
                 let id = self.initialize_mcp(session_id).await?;
-                self.mcp_sessions.insert(session_id.to_string(), id.clone());
+                self.mcp_sessions
+                    .insert(session_id.to_string(), (Instant::now(), id.clone()));
                 id
             };
 

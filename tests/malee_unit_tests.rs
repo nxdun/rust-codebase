@@ -237,6 +237,7 @@ mod services_malee_llm_tools_tests {
             session_id: Uuid::new_v4(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+            version: 0,
             language_mode: LanguageMode::Auto,
             conversation_history: vec![],
             user_profile: UserProfile::default(),

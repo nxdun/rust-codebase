@@ -4,6 +4,7 @@ use serde::Deserialize;
 use serde_json::Value;
 use uuid::Uuid;
 
+use crate::models::malee::session::{ConversationTurn, Role};
 use crate::{
     error::AppError,
     models::malee::{cart::CartItem, checkout::DeliveryInfo, events::CartView},
@@ -32,13 +33,25 @@ pub async fn handler(
         .get(&body.session_id)
         .ok_or_else(|| AppError::NotFound("Session not found".to_string()))?;
 
+    // Acquire per-session lock to serialize mutations with agent loop
+    let lock = state.malee_service.session_store.get_lock(&body.session_id);
+    let _guard = lock.lock().await;
+
     let max_items = MAX_CART_ITEMS;
 
     match body.action.as_str() {
         "add_to_cart" => {
             let product: CartItem = serde_json::from_value(body.payload)
                 .map_err(|e| AppError::Validation(format!("Invalid payload: {e}")))?;
+            let name = product.name.clone();
+            let pid = product.product_id.clone();
             session.cart = reduce(session.cart, CartAction::AddItem { product }, max_items)?;
+            session.conversation_history.push(ConversationTurn {
+                role: Role::Tool,
+                content: format!("FRONTEND_ACTION: add_to_cart id={pid} name={name}"),
+                tool_call_id: None,
+                tool_calls: None,
+            });
         }
         "remove_from_cart" => {
             if let Some(id) = body.payload.get("product_id").and_then(|v| v.as_str()) {
@@ -49,6 +62,12 @@ pub async fn handler(
                     },
                     max_items,
                 )?;
+                session.conversation_history.push(ConversationTurn {
+                    role: Role::Tool,
+                    content: format!("FRONTEND_ACTION: remove_from_cart id={id}"),
+                    tool_call_id: None,
+                    tool_calls: None,
+                });
             }
         }
         "set_quantity" => {
@@ -64,6 +83,12 @@ pub async fn handler(
                     },
                     max_items,
                 )?;
+                session.conversation_history.push(ConversationTurn {
+                    role: Role::Tool,
+                    content: format!("FRONTEND_ACTION: set_quantity id={id} qty={qty}"),
+                    tool_call_id: None,
+                    tool_calls: None,
+                });
             }
         }
         "set_delivery_city" => {
@@ -111,6 +136,12 @@ pub async fn handler(
         }
         "clear_cart" => {
             session.cart = reduce(session.cart, CartAction::Clear, max_items)?;
+            session.conversation_history.push(ConversationTurn {
+                role: Role::Tool,
+                content: "FRONTEND_ACTION: clear_cart".to_string(),
+                tool_call_id: None,
+                tool_calls: None,
+            });
         }
         _ => {
             return Err(AppError::Validation(format!(
@@ -124,5 +155,10 @@ pub async fn handler(
 
     state.malee_service.session_store.upsert(session);
 
-    Ok(Json(cart_view))
+    Ok(Json(ActionResponse { cart: cart_view }))
+}
+
+#[derive(Debug, serde::Serialize)]
+pub struct ActionResponse {
+    pub cart: CartView,
 }

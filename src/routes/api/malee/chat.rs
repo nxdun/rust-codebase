@@ -54,6 +54,7 @@ pub async fn handler(
             session_id: Uuid::new_v4(),
             created_at: chrono::Utc::now(),
             updated_at: chrono::Utc::now(),
+            version: 0,
             language_mode: LanguageMode::Auto,
             conversation_history: vec![],
             user_profile: UserProfile::default(),
@@ -116,6 +117,7 @@ pub async fn handler(
     let session_id_str = session.session_id.to_string();
     tracing::info!("Starting chat handler for session: {}", session_id_str);
 
+    // Acquire per-session lock inside spawned task to serialize agent loop
     tokio::spawn(async move {
         tracing::info!("Agent loop spawned for session: {}", session_id_str);
         if is_new_session {
@@ -125,6 +127,12 @@ pub async fn handler(
                 })
                 .await;
         }
+
+        // Serialize access to this session while agent loop runs
+        let lock = service_clone
+            .session_store
+            .get_lock(&session_clone.session_id);
+        let _guard = lock.lock().await;
 
         let mut current_session = session_clone;
 

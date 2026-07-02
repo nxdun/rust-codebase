@@ -1,13 +1,13 @@
 use super::client::{ToolFunctionSchema, ToolSchema};
 
-use super::tools::{
-    TOOL_ASK_QUESTION, TOOL_SET_SPECIAL_INSTRUCTIONS, TOOL_SETUP_RECIPIENT, TOOL_SETUP_SENDER,
-};
 use crate::services::malee::connector::tools::{
     TOOL_ADD_TO_CART, TOOL_CHECK_DELIVERY, TOOL_CLEAR_CART, TOOL_CREATE_ORDER, TOOL_GET_PRODUCT,
     TOOL_LIST_CATEGORIES, TOOL_LIST_CITIES, TOOL_REMOVE_FROM_CART, TOOL_SAVE_USER_FACT,
     TOOL_SEARCH_PRODUCTS, TOOL_SET_QUANTITY, TOOL_SETUP_DELIVERY, TOOL_TRACK_ORDER,
     TOOL_UPDATE_USER_PROFILE,
+};
+use crate::services::malee::llm::tools::{
+    TOOL_SET_SPECIAL_INSTRUCTIONS, TOOL_SETUP_RECIPIENT, TOOL_SETUP_SENDER, TOOL_START_CHECKOUT,
 };
 use serde_json::json;
 
@@ -224,7 +224,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_DELIVERY.to_string(),
-                description: "Checkout Step 1: Save delivery city and date. Validate city via kapruka_list_delivery_cities first. Call this before setup_recipient.".to_string(),
+                description: "Checkout Step 1: Save delivery city and date. Validate city via kapruka_list_delivery_cities first. Call this before setup_recipient. WARNING: Execute ONLY this step if you just received delivery form data, do not call other setup tools concurrently.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -244,7 +244,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_RECIPIENT.to_string(),
-                description: "Checkout Step 2: Save recipient details. Address should be as complete as possible (e.g., 'No 42, Main Street, Colombo 03'). Requires setup_delivery first.".to_string(),
+                description: "Checkout Step 2: Save recipient details. Address should be as complete as possible. PREREQUISITE: setup_delivery MUST be complete. WARNING: Execute ONLY this step if you just received recipient form data, do not call setup_sender concurrently.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -274,7 +274,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_SETUP_SENDER.to_string(),
-                description: "Checkout Step 3: Save sender (buyer) details. Requires setup_delivery and setup_recipient first. Use known profile data if available.".to_string(),
+                description: "Checkout Step 3: Save sender (buyer) details. PREREQUISITE: setup_delivery and setup_recipient MUST be complete. WARNING: Do not call other setup tools concurrently.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -316,7 +316,7 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
                 name: TOOL_CREATE_ORDER.to_string(),
-                description: "Finalize the order and get a payment link. ONLY call when all checkout steps (delivery, recipient, sender) are complete. Cart and checkout data are read from the session — just pass an optional gift message.".to_string(),
+                description: "Finalize the order and get a payment link. PREREQUISITE: ALL checkout steps (delivery, recipient, sender) MUST be fully completed. Cart and checkout data are read from the session. WARNING: Do not call concurrently with setup tools.".to_string(),
                 parameters: json!({
                     "type": "object",
                     "properties": {
@@ -334,40 +334,11 @@ pub fn all_tool_schemas() -> Vec<ToolSchema> {
         ToolSchema {
             type_: "function".to_string(),
             function: ToolFunctionSchema {
-                name: TOOL_ASK_QUESTION.to_string(),
-                description: "Show structured form inputs to the user. Use ONLY during checkout to collect delivery/recipient/sender fields efficiently. Do NOT use during product discovery or general conversation.".to_string(),
+                name: TOOL_START_CHECKOUT.to_string(),
+                description: "Start the checkout process when the user is ready. This tells the system to automatically present the full checkout form to the user. Call this ONCE and STOP. Do NOT ask for details in plain text.".to_string(),
                 parameters: json!({
                     "type": "object",
-                    "properties": {
-                        "questions": {
-                            "type": "array",
-                            "items": {
-                                "type": "object",
-                                "properties": {
-                                    "field": {
-                                        "type": "string",
-                                        "description": "Technical field key: delivery_city, delivery_date, recipient_name, recipient_phone, recipient_address, sender_name, sender_email, sender_phone."
-                                    },
-                                    "label": {
-                                        "type": "string",
-                                        "description": "User-facing question text."
-                                    },
-                                    "input_type": {
-                                        "type": "string",
-                                        "enum": ["text", "tel", "date", "email", "textarea"],
-                                        "description": "HTML input type for the field."
-                                    },
-                                    "placeholder": {
-                                        "type": "string",
-                                        "description": "Example value shown in the input."
-                                    }
-                                },
-                                "required": ["field", "label", "input_type"]
-                            },
-                            "description": "Batch related fields together (e.g., all delivery fields in one call)."
-                        }
-                    },
-                    "required": ["questions"]
+                    "properties": {}
                 }),
             },
         },

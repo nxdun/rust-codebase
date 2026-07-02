@@ -1,0 +1,40 @@
+$kind: http-request
+name: Kapruka List Categories
+url: "{{malee_connector_url}}"
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+  - key: Accept
+    value: "application/json, text/event-stream"
+body:
+  type: json
+  content: |-
+    {
+      "jsonrpc": "2.0",
+      "id": "e20902e0-9d6d-4ec3-b941-50aadb77b460",
+      "method": "tools/call",
+      "params": {
+        "name": "kapruka_list_categories",
+        "arguments": {
+          "params": {
+            "depth": 1,
+            "response_format": "json"
+          }
+        }
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has result content', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData.result).to.not.be.undefined;
+        pm.expect(jsonData.result.content).to.be.an('array');
+      });
+    language: text/javascript
+order: 3010

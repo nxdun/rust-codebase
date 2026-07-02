@@ -1,6 +1,7 @@
 use chrono::Utc;
 use dashmap::DashMap;
 use std::sync::Arc;
+use tokio::sync::Mutex;
 use uuid::Uuid;
 
 use crate::models::malee::session::SessionState;
@@ -10,12 +11,14 @@ pub const SESSION_TTL_MINUTES: u64 = 120;
 #[derive(Debug)]
 pub struct SessionStore {
     sessions: DashMap<Uuid, SessionState>,
+    locks: DashMap<Uuid, Arc<Mutex<()>>>,
 }
 
 impl SessionStore {
     pub fn new() -> Arc<Self> {
         let store = Arc::new(Self {
             sessions: DashMap::new(),
+            locks: DashMap::new(),
         });
 
         let store_clone = Arc::clone(&store);
@@ -44,8 +47,19 @@ impl SessionStore {
     #[tracing::instrument(skip(self, session), fields(session_id = %session.session_id))]
     pub fn upsert(&self, mut session: SessionState) {
         session.updated_at = Utc::now();
+        session.version = session.version.saturating_add(1);
         tracing::debug!("Upserting session");
         self.sessions.insert(session.session_id, session);
+    }
+
+    /// Return a per-session async mutex. Creates one if missing.
+    pub fn get_lock(&self, id: &Uuid) -> Arc<Mutex<()>> {
+        if let Some(l) = self.locks.get(id) {
+            return Arc::clone(&*l);
+        }
+        let lock = Arc::new(Mutex::new(()));
+        self.locks.insert(*id, Arc::clone(&lock));
+        lock
     }
 
     #[tracing::instrument(skip(self))]

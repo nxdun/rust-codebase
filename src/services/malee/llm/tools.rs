@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub const TOOL_SETUP_RECIPIENT: &str = "setup_recipient";
 pub const TOOL_SETUP_SENDER: &str = "setup_sender";
 pub const TOOL_SET_SPECIAL_INSTRUCTIONS: &str = "set_special_instructions";
-pub const TOOL_ASK_QUESTION: &str = "ask_question";
+pub const TOOL_START_CHECKOUT: &str = "start_checkout";
 
 const DEFAULT_CART_LIMIT: usize = 20;
 
@@ -25,10 +25,7 @@ pub struct QuestionField {
     pub placeholder: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct AskQuestionArgs {
-    pub questions: Vec<QuestionField>,
-}
+// Keeping QuestionField for the orchestrator, but removing AskQuestionArgs as LLM no longer constructs it.
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SetupRecipientArgs {
@@ -115,9 +112,7 @@ pub enum ToolResult {
     SetupRecipient,
     SetupSender,
     SetSpecialInstructions,
-    AskQuestion {
-        questions: Vec<QuestionField>,
-    },
+    StartCheckout,
     SaveUserFact,
     UpdateUserProfile,
 }
@@ -530,16 +525,10 @@ pub async fn execute_tool(
                 "Special instructions updated".to_string(),
             ))
         }
-        TOOL_ASK_QUESTION => {
-            let args: AskQuestionArgs = serde_json::from_value(arguments)
-                .map_err(|e| MaleeError::LlmError(e.to_string()))?;
-            Ok((
-                ToolResult::AskQuestion {
-                    questions: args.questions,
-                },
-                "Question prompts sent to user".to_string(),
-            ))
-        }
+        TOOL_START_CHECKOUT => Ok((
+            ToolResult::StartCheckout,
+            "Checkout form initiated by orchestrator".to_string(),
+        )),
         TOOL_SAVE_USER_FACT => {
             let args: SaveUserFactArgs = serde_json::from_value(arguments)
                 .map_err(|e| MaleeError::LlmError(e.to_string()))?;

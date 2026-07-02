@@ -1,5 +1,6 @@
 use crate::error::MaleeError;
 use crate::models::malee::session::{LanguageMode, SessionState};
+use chrono::Utc;
 use minijinja::{Environment, context};
 
 /// Builds the LLM system prompt from minijinja templates and live session state.
@@ -179,6 +180,7 @@ impl PromptBuilder {
 
             // Language
             language_instruction => language_instruction,
+            current_date => Utc::now().date_naive().to_string(),
         };
 
         tmpl.render(ctx)
