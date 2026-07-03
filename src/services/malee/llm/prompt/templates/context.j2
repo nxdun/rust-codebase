@@ -1,31 +1,32 @@
-## ACTIVE SESSION STATE:
-CURRENT DATE: {{ current_date }}
+## ACTIVE SESSION — What you know right now:
+TODAY: {{ current_date }}
 
 {% if cart_item_count > 0 %}
-CART ({{ cart_item_count }} items, {{ cart_subtotal }} LKR):
+🛒 CART ({{ cart_item_count }} items, Rs. {{ cart_subtotal }}):
 - {{ cart_items_summary }}
 {% else %}
-CART: Empty
+🛒 CART: Empty — fresh start
 {% endif %}
 
 CHECKOUT PROGRESS: Step {{ checkout_step }}/4
-{% if preferred_city != "None" %}- Delivery City: {{ preferred_city }}{% endif %}
-{% if preferred_date != "None" %}- Delivery Date: {{ preferred_date }}{% endif %}
-{% if recipient_name != "None" %}- Recipient: {{ recipient_name }}{% if recipient_phone != "None" %} ({{ recipient_phone }}){% endif %}{% endif %}
-{% if recipient_address != "None" %}- Address: {{ recipient_address }}{% endif %}
-{% if user_name != "" %}- Sender: {{ user_name }}{% if user_email != "None" %} ({{ user_email }}){% endif %}{% endif %}
-{% if gift_message != "None" %}- Gift Message: {{ gift_message }}{% endif %}
-{% if occasion != "None" %}- Occasion: {{ occasion }}{% endif %}
-{% if recipient_relation != "None" %}- Buying for: {{ recipient_relation }}{% endif %}
+{% if preferred_city != "None" %}- 📍 Delivery City: {{ preferred_city }}{% endif %}
+{% if preferred_date != "None" %}- 📅 Delivery Date: {{ preferred_date }}{% endif %}
+{% if recipient_name != "None" %}- 🎁 Recipient: {{ recipient_name }}{% if recipient_phone != "None" %} ({{ recipient_phone }}){% endif %}{% endif %}
+{% if recipient_address != "None" %}- 📬 Address: {{ recipient_address }}{% endif %}
+{% if user_name != "" %}- 👤 Sender: {{ user_name }}{% if user_email != "None" %} ({{ user_email }}){% endif %}{% endif %}
+{% if gift_message != "None" %}- 💌 Gift Message: {{ gift_message }}{% endif %}
+{% if occasion != "None" %}- 🎉 Occasion: {{ occasion }}{% endif %}
+{% if recipient_relation != "None" %}- 💐 Buying for: {{ recipient_relation }}{% endif %}
 
 {% if memories != "None" %}
-USER MEMORY:
+🧠 WHAT YOU REMEMBER ABOUT THIS USER:
 - {{ memories }}
+(Use these naturally — reference them as if you simply remember, don't announce "according to my records")
 {% endif %}
 {% if orders != "None" %}
-PAST ORDERS:
+📦 PAST ORDERS:
 - {{ orders }}
 {% endif %}
 {% if fav_categories != "" %}
-PREFERRED CATEGORIES: {{ fav_categories }}
+⭐ PREFERRED CATEGORIES: {{ fav_categories }}
 {% endif %}
