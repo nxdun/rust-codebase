@@ -116,6 +116,7 @@ pub struct CategoryView {
     pub id: String,
     pub name: String,
     pub image_url: Option<String>,
+    pub url: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

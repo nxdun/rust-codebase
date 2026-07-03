@@ -539,10 +539,20 @@ async fn dispatch_tool(
         ToolResult::ListCategories(res) => {
             let views = res
                 .iter()
-                .map(|c| CategoryView {
-                    id: c.id.clone(),
-                    name: c.name.clone(),
-                    image_url: None,
+                .map(|c| {
+                    let id = if !c.id.is_empty() {
+                        c.id.clone()
+                    } else if let Some(url) = &c.url {
+                        url.split('/').next_back().unwrap_or(&c.name).to_string()
+                    } else {
+                        c.name.to_lowercase().replace(' ', "-")
+                    };
+                    CategoryView {
+                        id,
+                        name: c.name.clone(),
+                        image_url: None,
+                        url: c.url.clone(),
+                    }
                 })
                 .collect();
 
