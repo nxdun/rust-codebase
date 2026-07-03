@@ -174,6 +174,8 @@ write_files:
       WARP_LICENSE_KEY=${WARP_LICENSE_KEY}
       MASTER_API_KEY=${MASTER_API_KEY}
       GITHUB_PAT=${GHCR_PAT}
+      MALEE_LLM_POOL=${MALEE_LLM_POOL}
+      MALEE_CONNECTOR_URL=${MALEE_CONNECTOR_URL}
 
   - path: /root/.ghcr_token
     permissions: '0600'

@@ -27,6 +27,8 @@ locals {
     CAPTCHA_SECRET_KEY        = coalesce(var.CAPTCHA_SECRET_KEY, "")
     WARP_LICENSE_KEY          = var.WARP_LICENSE_KEY
     MASTER_API_KEY            = coalesce(var.MASTER_API_KEY, "NOT-SET")
+    MALEE_LLM_POOL            = var.MALEE_LLM_POOL
+    MALEE_CONNECTOR_URL       = var.MALEE_CONNECTOR_URL
     CERT_PEM                  = file("${path.module}/../../common/certificates/api.nadzu.me.pem")
     CERT_KEY                  = file("${path.module}/../../common/certificates/api.nadzu.me.key")
     CADDY_CUSTOM_BROWSE_FILE_URL = var.CADDY_CUSTOM_BROWSE_FILE_URL
