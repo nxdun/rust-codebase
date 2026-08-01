@@ -1,5 +1,8 @@
 # Nadzu-API
 
+> [!WARNING]
+> **Infrastructure Notice:** Due to the early expiration of DigitalOcean free credits provided by the GitHub Student Developer Pack, the project infrastructure has been temporarily destroyed.
+
 Personal backend API built with Rust, focused on concurrency, performance, security, and long-term maintainability.
 
 ## Table of Contents
