@@ -34,6 +34,7 @@ struct CaptchaProviderResponse {
 }
 
 /// Middleware that verifies a CAPTCHA token unless a valid master API key is present.
+#[tracing::instrument(skip(state, req, next))]
 pub async fn verify_captcha_token(
     State(state): State<AppState>,
     req: Request,

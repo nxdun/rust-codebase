@@ -1,0 +1,31 @@
+$kind: http-request
+name: 08. Clear Cart
+url: "{{base_url}}/api/v1/malee/action"
+method: POST
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "session_id": "{{malee_session_id}}",
+      "action": "clear_cart",
+      "payload": {}
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cart is empty', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData.cart).to.not.be.undefined;
+        pm.expect(jsonData.cart.items).to.be.an('array').that.is.empty;
+        pm.expect(jsonData.cart.item_count).to.equal(0);
+      });
+    language: text/javascript
+order: 8

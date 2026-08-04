@@ -10,6 +10,7 @@ headers:
     disabled: true
   - key: x-api-key
     value: "{{api_key}}"
+    disabled: true
 body:
   type: json
   content: |-

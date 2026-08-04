@@ -251,3 +251,16 @@ variable "DOMAIN_SERVICES_DASHBOARD_URL" {
   type        = string
 }
 
+variable "MALEE_LLM_POOL" {
+  //VAR: Expected to be set via root .env as TF_VAR_MALEE_LLM_POOL. never Declare
+  description = "LLM Pool for Malee"
+  type        = string
+}
+
+variable "MALEE_CONNECTOR_URL" {
+  //SECRET: Expected to be set via root TF_VAR_MALEE_CONNECTOR_URL. never Declare
+  description = "Connector URL for Malee"
+  type        = string
+  sensitive   = true
+}
+

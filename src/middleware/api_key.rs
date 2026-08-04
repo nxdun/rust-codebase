@@ -18,6 +18,7 @@ pub fn has_valid_master_api_key(headers: &HeaderMap, config: &AppConfig) -> bool
 }
 
 /// Middleware that requires a valid master API key to be present in the headers.
+#[tracing::instrument(skip(state, req, next))]
 pub async fn require_api_key(
     State(state): State<AppState>,
     req: Request,

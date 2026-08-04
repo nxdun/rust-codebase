@@ -28,6 +28,7 @@ use crate::{
 };
 
 /// Enqueues a new download job.
+#[tracing::instrument(skip(state, payload))]
 pub async fn create_download_job(
     State(state): State<AppState>,
     ValidatedJson(payload): ValidatedJson<YtdlpDownloadRequest>,
@@ -45,6 +46,7 @@ pub async fn create_download_job(
 }
 
 /// Retrieves a specific download job by ID.
+#[tracing::instrument(skip(state))]
 pub async fn get_download_job(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -58,6 +60,7 @@ pub async fn get_download_job(
 }
 
 /// Lists all current download jobs.
+#[tracing::instrument(skip(state))]
 pub async fn list_download_jobs(
     State(state): State<AppState>,
 ) -> Result<impl IntoResponse, AppError> {
@@ -76,6 +79,7 @@ pub async fn list_download_jobs(
 
 /// Streams progress of a download job via SSE.
 #[allow(clippy::too_many_lines)]
+#[tracing::instrument(skip(state, req))]
 pub async fn stream_download_progress(
     State(state): State<AppState>,
     Path(id): Path<String>,
@@ -207,6 +211,7 @@ pub async fn stream_download_progress(
 }
 
 /// Returns a list of supported sites by yt-dlp.
+#[tracing::instrument]
 pub async fn get_supported_sites() -> Result<impl IntoResponse, AppError> {
     let file_path = PathBuf::from("/home/app/sites.txt");
     tokio::fs::read_to_string(&file_path).await.map_or_else(
@@ -226,6 +231,7 @@ pub async fn get_supported_sites() -> Result<impl IntoResponse, AppError> {
 }
 
 /// Downloads the resulting file of a completed job.
+#[tracing::instrument(skip(state, req))]
 pub async fn download_file(
     State(state): State<AppState>,
     Path(id): Path<String>,

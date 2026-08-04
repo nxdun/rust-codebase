@@ -5,7 +5,7 @@ use crate::{
         rate_limit::{RateLimiters, enforce_tiered_rate_limit, log_rate_limit_mode},
     },
     routes,
-    services::ytdlp::YtdlpManager,
+    services::{malee::MaleeService, ytdlp::YtdlpManager},
     state::AppState,
     telemetry,
 };
@@ -53,12 +53,15 @@ pub async fn run() {
             config.github_graphql_url.clone(),
         ));
 
+    let malee_service = Arc::new(MaleeService::new(&config, &http_client));
+
     let state = AppState {
         config: config.clone(),
         ytdlp_manager,
         rate_limiters,
-        http_client,
+        http_client: http_client.clone(),
         contributions_service,
+        malee_service,
     };
 
     // 5. Build middleware layers (compression + CORS)

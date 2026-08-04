@@ -11,6 +11,8 @@ mod contributions_tests;
 mod cors_tests;
 #[path = "api/health_tests.rs"]
 mod health_tests;
+#[path = "api/malee_tests.rs"]
+mod malee_tests;
 #[path = "api/rate_limit_tests.rs"]
 mod rate_limit_tests;
 #[path = "api/root_tests.rs"]

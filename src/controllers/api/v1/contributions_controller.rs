@@ -14,6 +14,7 @@ pub struct ContributionsQuery {
 
 /// Retrieves GitHub contributions for a specific user.
 /// Defaults to the configured system user if none is provided.
+#[tracing::instrument(skip(state))]
 pub async fn get_contributions(
     State(state): State<AppState>,
     Query(query): Query<ContributionsQuery>,

@@ -1,0 +1,33 @@
+$kind: http-request
+name: 02. Set Quantity
+url: "{{base_url}}/api/v1/malee/action"
+method: POST
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "session_id": "{{malee_session_id}}",
+      "action": "set_quantity",
+      "payload": {
+        "product_id": "cake00ka002034",
+        "quantity": 3
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+      pm.test('Quantity is updated', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData.cart).to.not.be.undefined;
+        pm.expect(jsonData.cart.item_count).to.equal(3);
+      });
+    language: text/javascript
+order: 2

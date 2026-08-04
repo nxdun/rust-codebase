@@ -1,0 +1,21 @@
+$kind: http-request
+name: Malee Get Profile
+url: "{{base_url}}/api/v1/malee/session/{{malee_session_id}}/profile"
+method: GET
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Response has profile details', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData).to.have.property('session_id');
+        pm.expect(jsonData).to.have.property('profile');
+      });
+    language: text/javascript
+order: 3003

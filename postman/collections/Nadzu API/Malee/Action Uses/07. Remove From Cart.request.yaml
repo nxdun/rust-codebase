@@ -1,0 +1,35 @@
+$kind: http-request
+name: 07. Remove From Cart
+url: "{{base_url}}/api/v1/malee/action"
+method: POST
+headers:
+  - key: x-api-key
+    value: "{{api_key}}"
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: |-
+    {
+      "session_id": "{{malee_session_id}}",
+      "action": "remove_from_cart",
+      "payload": {
+        "product_id": "cake00ka002034"
+      }
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status is 200', function () { 
+        pm.response.to.have.status(200);
+      });
+      pm.test('Cart is empty or item removed', function () {
+        var jsonData = pm.response.json();
+        pm.expect(jsonData.cart).to.not.be.undefined;
+        var itemExists = jsonData.cart.items.some(function(item) {
+          return item.product_id === "cake00ka002034";
+        });
+        pm.expect(itemExists).to.be.false;
+      });
+    language: text/javascript
+order: 7
